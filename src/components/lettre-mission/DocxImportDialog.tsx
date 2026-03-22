@@ -667,14 +667,14 @@ export default function DocxImportDialog({
                       <Badge className="text-[9px] bg-green-500/10 text-green-400 border border-green-500/20">
                         CGV détectées dans le document
                       </Badge>
-                      <p className="text-xs text-slate-400 whitespace-pre-line line-clamp-10">
+                      <p className="text-xs text-slate-600 dark:text-slate-400 whitespace-pre-line line-clamp-10">
                         {cgvContent.slice(0, 1000)}
                         {cgvContent.length > 1000 ? "…" : ""}
                       </p>
                     </div>
                   ) : (
                     <div className="text-center py-6">
-                      <p className="text-xs text-slate-400">Aucune CGV détectée — les CGV GRIMY par défaut seront utilisées</p>
+                      <p className="text-xs text-slate-600 dark:text-slate-400">Aucune CGV détectée — les CGV GRIMY par défaut seront utilisées</p>
                     </div>
                   )}
                 </div>
@@ -710,7 +710,7 @@ export default function DocxImportDialog({
             {effectiveVars.length === 0 ? (
               <div className="text-center py-8">
                 <Variable className="h-10 w-10 mx-auto mb-3 text-slate-300 dark:text-slate-600" />
-                <p className="text-sm text-slate-400">Aucune variable de publipostage détectée.</p>
+                <p className="text-sm text-slate-600 dark:text-slate-400">Aucune variable de publipostage détectée.</p>
                 <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
                   Le document semble être une lettre finalisée.
                 </p>
@@ -722,7 +722,7 @@ export default function DocxImportDialog({
                     if (vars.length === 0) return null;
                     return (
                       <div key={groupKey}>
-                        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                        <p className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-2">
                           {GROUP_LABELS[groupKey] || groupKey} ({vars.length})
                         </p>
                         <div className="space-y-1.5">
@@ -743,11 +743,11 @@ export default function DocxImportDialog({
                                    v.original}
                                 </code>
                                 {v.count > 1 && (
-                                  <span className="text-[9px] text-slate-400">×{v.count}</span>
+                                  <span className="text-[9px] text-slate-600 dark:text-slate-400">×{v.count}</span>
                                 )}
                               </div>
 
-                              <ArrowRight className="h-3 w-3 text-slate-300 shrink-0" />
+                              <ArrowRight className="h-3 w-3 text-slate-700 dark:text-slate-300 shrink-0" />
 
                               {/* Mapped GRIMY variable */}
                               <Select
@@ -761,7 +761,7 @@ export default function DocxImportDialog({
                                 </SelectTrigger>
                                 <SelectContent>
                                   <SelectItem value="__ignore__">
-                                    <span className="text-slate-400">Ignorer</span>
+                                    <span className="text-slate-600 dark:text-slate-400">Ignorer</span>
                                   </SelectItem>
                                   {grimyVarOptions.map((opt) => (
                                     <SelectItem key={opt.value} value={opt.value}>
@@ -803,7 +803,7 @@ export default function DocxImportDialog({
         {!createdModele && step === "confirm" && (
           <div className="flex-1 space-y-4 py-2">
             <div className="space-y-1.5">
-              <Label className="text-xs text-slate-400">Nom du modèle</Label>
+              <Label className="text-xs text-slate-600 dark:text-slate-400">Nom du modèle</Label>
               <Input
                 value={modeleName}
                 onChange={(e) => setModeleName(e.target.value)}
@@ -814,7 +814,7 @@ export default function DocxImportDialog({
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs text-slate-400">Type de client</Label>
+              <Label className="text-xs text-slate-600 dark:text-slate-400">Type de client</Label>
               <Select value={clientType} onValueChange={(val) => {
                 setClientType(val);
                 const ct = CLIENT_TYPES[val];
@@ -826,7 +826,7 @@ export default function DocxImportDialog({
                 <SelectContent>
                   {CLIENT_TYPE_CATEGORIES.map((cat) => (
                     <SelectGroup key={cat.category}>
-                      <SelectLabel className="text-[10px] text-slate-400">{cat.label}</SelectLabel>
+                      <SelectLabel className="text-[10px] text-slate-600 dark:text-slate-400">{cat.label}</SelectLabel>
                       {cat.types.map((tId) => {
                         const config = CLIENT_TYPES[tId];
                         if (!config) return null;
@@ -843,7 +843,7 @@ export default function DocxImportDialog({
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs text-slate-400">Description (optionnel)</Label>
+              <Label className="text-xs text-slate-600 dark:text-slate-400">Description (optionnel)</Label>
               <Textarea
                 value={modeleDescription}
                 onChange={(e) => setModeleDescription(e.target.value)}
@@ -864,21 +864,21 @@ export default function DocxImportDialog({
             <div className="rounded-xl border border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] p-4 space-y-2">
               <p className="text-sm font-medium text-slate-900 dark:text-white">Résumé de l'import</p>
               <div className="grid grid-cols-2 gap-y-1.5 gap-x-4 text-xs">
-                <span className="text-slate-400">Sections :</span>
+                <span className="text-slate-600 dark:text-slate-400">Sections :</span>
                 <span className="text-slate-700 dark:text-slate-300">{sections.length}</span>
-                <span className="text-slate-400">CNOEC couvertes :</span>
+                <span className="text-slate-600 dark:text-slate-400">CNOEC couvertes :</span>
                 <span className="text-slate-700 dark:text-slate-300">{cnoecCovered}/{cnoecTotal}</span>
-                <span className="text-slate-400">Variables mappées :</span>
+                <span className="text-slate-600 dark:text-slate-400">Variables mappées :</span>
                 <span className="text-slate-700 dark:text-slate-300">
                   {parsed ? `${mappedVarCount}/${effectiveVars.length}` : '—'}
                 </span>
-                <span className="text-slate-400">CGV :</span>
+                <span className="text-slate-600 dark:text-slate-400">CGV :</span>
                 <span className="text-slate-700 dark:text-slate-300">{cgvContent ? "Détectées" : "GRIMY par défaut"}</span>
-                <span className="text-slate-400">Source :</span>
+                <span className="text-slate-600 dark:text-slate-400">Source :</span>
                 <span className="text-slate-700 dark:text-slate-300 truncate">{fileName} ({formatFileSize(fileSize)})</span>
                 {parsed?.metadata.language && parsed.metadata.language !== 'unknown' && (
                   <>
-                    <span className="text-slate-400">Langue :</span>
+                    <span className="text-slate-600 dark:text-slate-400">Langue :</span>
                     <span className="text-slate-700 dark:text-slate-300">{parsed.metadata.language === 'fr' ? 'Français' : 'Anglais'}</span>
                   </>
                 )}

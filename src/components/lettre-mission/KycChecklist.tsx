@@ -104,7 +104,7 @@ export default function KycChecklist({
                 <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
               )}
               {status === "missing" && (
-                <Circle className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                <Circle className="h-4 w-4 text-gray-600 dark:text-gray-400 flex-shrink-0" />
               )}
               {status === "expired" && (
                 <AlertTriangle className="h-4 w-4 text-amber-500 flex-shrink-0" />
@@ -115,7 +115,7 @@ export default function KycChecklist({
                     ? "text-gray-700"
                     : status === "expired"
                       ? "text-amber-700"
-                      : "text-gray-500"
+                      : "text-gray-600 dark:text-gray-500"
                 }
               >
                 {doc.label}
@@ -126,7 +126,7 @@ export default function KycChecklist({
                 </span>
               )}
               {status === "missing" && (
-                <span className="text-xs text-gray-400 ml-auto">
+                <span className="text-xs text-gray-600 dark:text-gray-400 ml-auto">
                   À fournir
                 </span>
               )}
@@ -134,7 +134,7 @@ export default function KycChecklist({
                 <span className="text-xs text-amber-500 ml-auto">Expiré</span>
               )}
               {detail && (
-                <span className="text-xs text-gray-400 ml-1">({detail})</span>
+                <span className="text-xs text-gray-600 dark:text-gray-400 ml-1">({detail})</span>
               )}
             </div>
           );

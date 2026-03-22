@@ -3554,7 +3554,7 @@ export default function NouveauClientPage() {
                       </div>
                       <div className="flex items-center gap-1">
                         {/* OPTIM 7 — Dupliquer */}
-                        <Button variant="ghost" size="sm" onClick={e => { e.stopPropagation(); setBeneficiaires(prev => [...prev, { ...prev[i], nom: "", prenom: "" }]); }} className="text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 h-7 w-7 p-0" title="Dupliquer">
+                        <Button variant="ghost" size="sm" onClick={e => { e.stopPropagation(); setBeneficiaires(prev => [...prev, { ...prev[i], nom: "", prenom: "" }]); }} className="text-slate-600 dark:text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 h-7 w-7 p-0" title="Dupliquer">
                           <Copy className="w-3.5 h-3.5" />
                         </Button>
                         <Button variant="ghost" size="sm" onClick={e => { e.stopPropagation(); removeBeneficiaire(i); }} className="text-red-400 hover:text-red-300 hover:bg-red-500/10 h-7 w-7 p-0 transition-all hover:scale-110">
@@ -3676,7 +3676,7 @@ export default function NouveauClientPage() {
                             {b.ppe && <span className="text-[11px] px-2 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 font-medium">PPE &rarr; Vigilance renforcee auto</span>}
                           </div>
                           <div className="flex items-center gap-2">
-                            <Link2 className="w-3.5 h-3.5 text-slate-400" />
+                            <Link2 className="w-3.5 h-3.5 text-slate-600 dark:text-slate-400" />
                             <Label className="text-xs text-slate-500 dark:text-slate-400">Lien</Label>
                             <select
                               value={b.lienFamilial || "Aucun"}
@@ -3712,7 +3712,7 @@ export default function NouveauClientPage() {
                     <div className="flex items-center gap-2 mb-2">
                       <Building2 className="w-3.5 h-3.5 text-violet-400" />
                       <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">{pm.denomination}</span>
-                      <span className="text-[9px] text-slate-400 font-mono">SIREN {pm.siren}</span>
+                      <span className="text-[9px] text-slate-600 dark:text-slate-400 font-mono">SIREN {pm.siren}</span>
                     </div>
                     {pm.beneficiaires.length > 0 ? (
                       <div className="ml-6 space-y-1">
@@ -3721,7 +3721,7 @@ export default function NouveauClientPage() {
                             <span className="text-violet-400">↳</span>
                             <User className="w-3 h-3 text-orange-400" />
                             <span className="text-slate-700 dark:text-slate-200">{b.prenom} {b.nom}</span>
-                            <span className="text-slate-400">({b.pourcentage_parts ?? 0}%)</span>
+                            <span className="text-slate-600 dark:text-slate-400">({b.pourcentage_parts ?? 0}%)</span>
                             <Badge className="text-[7px] bg-orange-500/10 text-orange-400 border-0">BE indirect</Badge>
                           </div>
                         ))}
@@ -3734,16 +3734,16 @@ export default function NouveauClientPage() {
                             <span className="text-violet-400">↳</span>
                             <User className="w-3 h-3 text-amber-400" />
                             <span className="text-slate-700 dark:text-slate-200">{d.prenom} {d.nom}</span>
-                            <span className="text-slate-400">({d.qualite})</span>
+                            <span className="text-slate-600 dark:text-slate-400">({d.qualite})</span>
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <p className="ml-6 text-[9px] text-slate-500">Aucune information disponible sur les BE de cette holding</p>
+                      <p className="ml-6 text-[9px] text-slate-600 dark:text-slate-500">Aucune information disponible sur les BE de cette holding</p>
                     )}
                   </div>
                 ))}
-                <p className="text-[8px] text-slate-500 mt-2 italic">Identification des beneficiaires effectifs indirects conformement a l'article L.561-2-2 du Code monetaire et financier</p>
+                <p className="text-[8px] text-slate-600 dark:text-slate-500 mt-2 italic">Identification des beneficiaires effectifs indirects conformement a l'article L.561-2-2 du Code monetaire et financier</p>
               </div>
             )}
           </div>
@@ -4239,7 +4239,7 @@ export default function NouveauClientPage() {
               </div>
               <div className="flex items-center gap-3">
                 {/* Item 48: Print button */}
-                <Button variant="ghost" size="sm" className="text-xs text-slate-400 hover:text-slate-300 h-7 px-2 print:hidden" onClick={() => window.print()}>
+                <Button variant="ghost" size="sm" className="text-xs text-slate-600 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 h-7 px-2 print:hidden" onClick={() => window.print()}>
                   <Printer className="w-3 h-3 mr-1" /> Imprimer
                 </Button>
                 {/* FIX 38: Refresh documents button */}
@@ -4308,7 +4308,7 @@ export default function NouveauClientPage() {
                       <VigilanceBadge niveau={risk.nivVigilance} />
                     </div>
                     {/* R2-40: Edit button to go back to scoring */}
-                    <button onClick={() => setStep(4)} className="ml-auto text-[10px] text-slate-400 hover:text-blue-400 flex items-center gap-1 px-2 py-1 rounded hover:bg-blue-500/10 transition-colors">
+                    <button onClick={() => setStep(4)} className="ml-auto text-[10px] text-slate-600 dark:text-slate-400 hover:text-blue-400 flex items-center gap-1 px-2 py-1 rounded hover:bg-blue-500/10 transition-colors">
                       <Pencil className="w-3 h-3" /> Modifier
                     </button>
                   </div>
@@ -4334,7 +4334,7 @@ export default function NouveauClientPage() {
                           </p>
                         </div>
                         {/* R2-40: Discrete edit button per info */}
-                        <button onClick={() => setStep(item.step)} className="opacity-0 group-hover/recap:opacity-100 text-slate-300 hover:text-blue-400 transition-all p-0.5 rounded">
+                        <button onClick={() => setStep(item.step)} className="opacity-0 group-hover/recap:opacity-100 text-slate-700 dark:text-slate-300 hover:text-blue-400 transition-all p-0.5 rounded">
                           <Pencil className="w-2.5 h-2.5" />
                         </button>
                       </div>
@@ -4349,9 +4349,9 @@ export default function NouveauClientPage() {
                           const isPPE = screening.sanctions.data?.matches?.some(m => m.isPPE && (m.person || "").toUpperCase().includes((d.nom || "").toUpperCase()));
                           return (
                             <div key={i} className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-gray-50 dark:bg-white/[0.03] border border-gray-100 dark:border-white/[0.04] text-[10px]">
-                              <User className="w-3 h-3 text-slate-400" />
+                              <User className="w-3 h-3 text-slate-600 dark:text-slate-400" />
                               <span className="text-slate-700 dark:text-slate-300">{d.prenom} {d.nom}</span>
-                              {d.qualite && <span className="text-slate-400">({d.qualite})</span>}
+                              {d.qualite && <span className="text-slate-600 dark:text-slate-400">({d.qualite})</span>}
                               {isPPE && <Badge className="text-[7px] bg-red-500/20 text-red-400 border-0 px-1">PPE</Badge>}
                             </div>
                           );
@@ -4370,7 +4370,7 @@ export default function NouveauClientPage() {
                             <div className="flex-1 h-1.5 bg-gray-100 dark:bg-white/[0.04] rounded-full overflow-hidden">
                               <div className="h-full bg-blue-400 rounded-full transition-all" style={{ width: `${Math.min(Number(b.pourcentage) || 0, 100)}%` }} />
                             </div>
-                            <span className="text-slate-500 tabular-nums w-8 text-right">{Number(b.pourcentage) || 0}%</span>
+                            <span className="text-slate-600 dark:text-slate-500 tabular-nums w-8 text-right">{Number(b.pourcentage) || 0}%</span>
                           </div>
                         ))}
                       </div>
@@ -4531,7 +4531,7 @@ export default function NouveauClientPage() {
                               {!item.found && <p className="text-[8px] text-orange-400 mt-0.5">Cliquez pour uploader</p>}
                               {/* R2-35: Expiration date for Kbis */}
                               {kbisExpiry && (
-                                <p className={`text-[8px] mt-0.5 ${kbisExpiry.expired ? "text-red-400 font-medium" : "text-slate-400"}`}>
+                                <p className={`text-[8px] mt-0.5 ${kbisExpiry.expired ? "text-red-400 font-medium" : "text-slate-600 dark:text-slate-400"}`}>
                                   {kbisExpiry.expired ? `Expire le ${formatDateFr(kbisExpiry.date, "short")}` : `Valide jusqu'au ${formatDateFr(kbisExpiry.date, "short")}`}
                                 </p>
                               )}
@@ -4699,7 +4699,7 @@ export default function NouveauClientPage() {
                   <h3 className="text-xs font-semibold text-slate-700 dark:text-slate-300">Extrait Kbis / RNE</h3>
                   {(screening.inpi.data?.documents ?? []).some(d => d.type?.toLowerCase() === "kbis" && (d.storedInSupabase || d.url)) && <Badge className="text-[8px] bg-emerald-500/15 text-emerald-400 border-0">Disponible</Badge>}
                 </div>
-                <ChevronDown className="w-4 h-4 text-slate-400" />
+                <ChevronDown className="w-4 h-4 text-slate-600 dark:text-slate-400" />
               </CollapsibleTrigger>
               <CollapsibleContent className="mt-2">
             {/* SECTION 1: Extrait RNE / Kbis — affiché en premier car c'est le doc le plus important */}
@@ -4837,7 +4837,7 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                               <Eye className="w-3.5 h-3.5" /> {isHtml ? "Ouvrir" : "Voir"}
                             </button>
                             <a href={doc.url} target="_blank" rel="noopener noreferrer"
-                              className="text-xs text-slate-400 hover:text-blue-400 p-1.5 rounded-lg hover:bg-blue-500/10 transition-colors"
+                              className="text-xs text-slate-600 dark:text-slate-400 hover:text-blue-400 p-1.5 rounded-lg hover:bg-blue-500/10 transition-colors"
                               title="Ouvrir dans un nouvel onglet">
                               <ExternalLink className="w-3.5 h-3.5" />
                             </a>
@@ -4860,7 +4860,7 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                   <h3 className="text-xs font-semibold text-slate-700 dark:text-slate-300">Documents collectes</h3>
                   <Badge className="text-[9px] bg-gray-100 dark:bg-white/[0.06] text-slate-500 dark:text-slate-400 border-0">{((screening.inpi.data?.documents ?? []).length + (screening.documents.data?.documents ?? []).length) || 0}</Badge>
                 </div>
-                <ChevronDown className="w-4 h-4 text-slate-400" />
+                <ChevronDown className="w-4 h-4 text-slate-600 dark:text-slate-400" />
               </CollapsibleTrigger>
               <CollapsibleContent className="mt-2">
             {/* SECTION 2: Statuts & Actes INPI recuperes */}
@@ -4997,7 +4997,7 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                     <div className="flex items-center gap-1.5">
                       {/* R2-12: Search */}
                       <div className="relative">
-                        <Search className="w-3 h-3 absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <Search className="w-3 h-3 absolute left-2 top-1/2 -translate-y-1/2 text-slate-600 dark:text-slate-400" />
                         <input
                           type="text" value={docSearchQuery} onChange={e => setDocSearchQuery(e.target.value)}
                           placeholder="Rechercher..."
@@ -5006,7 +5006,7 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                       </div>
                       {/* R2-10: Sort toggle */}
                       <button onClick={() => setDocSortMode(m => m === "date" ? "type" : "date")}
-                        className="text-[10px] text-slate-400 hover:text-blue-400 px-2 py-1 rounded-md hover:bg-blue-500/10 transition-colors flex items-center gap-1">
+                        className="text-[10px] text-slate-600 dark:text-slate-400 hover:text-blue-400 px-2 py-1 rounded-md hover:bg-blue-500/10 transition-colors flex items-center gap-1">
                         {docSortMode === "date" ? <SortDesc className="w-3 h-3" /> : <SortAsc className="w-3 h-3" />}
                         {docSortMode === "date" ? "Par date" : "Par type"}
                       </button>
@@ -5016,7 +5016,7 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                           if (selectedDocIndices.size === allVisibleDocs.length) setSelectedDocIndices(new Set());
                           else setSelectedDocIndices(new Set(allVisibleDocs.map((_, i) => i)));
                         }}
-                          className="text-[10px] text-slate-400 hover:text-blue-400 px-2 py-1 rounded-md hover:bg-blue-500/10 transition-colors flex items-center gap-1">
+                          className="text-[10px] text-slate-600 dark:text-slate-400 hover:text-blue-400 px-2 py-1 rounded-md hover:bg-blue-500/10 transition-colors flex items-center gap-1">
                           {selectedDocIndices.size === allVisibleDocs.length ? <CheckSquare className="w-3 h-3" /> : <Square className="w-3 h-3" />}
                           {selectedDocIndices.size > 0 ? `${selectedDocIndices.size} sel.` : "Selectionner"}
                         </button>
@@ -5106,7 +5106,7 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                                 const next = new Set(prev);
                                 if (next.has(globalIdx)) next.delete(globalIdx); else next.add(globalIdx);
                                 return next;
-                              })} className="mr-2 shrink-0 text-slate-400 hover:text-blue-400">
+                              })} className="mr-2 shrink-0 text-slate-600 dark:text-slate-400 hover:text-blue-400">
                                 {isSelected ? <CheckSquare className="w-4 h-4 text-blue-400" /> : <Square className="w-4 h-4" />}
                               </button>
                               <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -5118,7 +5118,7 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                                 <div className="min-w-0">
                                   {/* R2-16: Numbered label */}
                                   <p className="text-sm text-slate-800 dark:text-slate-200 truncate max-w-[350px]">
-                                    <span className="text-[10px] text-slate-400 mr-1">{docNum}.</span>
+                                    <span className="text-[10px] text-slate-600 dark:text-slate-400 mr-1">{docNum}.</span>
                                     {cleanLabel(doc.label)}
                                   </p>
                                   <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
@@ -5146,7 +5146,7 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                                     <Eye className="w-3 h-3" /> Voir
                                   </button>
                                   <a href={doc.url} target="_blank" rel="noopener noreferrer"
-                                    className="text-slate-400 hover:text-blue-400 p-1.5 rounded-lg hover:bg-blue-500/10 transition-colors opacity-60 group-hover:opacity-100"
+                                    className="text-slate-600 dark:text-slate-400 hover:text-blue-400 p-1.5 rounded-lg hover:bg-blue-500/10 transition-colors opacity-60 group-hover:opacity-100"
                                     title="Ouvrir dans un nouvel onglet">
                                     <ExternalLink className="w-3 h-3" />
                                   </a>
@@ -5244,7 +5244,7 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                   <BarChart3 className="w-4 h-4 text-amber-400" />
                   <h3 className="text-xs font-semibold text-slate-700 dark:text-slate-300">Donnees financieres</h3>
                 </div>
-                <ChevronDown className="w-4 h-4 text-slate-400" />
+                <ChevronDown className="w-4 h-4 text-slate-600 dark:text-slate-400" />
               </CollapsibleTrigger>
               <CollapsibleContent className="mt-2 space-y-4">
             {/* Donnees financieres — improved formatting */}
@@ -5456,7 +5456,7 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                   <Upload className="w-4 h-4 text-violet-400" />
                   <h3 className="text-xs font-semibold text-slate-700 dark:text-slate-300">Ajouter des documents manuellement</h3>
                 </div>
-                <ChevronDown className="w-4 h-4 text-slate-400" />
+                <ChevronDown className="w-4 h-4 text-slate-600 dark:text-slate-400" />
               </CollapsibleTrigger>
               <CollapsibleContent className="mt-2">
 
@@ -5546,25 +5546,25 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
                   {/* R2-7: Zoom controls */}
-                  <button onClick={() => setPreviewZoom(z => Math.max(50, z - 25))} className="zoom-btn text-slate-500" title="Zoom -"><ZoomOut className="w-3.5 h-3.5" /></button>
-                  <span className="text-[10px] text-slate-400 tabular-nums w-8 text-center">{previewZoom}%</span>
-                  <button onClick={() => setPreviewZoom(z => Math.min(200, z + 25))} className="zoom-btn text-slate-500" title="Zoom +"><ZoomIn className="w-3.5 h-3.5" /></button>
+                  <button onClick={() => setPreviewZoom(z => Math.max(50, z - 25))} className="zoom-btn text-slate-600 dark:text-slate-500" title="Zoom -"><ZoomOut className="w-3.5 h-3.5" /></button>
+                  <span className="text-[10px] text-slate-600 dark:text-slate-400 tabular-nums w-8 text-center">{previewZoom}%</span>
+                  <button onClick={() => setPreviewZoom(z => Math.min(200, z + 25))} className="zoom-btn text-slate-600 dark:text-slate-500" title="Zoom +"><ZoomIn className="w-3.5 h-3.5" /></button>
                   {/* R2-8: Fullscreen */}
                   <button onClick={() => {
                     const iframe = document.querySelector<HTMLIFrameElement>('[data-preview-iframe]');
                     if (iframe) iframe.requestFullscreen?.();
-                  }} className="zoom-btn text-slate-500" title="Plein ecran"><Maximize className="w-3.5 h-3.5" /></button>
+                  }} className="zoom-btn text-slate-600 dark:text-slate-500" title="Plein ecran"><Maximize className="w-3.5 h-3.5" /></button>
                   <div className="w-px h-5 bg-gray-200 dark:bg-white/[0.06] mx-1" />
                   <a href={previewDoc.url} target="_blank" rel="noopener noreferrer"
-                    className="text-xs text-slate-500 hover:text-blue-400 flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-blue-500/10 transition-colors">
+                    className="text-xs text-slate-600 dark:text-slate-500 hover:text-blue-400 flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-blue-500/10 transition-colors">
                     <ExternalLink className="w-3.5 h-3.5" /> Nouvel onglet
                   </a>
                   <a href={previewDoc.url} download
-                    className="text-xs text-slate-500 hover:text-emerald-400 flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-emerald-500/10 transition-colors">
+                    className="text-xs text-slate-600 dark:text-slate-500 hover:text-emerald-400 flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-emerald-500/10 transition-colors">
                     <Download className="w-3.5 h-3.5" /> Telecharger
                   </a>
                   <button onClick={() => { setPreviewDoc(null); setPreviewZoom(100); }}
-                    className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors">
+                    className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-600 dark:text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors">
                     <X className="w-4 h-4" />
                   </button>
                 </div>
@@ -5601,7 +5601,7 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                     className={`text-xs flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors ${canPrev ? "text-slate-600 dark:text-slate-300 hover:bg-blue-500/10 hover:text-blue-400" : "text-slate-300 dark:text-slate-600 cursor-not-allowed"}`}>
                     <ChevronLeft className="w-3.5 h-3.5" /> Precedent
                   </button>
-                  <span className="text-[10px] text-slate-400">Fleches ← → pour naviguer</span>
+                  <span className="text-[10px] text-slate-600 dark:text-slate-400">Fleches ← → pour naviguer</span>
                   <button disabled={!canNext} onClick={() => goToDoc(currentIdx + 1)}
                     className={`text-xs flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors ${canNext ? "text-slate-600 dark:text-slate-300 hover:bg-blue-500/10 hover:text-blue-400" : "text-slate-300 dark:text-slate-600 cursor-not-allowed"}`}>
                     Suivant <ChevronRight className="w-3.5 h-3.5" />

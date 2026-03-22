@@ -345,7 +345,7 @@ export default function CabinetConfigForm() {
                   <img src={config.logo} alt="Logo" className="h-16 w-16 object-contain" />
                 ) : (
                   <div className="h-16 w-16 rounded bg-gray-100 flex items-center justify-center">
-                    <Building2 className="h-8 w-8 text-gray-300" />
+                    <Building2 className="h-8 w-8 text-gray-700 dark:text-gray-300" />
                   </div>
                 )}
                 <div>

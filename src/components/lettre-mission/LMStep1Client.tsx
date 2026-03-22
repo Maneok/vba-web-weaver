@@ -227,7 +227,7 @@ export default function LMStep1Client({ data, onChange }: Props) {
 
           <Button
             variant="outline"
-            className="w-full gap-2 border-dashed border-gray-200 dark:border-white/[0.06] text-slate-400 hover:text-blue-500 hover:bg-blue-50/50 dark:hover:bg-blue-500/5 hover:border-blue-200 dark:hover:border-blue-500/20 h-11"
+            className="w-full gap-2 border-dashed border-gray-200 dark:border-white/[0.06] text-slate-600 dark:text-slate-400 hover:text-blue-500 hover:bg-blue-50/50 dark:hover:bg-blue-500/5 hover:border-blue-200 dark:hover:border-blue-500/20 h-11"
             onClick={() => navigate("/nouveau-client")}
             aria-label="Creer un nouveau client"
           >
@@ -355,7 +355,7 @@ export default function LMStep1Client({ data, onChange }: Props) {
                 <div className="grid grid-cols-2 gap-3">
                   {/* Régime fiscal */}
                   <div className="space-y-1.5">
-                    <Label className="text-xs text-slate-500">Régime fiscal</Label>
+                    <Label className="text-xs text-slate-600 dark:text-slate-500">Régime fiscal</Label>
                     <Select
                       value={data.regime_fiscal}
                       onValueChange={(v) => onChange({ regime_fiscal: v })}
@@ -377,7 +377,7 @@ export default function LMStep1Client({ data, onChange }: Props) {
 
                   {/* Effectif */}
                   <div className="space-y-1.5">
-                    <Label className="text-xs text-slate-500">Effectif</Label>
+                    <Label className="text-xs text-slate-600 dark:text-slate-500">Effectif</Label>
                     <Input
                       type="number"
                       min={0}
@@ -390,7 +390,7 @@ export default function LMStep1Client({ data, onChange }: Props) {
 
                   {/* TVA */}
                   <div className="flex items-center justify-between col-span-1">
-                    <Label className="text-xs text-slate-500">Assujetti TVA</Label>
+                    <Label className="text-xs text-slate-600 dark:text-slate-500">Assujetti TVA</Label>
                     <Switch
                       checked={data.tva_assujetti}
                       onCheckedChange={(v) => onChange({ tva_assujetti: v })}
@@ -399,7 +399,7 @@ export default function LMStep1Client({ data, onChange }: Props) {
 
                   {/* CAC */}
                   <div className="flex items-center justify-between col-span-1">
-                    <Label className="text-xs text-slate-500">CAC désigné</Label>
+                    <Label className="text-xs text-slate-600 dark:text-slate-500">CAC désigné</Label>
                     <Switch
                       checked={data.cac}
                       onCheckedChange={(v) => onChange({ cac: v })}
@@ -408,7 +408,7 @@ export default function LMStep1Client({ data, onChange }: Props) {
 
                   {/* Volume comptable */}
                   <div className="space-y-1.5 col-span-2">
-                    <Label className="text-xs text-slate-500">Volume comptable</Label>
+                    <Label className="text-xs text-slate-600 dark:text-slate-500">Volume comptable</Label>
                     <Input
                       value={data.volume_comptable}
                       onChange={(e) => onChange({ volume_comptable: e.target.value })}
@@ -419,7 +419,7 @@ export default function LMStep1Client({ data, onChange }: Props) {
 
                   {/* Date de création */}
                   <div className="space-y-1.5">
-                    <Label className="text-xs text-slate-500">Date de création</Label>
+                    <Label className="text-xs text-slate-600 dark:text-slate-500">Date de création</Label>
                     <Input
                       type="date"
                       value={data.date_creation}
@@ -430,7 +430,7 @@ export default function LMStep1Client({ data, onChange }: Props) {
 
                   {/* Exercice début */}
                   <div className="space-y-1.5">
-                    <Label className="text-xs text-slate-500">Début exercice</Label>
+                    <Label className="text-xs text-slate-600 dark:text-slate-500">Début exercice</Label>
                     <Input
                       value={data.exercice_debut}
                       onChange={(e) => onChange({ exercice_debut: e.target.value })}
