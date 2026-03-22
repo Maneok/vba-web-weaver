@@ -389,6 +389,11 @@ const RenderCover: React.FC<{ data: LettreMissionPdfData; theme: PdfTheme }> = (
           <Text style={{ fontSize: 7.5, color: theme.border }}>
             SIRET {s(cabinet.siret)}{cabinet.oec_numero ? ` \u2014 OEC ${s(cabinet.oec_numero)}` : ""}
           </Text>
+          {(cabinet.email || cabinet.telephone) && (
+            <Text style={{ fontSize: 7.5, color: theme.border, marginTop: 1 }}>
+              {[cabinet.email, cabinet.telephone].filter(Boolean).join(" \u2014 ")}
+            </Text>
+          )}
         </View>
       </View>
 
