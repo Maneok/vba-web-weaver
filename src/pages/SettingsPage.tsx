@@ -18,24 +18,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatDateTimeFr } from "@/lib/dateUtils";
 import { logger } from "@/lib/logger";
 import { recalculateAllCabinetScores, clearScoringCache } from "@/lib/riskEngine";
-
-/** Retry dynamic import up to 2 times with a reload on final failure (handles stale deployments) */
-function lazyRetry<T extends { default: React.ComponentType<unknown> }>(
-  factory: () => Promise<T>,
-): Promise<T> {
-  return factory().catch(() =>
-    new Promise<T>((resolve) => setTimeout(resolve, 500)).then(() =>
-      factory().catch(() => {
-        const key = "chunk-reload-" + window.location.pathname;
-        if (!sessionStorage.getItem(key)) {
-          sessionStorage.setItem(key, "1");
-          window.location.reload();
-        }
-        return factory();
-      })
-    )
-  );
-}
+import { lazyRetry } from "@/lib/lazyWithRetry";
 
 const SubscriptionSettings = lazy(() => lazyRetry(() => import("@/components/settings/SubscriptionSettings")));
 const RefMissionsTab = lazy(() => lazyRetry(() => import("@/components/settings/RefMissionsTab")));
