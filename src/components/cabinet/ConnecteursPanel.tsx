@@ -36,9 +36,8 @@ type ConnecteurStatut = "connecte" | "deconnecte" | "erreur" | "degrade";
 const DEFAULT_CONNECTEURS = [
   { nom: "INPI RBE", type: "registre", description: "Registre National des Entreprises" },
   { nom: "Annuaire Entreprises", type: "registre", description: "API entreprise data.gouv.fr (gratuit)" },
-  { nom: "Pappers", type: "registre", description: "Enrichissement optionnel (telephone, email, finances) — Abonnement requis" },
-  { nom: "OpenSanctions", type: "sanctions", description: "Base sanctions internationales" },
   { nom: "BODACC", type: "registre", description: "Bulletin officiel des annonces civiles et commerciales" },
+  { nom: "OpenSanctions", type: "sanctions", description: "Base sanctions internationales" },
   { nom: "DG Tresor - Gel d'avoirs", type: "sanctions", description: "Liste nationale de gel des avoirs" },
   { nom: "Google Places", type: "verification", description: "Vérification d'adresses et géolocalisation" },
   { nom: "NewsAPI", type: "veille", description: "Veille médiatique automatisée" },
@@ -135,29 +134,15 @@ const API_TEST_MAP: Record<string, {
       detail: `${Array.isArray(d.articles) ? d.articles.length : 0} article(s)`,
     }),
   },
-  "Pappers": {
-    fn: "pappers-lookup",
-    payload: { mode: "siren", query: TEST_SIREN },
-    validate: (d) => ({
-      ok: !d.error,
-      degraded: d.source === "datagouv",
-      detail: d.source === "datagouv"
-        ? "Non souscrit — données publiques utilisées (optionnel)"
-        : (Array.isArray(d.results) && d.results.length > 0 && (d.results as Record<string, unknown>[])[0]?.raison_sociale as string) || "OK",
-    }),
-  },
   "Claude AI (Anthropic)": {
     fn: "ocr-document",
-    payload: {
-      test: true,
-      imageBase64: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
-    },
+    payload: { imageBase64: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==", mimeType: "image/png", mode: "auto" },
     validate: (d) => ({
-      ok: !d.error || d.error === "Non autorise" || (typeof d.error === "string" && d.error.includes("API")),
-      degraded: d.error === "Non autorise",
-      detail: d.error === "Non autorise" ? "Auth requise (normal en test)"
-        : d.error ? (d.error as string)
-        : d.text ? "Service disponible" : "OK",
+      ok: !d.error || !!d.extracted || !!d.document_type,
+      degraded: false,
+      detail: d.error
+        ? (d.error === "ANTHROPIC_API_KEY non configurée" ? "Clé API Anthropic manquante" : String(d.error).substring(0, 80))
+        : d.document_type ? `Type détecté: ${d.document_type}` : "OCR disponible",
     }),
   },
   "Annuaire Entreprises": {
