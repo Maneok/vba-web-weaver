@@ -11,24 +11,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import PageErrorBoundary from "@/components/PageErrorBoundary";
 import CookieBanner from "@/components/CookieBanner";
 import AuthPage from "@/pages/AuthPage";
-
-/** Retry dynamic import up to 2 times with a reload on final failure (handles stale deployments) */
-function lazyRetry<T extends { default: React.ComponentType<unknown> }>(
-  factory: () => Promise<T>,
-): Promise<T> {
-  return factory().catch(() =>
-    new Promise<T>((resolve) => setTimeout(resolve, 500)).then(() =>
-      factory().catch(() => {
-        const key = "chunk-reload-" + window.location.pathname;
-        if (!sessionStorage.getItem(key)) {
-          sessionStorage.setItem(key, "1");
-          window.location.reload();
-        }
-        return factory();
-      })
-    )
-  );
-}
+import { lazyRetry } from "@/lib/lazyWithRetry";
 
 // Lazy-loaded pages — code split per route (with retry for stale deployments)
 const DashboardPage = lazy(() => lazyRetry(() => import("@/pages/DashboardPage")));
@@ -58,8 +41,8 @@ const AuditTrailPage = lazy(() => lazyRetry(() => import("@/pages/AuditTrailPage
 const SuperAdminPage = lazy(() => lazyRetry(() => import("@/pages/SuperAdminPage")));
 const RevueMaintienPage = lazy(() => lazyRetry(() => import("@/pages/RevueMaintienPage")));
 const SignerPage = lazy(() => lazyRetry(() => import("@/pages/SignerPage")));
-const InvitePage = lazy(() => import("@/pages/InvitePage"));
-const NotFound = lazy(() => import("@/pages/NotFound"));
+const InvitePage = lazy(() => lazyRetry(() => import("@/pages/InvitePage")));
+const NotFound = lazy(() => lazyRetry(() => import("@/pages/NotFound")));
 
 const queryClient = new QueryClient({
   defaultOptions: {

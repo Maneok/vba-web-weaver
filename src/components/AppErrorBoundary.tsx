@@ -2,6 +2,16 @@ import React from "react";
 import { logger } from "@/lib/logger";
 import { AlertOctagon } from "lucide-react";
 
+function isChunkLoadError(msg: string): boolean {
+  return (
+    msg.includes("dynamically imported module") ||
+    msg.includes("Loading chunk") ||
+    msg.includes("Loading CSS chunk") ||
+    msg.includes("Importing a module script failed") ||
+    msg.includes("Failed to fetch")
+  );
+}
+
 interface AppErrorBoundaryState {
   hasError: boolean;
   errorMessage?: string;
@@ -22,6 +32,14 @@ export default class AppErrorBoundary extends React.Component<
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     logger.error("ErrorBoundary", "Application render error", error, errorInfo);
+    // Auto-reload once on chunk load failure (stale deployment)
+    if (isChunkLoadError(error.message || "")) {
+      const key = "chunk-reload-" + window.location.pathname;
+      if (!sessionStorage.getItem(key)) {
+        sessionStorage.setItem(key, "1");
+        window.location.reload();
+      }
+    }
   }
 
   render() {
