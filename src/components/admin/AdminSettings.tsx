@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Save, Plus, Trash2, Wrench, Building2, GitBranch, UserPlus, Shield } from "lucide-react";
+import { Save, Plus, Trash2, Wrench, Building2, GitBranch, UserPlus, Shield, History, Database, AlertTriangle } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { formatDateTimeFr } from "@/lib/dateUtils";
 
 interface ConfigItem {
   key: string;
@@ -20,6 +21,15 @@ interface SuperAdmin {
   full_name: string;
 }
 
+interface ConfigChange {
+  id: string;
+  action: string;
+  user_email: string | null;
+  created_at: string;
+  old_data: unknown;
+  new_data: unknown;
+}
+
 const CONFIG_LABELS: Record<string, { label: string; type: "number" | "text" | "email" }> = {
   trial_duration_days: { label: "Duree trial (jours)", type: "number" },
   grace_period_monthly: { label: "Jours de grace mensuel", type: "number" },
@@ -28,6 +38,7 @@ const CONFIG_LABELS: Record<string, { label: string; type: "number" | "text" | "
   support_email: { label: "Email support", type: "email" },
   billing_email: { label: "Email facturation", type: "email" },
   default_plan: { label: "Plan par defaut", type: "text" },
+  maintenance_mode: { label: "Mode maintenance", type: "text" },
 };
 
 export default function AdminSettings() {
@@ -46,6 +57,11 @@ export default function AdminSettings() {
   const [newCabinetSiren, setNewCabinetSiren] = useState("");
   const [newCabinetPlan, setNewCabinetPlan] = useState("solo");
 
+  // 37. Config changelog
+  const [configChanges, setConfigChanges] = useState<ConfigChange[]>([]);
+  // 39. Maintenance mode
+  const [maintenanceMode, setMaintenanceMode] = useState(false);
+
   useEffect(() => {
     loadAll();
   }, []);
@@ -53,9 +69,16 @@ export default function AdminSettings() {
   async function loadAll() {
     setLoading(true);
     try {
-      const [configRes, adminsRes] = await Promise.all([
+      const [configRes, adminsRes, changelogRes] = await Promise.all([
         supabase.rpc("admin_get_config"),
         supabase.from("profiles").select("id, email, full_name").eq("is_super_admin", true),
+        // 37. Fetch config changes
+        supabase
+          .from("audit_trail")
+          .select("id, action, user_email, created_at, old_data, new_data")
+          .eq("action", "config_change")
+          .order("created_at", { ascending: false })
+          .limit(10),
       ]);
 
       if (configRes.data) {
@@ -68,10 +91,16 @@ export default function AdminSettings() {
         }));
         setConfigs(items);
         setOriginalConfigs(data);
+        // 39. Check maintenance mode
+        setMaintenanceMode(data.maintenance_mode === "true" || data.maintenance_mode === "1");
       }
 
       if (adminsRes.data) {
         setSuperAdmins(adminsRes.data as unknown as SuperAdmin[]);
+      }
+
+      if (changelogRes.data) {
+        setConfigChanges(changelogRes.data as unknown as ConfigChange[]);
       }
     } catch (err) {
       console.error("[AdminSettings] Load error:", err);
@@ -91,6 +120,7 @@ export default function AdminSettings() {
       }
       toast.success(`${changed.length} parametre(s) sauvegarde(s)`);
       setOriginalConfigs(Object.fromEntries(configs.map((c) => [c.key, c.value])));
+      loadAll(); // Refresh changelog
     } catch (err) {
       toast.error("Erreur lors de la sauvegarde");
     } finally {
@@ -137,6 +167,41 @@ export default function AdminSettings() {
     }
   }
 
+  // 38. Backup manual
+  async function handleBackup() {
+    try {
+      const { data, error } = await supabase.rpc("admin_create_backup");
+      if (error) throw error;
+      toast.success("Snapshot cree avec succes");
+      if (data) {
+        setMaintenanceResult(JSON.stringify(data, null, 2));
+      }
+    } catch (err) {
+      toast.error("Erreur lors de la creation du snapshot");
+    }
+  }
+
+  // 39. Toggle maintenance mode
+  async function toggleMaintenanceMode() {
+    const newVal = !maintenanceMode;
+    try {
+      const { error } = await supabase.rpc("admin_set_config", {
+        p_key: "maintenance_mode",
+        p_value: newVal ? "true" : "false",
+      });
+      if (error) throw error;
+      setMaintenanceMode(newVal);
+      toast.success(newVal ? "Mode maintenance active" : "Mode maintenance desactive");
+      // Update local config
+      setConfigs((prev) =>
+        prev.map((c) => (c.key === "maintenance_mode" ? { ...c, value: newVal ? "true" : "false" } : c))
+      );
+      loadAll(); // Refresh changelog
+    } catch (err) {
+      toast.error("Erreur lors du changement de mode");
+    }
+  }
+
   async function handleCreateCabinet() {
     if (!newCabinetName.trim()) return;
     try {
@@ -173,6 +238,23 @@ export default function AdminSettings() {
 
   return (
     <div className="space-y-6">
+      {/* 39. Maintenance mode banner */}
+      {maintenanceMode && (
+        <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 flex items-center gap-3">
+          <AlertTriangle className="h-5 w-5 text-amber-400 shrink-0" />
+          <div>
+            <p className="text-sm font-medium text-amber-300">Mode maintenance actif</p>
+            <p className="text-xs text-amber-400/70">Un bandeau de maintenance est affiche a tous les utilisateurs.</p>
+          </div>
+          <button
+            onClick={toggleMaintenanceMode}
+            className="ml-auto px-3 py-1.5 text-xs bg-amber-500/20 text-amber-300 rounded-lg hover:bg-amber-500/30 transition-colors"
+          >
+            Desactiver
+          </button>
+        </div>
+      )}
+
       {/* Configuration */}
       <div className="bg-white/5 border border-white/10 rounded-xl p-6">
         <div className="flex items-center justify-between mb-4">
@@ -186,7 +268,7 @@ export default function AdminSettings() {
           </button>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {configs.map((c) => (
+          {configs.filter((c) => c.key !== "maintenance_mode").map((c) => (
             <div key={c.key}>
               <label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 mb-1 block">{c.label}</label>
               <input
@@ -198,6 +280,34 @@ export default function AdminSettings() {
             </div>
           ))}
         </div>
+      </div>
+
+      {/* 37. Config changelog */}
+      <div className="bg-white/5 border border-white/10 rounded-xl p-6">
+        <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200 mb-4 flex items-center gap-2">
+          <History className="h-4 w-4 text-slate-400" /> Historique des modifications
+        </h3>
+        {configChanges.length > 0 ? (
+          <div className="space-y-2">
+            {configChanges.map((ch) => {
+              const oldStr = ch.old_data ? JSON.stringify(ch.old_data) : "—";
+              const newStr = ch.new_data ? JSON.stringify(ch.new_data) : "—";
+              return (
+                <div key={ch.id} className="flex flex-wrap items-center gap-2 text-sm border-b border-white/5 pb-2">
+                  <span className="text-xs text-slate-500">{formatDateTimeFr(ch.created_at)}</span>
+                  <span className="text-slate-400">—</span>
+                  <span className="text-slate-300">{ch.user_email ?? "Systeme"}</span>
+                  <span className="text-slate-600">:</span>
+                  <span className="text-red-400/60 text-xs line-through truncate max-w-[150px]">{oldStr}</span>
+                  <span className="text-slate-500">→</span>
+                  <span className="text-emerald-400 text-xs truncate max-w-[150px]">{newStr}</span>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-sm text-slate-500">Aucune modification enregistree</p>
+        )}
       </div>
 
       {/* Super-admins */}
@@ -244,6 +354,24 @@ export default function AdminSettings() {
           >
             <Wrench className="h-4 w-4" /> Lancer maintenance
           </button>
+          {/* 38. Backup button */}
+          <button
+            onClick={handleBackup}
+            className="flex items-center gap-2 px-4 py-2.5 text-sm bg-cyan-500/20 text-cyan-300 rounded-lg hover:bg-cyan-500/30 transition-colors"
+          >
+            <Database className="h-4 w-4" /> Creer un snapshot
+          </button>
+          {/* 39. Maintenance mode toggle */}
+          <button
+            onClick={toggleMaintenanceMode}
+            className={`flex items-center gap-2 px-4 py-2.5 text-sm rounded-lg transition-colors ${
+              maintenanceMode
+                ? "bg-amber-500/20 text-amber-300 hover:bg-amber-500/30"
+                : "bg-slate-500/20 text-slate-700 dark:text-slate-300 hover:bg-slate-500/30"
+            }`}
+          >
+            <AlertTriangle className="h-4 w-4" /> {maintenanceMode ? "Desactiver maintenance" : "Activer maintenance"}
+          </button>
           <button
             onClick={() => setCreateCabinetDialog(true)}
             className="flex items-center gap-2 px-4 py-2.5 text-sm bg-emerald-500/20 text-emerald-300 rounded-lg hover:bg-emerald-500/30 transition-colors"
@@ -260,7 +388,7 @@ export default function AdminSettings() {
 
         {maintenanceResult && (
           <div className="mt-4 bg-black/30 border border-white/5 rounded-lg p-4 overflow-x-auto">
-            <p className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 mb-2">Resultat de la maintenance :</p>
+            <p className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 mb-2">Resultat :</p>
             <pre className="text-xs text-emerald-300 whitespace-pre-wrap">{maintenanceResult}</pre>
           </div>
         )}
