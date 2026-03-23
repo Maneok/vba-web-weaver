@@ -451,6 +451,10 @@ export default function NouveauClientPage() {
 
   // #74: Save draft floating button feedback
   const [draftSaved, setDraftSaved] = useState(false);
+  // Debounce timer for BDD draft save
+  const draftSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Last BDD save timestamp for indicator
+  const [lastDraftSaveAt, setLastDraftSaveAt] = useState<Date | null>(null);
 
   // #23: Inline validation errors for step 1
   const [touchedFields, setTouchedFields] = useState<Set<string>>(new Set());
@@ -511,7 +515,7 @@ export default function NouveauClientPage() {
   // FIX 9 + P5: Save draft to both sessionStorage AND localStorage on step change
   useEffect(() => {
     if (step > 0 || form.siren) {
-      const draftData = { form, step, beneficiaires, questions, decision, motifRefus, motifReserve, savedAt: Date.now() };
+      const draftData = { form, step, beneficiaires, questions, decision, motifRefus, motifReserve, maxStepReached, savedAt: Date.now() };
       try {
         const draftJson = JSON.stringify(draftData);
         sessionStorage.setItem("draft_nouveau_client", draftJson);
@@ -525,27 +529,37 @@ export default function NouveauClientPage() {
           }
         }
       } catch { /* storage full */ }
-      // BUG 25 FIX: Also persist draft in Supabase for cross-device access
+      // BUG 25 FIX: Also persist draft in Supabase for cross-device access (debounced 5s)
       if (form.siren) {
         const cleanSiren = form.siren.replace(/\s/g, "");
         if (cleanSiren.length === 9) {
-          supabase.auth.getSession().then(({ data: { session } }) => {
-            if (!session) return;
-            const cabinetId = session.user?.user_metadata?.cabinet_id;
-            if (!cabinetId) return;
-            supabase.from("brouillons").upsert({
-              siren: cleanSiren,
-              cabinet_id: cabinetId,
-              user_id: session.user.id,
-              step,
-              data: draftData,
-              updated_at: new Date().toISOString(),
-            }, { onConflict: "siren,cabinet_id" }).catch(() => {}); // Non-blocking
-          }).catch(() => {});
+          if (draftSaveTimerRef.current) clearTimeout(draftSaveTimerRef.current);
+          draftSaveTimerRef.current = setTimeout(() => {
+            supabase.auth.getSession().then(({ data: { session } }) => {
+              if (!session) return;
+              // FIX: Retrieve cabinet_id from profiles table (not user_metadata which is always null)
+              supabase.from("profiles").select("cabinet_id").eq("id", session.user.id).single().then(({ data: prof }) => {
+                if (!prof?.cabinet_id) return;
+                supabase.from("brouillons").upsert({
+                  siren: cleanSiren,
+                  cabinet_id: prof.cabinet_id,
+                  user_id: session.user.id,
+                  step,
+                  data: draftData,
+                  updated_at: new Date().toISOString(),
+                }, { onConflict: "siren,cabinet_id" }).then(() => {
+                  setLastDraftSaveAt(new Date());
+                }).catch(() => {});
+              }).catch(() => {});
+            }).catch(() => {});
+          }, 5000);
         }
       }
     }
-  }, [step, form, beneficiaires, questions, decision, motifRefus, motifReserve]);
+    return () => {
+      if (draftSaveTimerRef.current) clearTimeout(draftSaveTimerRef.current);
+    };
+  }, [step, form, beneficiaires, questions, decision, motifRefus, motifReserve, maxStepReached]);
 
   // FIX 2: Silent draft restore — no popup
   const restoreDraft = useCallback((draft: string) => {
@@ -554,9 +568,10 @@ export default function NouveauClientPage() {
       // Validate draft structure before restoring
       if (!data || typeof data !== "object" || !data.form || typeof data.form !== "object" || !data.form.siren) return;
       setForm(data.form);
-      const restoredStep = typeof data.step === "number" && data.step >= 0 && data.step <= 4 ? data.step : 0;
+      const restoredStep = typeof data.step === "number" && data.step >= 0 && data.step <= 5 ? data.step : 0;
       setStep(restoredStep);
-      setMaxStepReached(restoredStep);
+      const restoredMaxStep = typeof data.maxStepReached === "number" && data.maxStepReached >= restoredStep ? data.maxStepReached : restoredStep;
+      setMaxStepReached(restoredMaxStep);
       if (Array.isArray(data.beneficiaires)) setBeneficiaires(data.beneficiaires);
       if (data.questions && typeof data.questions === "object") setQuestions(data.questions);
       if (typeof data.decision === "string") setDecision(data.decision);
@@ -568,7 +583,7 @@ export default function NouveauClientPage() {
     }
   }, []);
 
-  // On mount: silently restore draft if exists (check sessionStorage then localStorage)
+  // On mount: silently restore draft if exists (check sessionStorage → localStorage → Supabase)
   useEffect(() => {
     const draft = sessionStorage.getItem("draft_nouveau_client") || localStorage.getItem("draft_nouveau_client");
     if (draft) {
@@ -577,17 +592,32 @@ export default function NouveauClientPage() {
         // P5: Expire drafts older than 24h
         if (data.savedAt && Date.now() - data.savedAt > 24 * 60 * 60 * 1000) {
           sessionStorage.removeItem("draft_nouveau_client");
-    localStorage.removeItem("draft_nouveau_client");
           localStorage.removeItem("draft_nouveau_client");
           return;
         }
         if (data.form?.siren) {
           restoreDraft(draft);
+          return;
         }
       } catch (err) {
         logger.warn("NouveauClient", "Failed to parse draft:", err);
       }
     }
+    // Fallback: try to restore from Supabase (cross-device)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) return;
+      supabase.from("profiles").select("cabinet_id").eq("id", session.user.id).single().then(({ data: prof }) => {
+        if (!prof?.cabinet_id) return;
+        supabase.from("brouillons").select("data").eq("cabinet_id", prof.cabinet_id).eq("user_id", session.user.id).order("updated_at", { ascending: false }).limit(1).then(({ data: rows }) => {
+          if (rows && rows.length > 0 && rows[0].data) {
+            const dbDraft = rows[0].data;
+            if (dbDraft.form?.siren) {
+              restoreDraft(JSON.stringify(dbDraft));
+            }
+          }
+        }).catch(() => {});
+      }).catch(() => {});
+    }).catch(() => {});
   }, [restoreDraft]);
 
   // P2: Launch IA analysis in background as soon as documents arrive
@@ -2033,7 +2063,9 @@ export default function NouveauClientPage() {
     // FIX 14: Upload manual documents to Supabase storage + persist in documents_kyc + documents (GED)
     const manualDocs = documents.filter(d => d.file);
     const docLinkUpdates: Record<string, string> = {};
-    const cabinetId = session?.user?.user_metadata?.cabinet_id;
+    // FIX: Retrieve cabinet_id from profiles table (not user_metadata which is null)
+    const { data: profileData } = await supabase.from("profiles").select("cabinet_id").eq("id", session!.user.id).single();
+    const cabinetId = profileData?.cabinet_id;
     if (manualDocs.length > 0) {
       const cleanSirenForStorage = form.siren?.replace(/\s/g, "") || ref;
 
@@ -4381,39 +4413,48 @@ export default function NouveauClientPage() {
               </div>
             </div>
 
-            {/* Recapitulatif — ouvert par defaut */}
-            <Collapsible defaultOpen>
+            {/* SECTION 1: Resume compact — Score + Vigilance + Decision sur une ligne */}
+            <div className="p-4 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06]">
+              <div className="flex items-center gap-4 flex-wrap">
+                {/* Score ring compact */}
+                <div className="relative w-11 h-11 shrink-0">
+                  <svg className="w-11 h-11" viewBox="0 0 80 80">
+                    <circle cx="40" cy="40" r="35" fill="none" stroke="currentColor" strokeWidth="5" className="text-gray-200 dark:text-white/[0.06]" />
+                    <circle cx="40" cy="40" r="35" fill="none" strokeWidth="5" strokeLinecap="round"
+                      className="progress-ring-circle"
+                      style={{ stroke: vigilanceColor, strokeDasharray: 220, strokeDashoffset: 220 - (220 * Math.min(adjustedScore, 100) / 100) }}
+                    />
+                  </svg>
+                  <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-slate-700 dark:text-slate-200">{adjustedScore}</span>
+                </div>
+                <VigilanceBadge niveau={risk.nivVigilance} />
+                {decision && (
+                  <Badge className={`text-[10px] border-0 ${decision === "ACCEPTER" ? "bg-emerald-500/15 text-emerald-400" : decision === "ACCEPTER_RESERVE" ? "bg-amber-500/15 text-amber-400" : "bg-red-500/15 text-red-400"}`}>
+                    {decision === "ACCEPTER" ? "Accepte" : decision === "ACCEPTER_RESERVE" ? "Accepte avec reserve" : "Refuse"}
+                  </Badge>
+                )}
+                <div className="h-4 w-px bg-gray-200 dark:bg-white/[0.06]" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate">{form.raisonSociale || "—"}</p>
+                  <p className="text-[10px] text-slate-400 dark:text-slate-500 truncate">{form.siren} — {form.forme}</p>
+                </div>
+                <button onClick={() => setStep(4)} className="text-[10px] text-slate-500 dark:text-slate-400 hover:text-blue-400 flex items-center gap-1 px-2 py-1 rounded hover:bg-blue-500/10 transition-colors shrink-0">
+                  <Pencil className="w-3 h-3" /> Modifier
+                </button>
+              </div>
+            </div>
+
+            {/* Recapitulatif complet — repliable, ferme par defaut */}
+            <Collapsible defaultOpen={false}>
               <CollapsibleTrigger className="w-full flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.06] hover:bg-gray-100 dark:hover:bg-white/[0.05] transition-colors">
                 <div className="flex items-center gap-2">
                   <FileText className="w-4 h-4 text-blue-400" />
-                  <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Recapitulatif du dossier</h3>
+                  <h3 className="text-xs font-semibold text-slate-700 dark:text-slate-300">Recapitulatif complet du dossier</h3>
                 </div>
                 <ChevronDown className="w-4 h-4 text-slate-400 dark:text-slate-500" />
               </CollapsibleTrigger>
               <CollapsibleContent className="mt-2">
                 <div className="p-4 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06]">
-                  {/* R2-37: Score gauge + vigilance at top */}
-                  <div className="flex items-center gap-4 mb-3 pb-3 border-b border-gray-100 dark:border-white/[0.04]">
-                    {/* R2-48: Progress ring around score */}
-                    <div className="relative w-14 h-14 shrink-0">
-                      <svg className="w-14 h-14" viewBox="0 0 80 80">
-                        <circle cx="40" cy="40" r="35" fill="none" stroke="currentColor" strokeWidth="4" className="text-gray-200 dark:text-white/[0.06]" />
-                        <circle cx="40" cy="40" r="35" fill="none" strokeWidth="4" strokeLinecap="round"
-                          className="progress-ring-circle"
-                          style={{ stroke: vigilanceColor, strokeDasharray: 220, strokeDashoffset: 220 - (220 * Math.min(adjustedScore, 100) / 100) }}
-                        />
-                      </svg>
-                      <span className="absolute inset-0 flex items-center justify-center text-sm font-bold text-slate-700 dark:text-slate-200">{adjustedScore}</span>
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">Score global : {adjustedScore}/120</p>
-                      <VigilanceBadge niveau={risk.nivVigilance} />
-                    </div>
-                    {/* R2-40: Edit button to go back to scoring */}
-                    <button onClick={() => setStep(4)} className="ml-auto text-[10px] text-slate-600 dark:text-slate-400 hover:text-blue-400 flex items-center gap-1 px-2 py-1 rounded hover:bg-blue-500/10 transition-colors">
-                      <Pencil className="w-3 h-3" /> Modifier
-                    </button>
-                  </div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     {([
                       { label: "Raison sociale", value: form.raisonSociale, ok: !!form.raisonSociale, icon: "", step: 1 },
@@ -4435,14 +4476,13 @@ export default function NouveauClientPage() {
                             {item.value || "—"}
                           </p>
                         </div>
-                        {/* R2-40: Discrete edit button per info */}
                         <button onClick={() => setStep(item.step)} className="opacity-0 group-hover/recap:opacity-100 text-slate-700 dark:text-slate-300 hover:text-blue-400 transition-all p-0.5 rounded">
                           <Pencil className="w-2.5 h-2.5" />
                         </button>
                       </div>
                     ))}
                   </div>
-                  {/* R2-37: Mini-cards for dirigeants */}
+                  {/* Mini-cards for dirigeants */}
                   {(selectedEnterprise?.dirigeants ?? []).length > 0 && (
                     <div className="mt-3 pt-3 border-t border-gray-100 dark:border-white/[0.04]">
                       <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1.5">Dirigeants</p>
@@ -4461,7 +4501,7 @@ export default function NouveauClientPage() {
                       </div>
                     </div>
                   )}
-                  {/* R2-38: Mini-cards for BE with percentage bars */}
+                  {/* Mini-cards for BE with percentage bars */}
                   {beneficiaires.length > 0 && (
                     <div className="mt-3 pt-3 border-t border-gray-100 dark:border-white/[0.04]">
                       <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1.5">Beneficiaires effectifs</p>
@@ -4582,8 +4622,8 @@ export default function NouveauClientPage() {
                       <span className={`text-sm font-bold animate-count-up ${pct >= 80 ? "text-emerald-400" : pct >= 50 ? "text-amber-400" : "text-red-400"}`}>{pct}%</span>
                     </div>
                   </div>
-                  {/* R2-19: Checklist grid 2x2 */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {/* Checklist grid 4 columns */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {results.map(item => {
                       // R2-33: Obligation level
                       const obligationLevel = item.manual ? "recommande" : "obligatoire";
@@ -4697,7 +4737,7 @@ export default function NouveauClientPage() {
               </p>
             )}
 
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap gap-3 justify-center">
               {/* R2-41: Generer fiche LCB-FT — blue primary */}
               <Button
                 size="lg"
@@ -5745,23 +5785,32 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
       })()}
 
       {/* #74: Floating save draft button — positioned top-right to avoid blocking navigation */}
-      {step > 0 && hasUnsavedChanges && (
-        <div className="fixed top-20 right-6 z-40">
-          <Button
-            variant="outline"
-            size="sm"
-            className={`gap-1.5 shadow-lg border-gray-300 dark:border-white/[0.1] bg-gray-50 dark:bg-slate-900/90 backdrop-blur-sm transition-all duration-200 hover:scale-105 ${draftSaved ? "text-emerald-400 border-emerald-500/30" : "text-slate-500 dark:text-slate-400 hover:text-blue-400"}`}
-            onClick={() => {
-              const draftData = { form, step, beneficiaires, questions, decision, motifRefus, motifReserve, savedAt: Date.now() };
-              try { sessionStorage.setItem("draft_nouveau_client", JSON.stringify(draftData)); } catch { /* storage full */ }
-              setDraftSaved(true);
-              toast.success("Brouillon sauvegarde");
-              setTimeout(() => setDraftSaved(false), AUTOSAVE_DELAY_MS);
-            }}
-          >
-            {draftSaved ? <Check className="w-3.5 h-3.5" /> : <Save className="w-3.5 h-3.5" />}
-            {draftSaved ? "Sauvegarde" : "Sauvegarder brouillon"}
-          </Button>
+      {step > 0 && (
+        <div className="fixed top-20 right-6 z-40 flex flex-col items-end gap-1">
+          {hasUnsavedChanges && (
+            <Button
+              variant="outline"
+              size="sm"
+              className={`gap-1.5 shadow-lg border-gray-300 dark:border-white/[0.1] bg-gray-50 dark:bg-slate-900/90 backdrop-blur-sm transition-all duration-200 hover:scale-105 ${draftSaved ? "text-emerald-400 border-emerald-500/30" : "text-slate-500 dark:text-slate-400 hover:text-blue-400"}`}
+              onClick={() => {
+                const draftData = { form, step, beneficiaires, questions, decision, motifRefus, motifReserve, maxStepReached, savedAt: Date.now() };
+                try { sessionStorage.setItem("draft_nouveau_client", JSON.stringify(draftData)); } catch { /* storage full */ }
+                setDraftSaved(true);
+                toast.success("Brouillon sauvegarde");
+                setTimeout(() => setDraftSaved(false), AUTOSAVE_DELAY_MS);
+              }}
+            >
+              {draftSaved ? <Check className="w-3.5 h-3.5" /> : <Save className="w-3.5 h-3.5" />}
+              {draftSaved ? "Sauvegarde" : "Sauvegarder brouillon"}
+            </Button>
+          )}
+          {/* Save indicator */}
+          {lastDraftSaveAt && (
+            <span className="text-[9px] text-emerald-500/70 flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-500/5 backdrop-blur-sm">
+              <Check className="w-2.5 h-2.5" />
+              Brouillon sauvegarde il y a {Math.max(1, Math.round((Date.now() - lastDraftSaveAt.getTime()) / 1000))}s
+            </span>
+          )}
         </div>
       )}
 

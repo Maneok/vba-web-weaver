@@ -7,6 +7,7 @@ import {
   FolderOpen,
   RefreshCw,
   Shield,
+  ShieldCheck,
   Building2,
   CheckSquare,
   Activity,
@@ -549,6 +550,56 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
           <div className={`space-y-0.5 ${collapsed ? "flex flex-col items-center space-y-0.5" : ""}`}>
             {FOOTER_NAV.map((item) => renderItem(item, { isFooter: true }))}
           </div>
+
+          {/* ── Super Admin link (visible only for super admins) ── */}
+          {profile?.is_super_admin === true && (
+            <div className={`mt-1 ${collapsed ? "flex flex-col items-center" : ""}`}>
+              {collapsed ? (
+                <Tooltip delayDuration={80}>
+                  <TooltipTrigger asChild>
+                    <NavLink
+                      to="/super-admin"
+                      aria-label="Super Admin"
+                      className={[
+                        "group relative flex items-center justify-center mx-auto w-10 h-10 rounded-lg transition-all duration-150",
+                        isItemActive("/super-admin")
+                          ? "bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 shadow-sm shadow-indigo-500/10"
+                          : "text-indigo-400 dark:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 hover:text-indigo-600 dark:hover:text-indigo-300",
+                      ].join(" ")}
+                    >
+                      <ShieldCheck className="w-[18px] h-[18px]" strokeWidth={1.5} />
+                    </NavLink>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" sideOffset={8} className="font-medium text-sm px-3 py-1.5 shadow-lg">
+                    Super Admin
+                  </TooltipContent>
+                </Tooltip>
+              ) : (
+                <NavLink
+                  to="/super-admin"
+                  className={[
+                    "group relative flex items-center h-10 px-3 gap-3 rounded-lg transition-all duration-150",
+                    isItemActive("/super-admin")
+                      ? "bg-indigo-50/80 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 shadow-sm shadow-indigo-500/5"
+                      : "text-indigo-500 dark:text-indigo-400 hover:bg-indigo-50/80 dark:hover:bg-indigo-500/10 hover:text-indigo-700 dark:hover:text-indigo-300",
+                  ].join(" ")}
+                >
+                  {isItemActive("/super-admin") && (
+                    <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-full bg-gradient-to-b from-indigo-400 to-indigo-600 sidebar-bar-enter" />
+                  )}
+                  <span className="relative shrink-0 flex items-center justify-center w-6 h-6 rounded-md">
+                    <ShieldCheck className="w-[18px] h-[18px]" strokeWidth={1.5} />
+                  </span>
+                  <span className={`text-sm truncate tracking-[0.01em] ${isItemActive("/super-admin") ? "font-semibold" : "font-medium"}`}>
+                    Super Admin
+                  </span>
+                  <span className="ml-auto text-[9px] font-medium px-1.5 py-[1px] rounded-full bg-indigo-500/15 text-indigo-500 dark:bg-indigo-500/20 dark:text-indigo-400">
+                    SA
+                  </span>
+                </NavLink>
+              )}
+            </div>
+          )}
 
           {/* ── User profile ── */}
           <div
