@@ -257,9 +257,10 @@ export default function LMStep6Export({ data, onChange, onSave, onReset, saving 
         });
         toast.success("PDF genere depuis le modele");
         return;
-      } catch (err) {
-        // Fallback to legacy
-        console.warn("Modele PDF failed, falling back to legacy:", err);
+      } catch (err: any) {
+        console.error("[PDF] Modele generation failed:", err?.message, err?.stack);
+        toast.error(`Erreur PDF: ${err?.message || "Erreur inconnue"}`);
+        return;
       }
     }
 

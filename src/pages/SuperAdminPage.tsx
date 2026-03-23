@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { Shield, LayoutDashboard, Building2, AlertTriangle, CreditCard, Megaphone, Settings } from "lucide-react";
+import { Shield, LayoutDashboard, Building2, AlertTriangle, CreditCard, Megaphone, Settings, Activity } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import AdminOverview from "@/components/admin/AdminOverview";
 import AdminCabinets from "@/components/admin/AdminCabinets";
@@ -9,8 +9,9 @@ import AdminUnpaid from "@/components/admin/AdminUnpaid";
 import AdminPayments from "@/components/admin/AdminPayments";
 import AdminBroadcasts from "@/components/admin/AdminBroadcasts";
 import AdminSettings from "@/components/admin/AdminSettings";
+import AdminMonitoring from "@/components/admin/AdminMonitoring";
 
-type TabId = "overview" | "cabinets" | "unpaid" | "payments" | "broadcasts" | "settings";
+type TabId = "overview" | "cabinets" | "unpaid" | "payments" | "broadcasts" | "settings" | "monitoring";
 
 interface TabDef {
   id: TabId;
@@ -25,6 +26,7 @@ const TABS: TabDef[] = [
   { id: "payments", label: "Paiements", icon: CreditCard },
   { id: "broadcasts", label: "Communications", icon: Megaphone },
   { id: "settings", label: "Parametres", icon: Settings },
+  { id: "monitoring", label: "Monitoring", icon: Activity },
 ];
 
 export default function SuperAdminPage() {
@@ -32,6 +34,7 @@ export default function SuperAdminPage() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TabId>("overview");
   const [unpaidCount, setUnpaidCount] = useState(0);
+  const [monitoringAlertCount, setMonitoringAlertCount] = useState(0);
 
   // Redirect if not super admin
   useEffect(() => {
@@ -94,6 +97,11 @@ export default function SuperAdminPage() {
                   {unpaidCount}
                 </span>
               )}
+              {tab.id === "monitoring" && monitoringAlertCount > 0 && (
+                <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-red-500 text-white min-w-[18px] text-center">
+                  {monitoringAlertCount}
+                </span>
+              )}
             </button>
           );
         })}
@@ -107,6 +115,7 @@ export default function SuperAdminPage() {
         {activeTab === "payments" && <AdminPayments />}
         {activeTab === "broadcasts" && <AdminBroadcasts />}
         {activeTab === "settings" && <AdminSettings />}
+        {activeTab === "monitoring" && <AdminMonitoring onAlertCount={setMonitoringAlertCount} />}
       </div>
     </div>
   );

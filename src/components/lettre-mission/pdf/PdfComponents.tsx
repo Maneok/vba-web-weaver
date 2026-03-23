@@ -255,11 +255,11 @@ export const InfoRow: React.FC<{
 export const RoundedTableWrapper: React.FC<{
   children: React.ReactNode;
   borderColor?: string;
-}> = ({ children, borderColor = "#E0E0E0" }) => (
+}> = ({ children, borderColor }) => (
   <View
     style={{
       borderWidth: 0.5,
-      borderColor,
+      borderColor: borderColor || "#E0E0E0",
       borderRadius: 6,
       overflow: "hidden",
     }}

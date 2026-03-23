@@ -226,7 +226,7 @@ const PdfSectionLcbft: React.FC<Props> = ({ lcbft, theme: themeIn }) => {
       <View
         style={{
           borderWidth: 0.5,
-          borderColor: theme.border,
+          borderColor: theme.border || "#E0E0E0",
           borderRadius: 6,
           overflow: "hidden",
           marginBottom: 10,
@@ -270,7 +270,7 @@ const PdfSectionLcbft: React.FC<Props> = ({ lcbft, theme: themeIn }) => {
           paddingVertical: 6,
           marginBottom: 8,
           borderLeftWidth: 2,
-          borderLeftColor: theme.primaire,
+          borderLeftColor: theme.primaire || "#2E75B6",
         }}
         wrap={false}
       >

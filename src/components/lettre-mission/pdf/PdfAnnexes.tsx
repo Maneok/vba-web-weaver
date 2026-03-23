@@ -33,7 +33,7 @@ const SepaRow: React.FC<{
       minHeight: 24,
       alignItems: "center",
       borderBottomWidth: isLast === true ? 0 : 0.5,
-      borderBottomColor: theme.border,
+      borderBottomColor: theme.border || "#E0E0E0",
     }}
   >
     <Text
@@ -77,7 +77,7 @@ const IdentRow: React.FC<{
       minHeight: 22,
       alignItems: "center",
       borderBottomWidth: isLast === true ? 0 : 0.5,
-      borderBottomColor: theme.border,
+      borderBottomColor: theme.border || "#E0E0E0",
     }}
   >
     <Text

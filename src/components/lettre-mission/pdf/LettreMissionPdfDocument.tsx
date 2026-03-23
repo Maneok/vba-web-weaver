@@ -39,8 +39,19 @@ const LettreMissionPdfDocument: React.FC<Props> = ({ data }) => {
   };
   const { cabinet, client, mission, repartition } = data;
 
-  // Build theme from cabinet colors
-  const theme = buildTheme(cabinet.couleur_primaire, cabinet.couleur_secondaire);
+  // Build theme from cabinet colors — defensive: ensure all values are defined strings (yoga crashes on undefined)
+  const rawTheme = buildTheme(cabinet.couleur_primaire, cabinet.couleur_secondaire);
+  const theme: import("./PdfComponents").PdfTheme = {
+    primaire: rawTheme.primaire || "#2E75B6",
+    secondaire: rawTheme.secondaire || "#1B3A5C",
+    text: rawTheme.text || "#333333",
+    muted: rawTheme.muted || "#888888",
+    light: rawTheme.light || "#F8F9FA",
+    border: rawTheme.border || "#E0E0E0",
+    success: rawTheme.success || "#2E7D32",
+    warning: rawTheme.warning || "#E65100",
+    danger: rawTheme.danger || "#C62828",
+  };
 
   // Format date in French long format
   const dateLong = formatDateLong(data.date_generation);

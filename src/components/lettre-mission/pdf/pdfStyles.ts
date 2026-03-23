@@ -244,6 +244,12 @@ export const styles = StyleSheet.create({
   },
 });
 
+/** Ensure border values are never undefined — @react-pdf/yoga crashes on undefined */
+export function safeBorderWidth(val: number | undefined | null): number {
+  if (val === undefined || val === null || !Number.isFinite(val)) return 0;
+  return val;
+}
+
 /** Safe string: never show undefined/null */
 export function s(v: unknown): string {
   if (v === null || v === undefined || v === "") return "\u2014";
