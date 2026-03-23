@@ -1,1095 +1,854 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import {
-  Phone, Mail, Video, Users, Bell, FileText, Plus, Search, Filter,
-  ChevronDown, ChevronRight, GripVertical, ExternalLink, Download,
-  AlertTriangle, CheckCircle, Clock, DollarSign, TrendingUp,
-  ArrowRight, X, Pencil, Trash2, BarChart3, List, Columns3,
-  Star, Flame, Snowflake, Zap, Tag, Calendar, RefreshCw,
-  Building2, User, ArrowRightLeft, Eye, Send,
-} from "lucide-react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Progress } from "@/components/ui/progress";
 import {
-  ResponsiveContainer, FunnelChart, Funnel, LabelList, Tooltip,
-  BarChart, Bar, XAxis, YAxis, CartesianGrid,
+  Users, Euro, TrendingUp, AlertTriangle, Plus, Search, Phone, Mail, Video,
+  Bell, FileText, CheckCircle, Rocket, GripVertical, LayoutGrid, List,
+  X, Trash2, UserCheck, Calendar, Tag,
+} from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
+import {
+  BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip as ReTooltip, ResponsiveContainer,
 } from "recharts";
 
-// ─── Types ─────────────────────────────────────────────────────────────────────
+/* ─── Types ─── */
 
 interface Prospect {
   id: string;
-  cabinet_id: string | null;
   contact_name: string;
   contact_email: string;
   contact_phone: string | null;
   company_name: string | null;
   siren: string | null;
-  source: string | null;
+  source: string;
   stage: string;
   plan_vise: string | null;
   montant_estime_cents: number;
   notes: string | null;
+  tags: string[];
   next_action: string | null;
   next_action_date: string | null;
   lost_reason: string | null;
-  tags: string[];
+  converted_cabinet_id: string | null;
   created_at: string;
   updated_at: string;
 }
 
 interface CrmActivity {
   id: string;
-  prospect_id: string | null;
-  cabinet_id: string | null;
+  prospect_id: string;
   type: string;
   content: string;
-  created_by: string | null;
   created_at: string;
 }
 
-// ─── Constants ─────────────────────────────────────────────────────────────────
-
-const STAGES = [
-  { id: "lead", label: "Lead", color: "bg-slate-500", text: "text-slate-400", border: "border-slate-500/30", bg: "bg-slate-500/10" },
-  { id: "qualifie", label: "Qualifie", color: "bg-blue-500", text: "text-blue-400", border: "border-blue-500/30", bg: "bg-blue-500/10" },
-  { id: "demo_planifiee", label: "Demo planifiee", color: "bg-violet-500", text: "text-violet-400", border: "border-violet-500/30", bg: "bg-violet-500/10" },
-  { id: "demo_faite", label: "Demo faite", color: "bg-purple-500", text: "text-purple-400", border: "border-purple-500/30", bg: "bg-purple-500/10" },
-  { id: "proposition", label: "Proposition", color: "bg-orange-500", text: "text-orange-400", border: "border-orange-500/30", bg: "bg-orange-500/10" },
-  { id: "negociation", label: "Negociation", color: "bg-amber-500", text: "text-amber-400", border: "border-amber-500/30", bg: "bg-amber-500/10" },
-  { id: "gagne", label: "Gagne", color: "bg-emerald-500", text: "text-emerald-400", border: "border-emerald-500/30", bg: "bg-emerald-500/10" },
-  { id: "perdu", label: "Perdu", color: "bg-red-500", text: "text-red-400", border: "border-red-500/30", bg: "bg-red-500/10" },
-] as const;
-
-const SOURCES = [
-  { id: "site_web", label: "Site web" },
-  { id: "demo", label: "Demo" },
-  { id: "bouche_a_oreille", label: "Bouche a oreille" },
-  { id: "salon", label: "Salon" },
-  { id: "partenaire", label: "Partenaire" },
-  { id: "linkedin", label: "LinkedIn" },
-  { id: "autre", label: "Autre" },
-];
-
-const PLANS = [
-  { id: "solo", label: "Solo", price: "29 EUR/mois" },
-  { id: "cabinet", label: "Cabinet", price: "79 EUR/mois" },
-  { id: "enterprise", label: "Enterprise", price: "199 EUR/mois" },
-];
-
-const ACTIVITY_TYPES = [
-  { id: "appel", label: "Appel", icon: Phone },
-  { id: "email", label: "Email", icon: Mail },
-  { id: "demo", label: "Demo", icon: Video },
-  { id: "reunion", label: "Reunion", icon: Users },
-  { id: "relance", label: "Relance", icon: Bell },
-  { id: "note", label: "Note", icon: FileText },
-];
-
-const TAG_OPTIONS = [
-  { id: "urgent", label: "Urgent", color: "bg-red-500/20 text-red-400" },
-  { id: "vip", label: "VIP", color: "bg-amber-500/20 text-amber-400" },
-  { id: "chaud", label: "Chaud", color: "bg-orange-500/20 text-orange-400" },
-  { id: "froid", label: "Froid", color: "bg-cyan-500/20 text-cyan-400" },
-];
-
-function scoreProspect(p: Prospect): number {
-  let score = 0;
-  // Source scoring
-  if (p.source === "demo") score += 80;
-  else if (p.source === "site_web") score += 60;
-  else if (p.source === "partenaire") score += 55;
-  else if (p.source === "bouche_a_oreille") score += 50;
-  else if (p.source === "linkedin") score += 40;
-  else if (p.source === "salon") score += 35;
-  else score += 20;
-  // Plan scoring
-  if (p.plan_vise === "enterprise") score += 30;
-  else if (p.plan_vise === "cabinet") score += 20;
-  else if (p.plan_vise === "solo") score += 10;
-  // Freshness bonus
-  const daysSinceCreation = (Date.now() - new Date(p.created_at).getTime()) / 86400000;
-  if (daysSinceCreation < 7) score += 20;
-  else if (daysSinceCreation < 14) score += 10;
-  return Math.min(score, 100);
+interface PipelineStats {
+  total_prospects: number;
+  total_value_cents: number;
+  won_count: number;
+  lost_count: number;
+  conversion_rate: number;
+  avg_cycle_days: number;
+  overdue_actions: number;
+  stages: Record<string, number>;
+  sources: Record<string, number>;
+  monthly_conversions: { month: string; conversions: number }[];
 }
 
-function isStale(p: Prospect, activities: CrmActivity[]): boolean {
-  if (p.stage === "gagne" || p.stage === "perdu") return false;
-  const prospectActivities = activities.filter(a => a.prospect_id === p.id);
-  if (prospectActivities.length === 0) {
-    return (Date.now() - new Date(p.created_at).getTime()) > 7 * 86400000;
-  }
-  const latest = prospectActivities.reduce((a, b) =>
-    new Date(a.created_at) > new Date(b.created_at) ? a : b
-  );
-  return (Date.now() - new Date(latest.created_at).getTime()) > 7 * 86400000;
+interface OnboardingCab {
+  cabinet_id: string;
+  cabinet_nom: string;
+  created_at: string;
+  plan: string | null;
+  total_users: number;
+  total_clients: number;
+  total_lm: number;
+  total_docs: number;
+  last_login: string | null;
+  prospect_id: string | null;
+  contact_name: string | null;
+  contact_email: string | null;
+  source: string | null;
 }
 
-function formatCents(cents: number): string {
-  return (cents / 100).toLocaleString("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 0 });
+/* ─── Constants ─── */
+
+const STAGES_ORDER = ["lead", "qualifie", "demo_planifiee", "demo_faite", "proposition", "negociation"] as const;
+const FINAL_STAGES = ["gagne", "perdu"] as const;
+const ALL_STAGES = [...STAGES_ORDER, ...FINAL_STAGES];
+
+const STAGE_LABELS: Record<string, string> = {
+  lead: "Lead", qualifie: "Qualifie", demo_planifiee: "Demo planifiee", demo_faite: "Demo faite",
+  proposition: "Proposition", negociation: "Negociation", gagne: "Gagne", perdu: "Perdu",
+};
+const STAGE_COLORS: Record<string, string> = {
+  lead: "bg-slate-500/20 text-slate-300 border-slate-500/30",
+  qualifie: "bg-blue-500/20 text-blue-300 border-blue-500/30",
+  demo_planifiee: "bg-violet-500/20 text-violet-300 border-violet-500/30",
+  demo_faite: "bg-purple-500/20 text-purple-300 border-purple-500/30",
+  proposition: "bg-amber-500/20 text-amber-300 border-amber-500/30",
+  negociation: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30",
+  gagne: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
+  perdu: "bg-red-500/20 text-red-300 border-red-500/30",
+};
+const STAGE_CHART_COLORS: Record<string, string> = {
+  lead: "#64748b", qualifie: "#60a5fa", demo_planifiee: "#8b5cf6", demo_faite: "#a855f7",
+  proposition: "#f59e0b", negociation: "#eab308", gagne: "#34d399", perdu: "#f87171",
+};
+
+const SOURCE_LABELS: Record<string, string> = {
+  site_web: "Site web", demo: "Demo", bouche_a_oreille: "Bouche a oreille", salon: "Salon",
+  partenaire: "Partenaire", linkedin: "LinkedIn", croec: "CROEC", autre: "Autre",
+};
+const SOURCE_COLORS: Record<string, string> = {
+  site_web: "bg-blue-500/20 text-blue-300", demo: "bg-violet-500/20 text-violet-300",
+  bouche_a_oreille: "bg-emerald-500/20 text-emerald-300", salon: "bg-amber-500/20 text-amber-300",
+  partenaire: "bg-cyan-500/20 text-cyan-300", linkedin: "bg-sky-500/20 text-sky-300",
+  croec: "bg-indigo-500/20 text-indigo-300", autre: "bg-slate-500/20 text-slate-300",
+};
+const PIE_COLORS = ["#60a5fa", "#8b5cf6", "#34d399", "#f59e0b", "#22d3ee", "#0ea5e9", "#6366f1", "#94a3b8"];
+
+const TAG_OPTIONS = ["Urgent", "VIP", "Chaud", "Froid", "CROEC", "Grand cabinet"];
+const TAG_COLORS: Record<string, string> = {
+  Urgent: "bg-red-500/20 text-red-300", VIP: "bg-amber-500/20 text-amber-300",
+  Chaud: "bg-orange-500/20 text-orange-300", Froid: "bg-blue-500/20 text-blue-300",
+  CROEC: "bg-indigo-500/20 text-indigo-300", "Grand cabinet": "bg-purple-500/20 text-purple-300",
+};
+
+const PLAN_PRICES: Record<string, number> = { solo: 2900, cabinet: 7900, enterprise: 19900 };
+const ACTIVITY_ICONS: Record<string, typeof Phone> = {
+  appel: Phone, email: Mail, demo: Video, reunion: Users, relance: Bell,
+  note: FileText, conversion: CheckCircle, onboarding: Rocket,
+};
+
+function formatRelative(d: string | null): string {
+  if (!d) return "—";
+  const ms = Date.now() - new Date(d).getTime();
+  const m = Math.floor(ms / 60000);
+  if (m < 1) return "A l'instant";
+  if (m < 60) return `il y a ${m}min`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `il y a ${h}h`;
+  const days = Math.floor(h / 24);
+  if (days === 1) return "Hier";
+  return `il y a ${days}j`;
 }
 
-function daysBetween(a: string, b: string): number {
-  return Math.round(Math.abs(new Date(b).getTime() - new Date(a).getTime()) / 86400000);
+function isOverdue(d: string | null): boolean {
+  if (!d) return false;
+  return new Date(d) < new Date(new Date().toISOString().split("T")[0]);
 }
 
-// ─── Component ─────────────────────────────────────────────────────────────────
+/* ─── Component ─── */
 
 export default function AdminCRM() {
-  const { user } = useAuth();
-  const [prospects, setProspects] = useState<Prospect[]>([]);
-  const [activities, setActivities] = useState<CrmActivity[]>([]);
+  const { profile } = useAuth();
+  const [subTab, setSubTab] = useState<"pipeline" | "onboarding" | "analytics">("pipeline");
   const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState<"kanban" | "list">("kanban");
+  const [prospects, setProspects] = useState<Prospect[]>([]);
+  const [stats, setStats] = useState<PipelineStats | null>(null);
+  const [viewMode, setViewMode] = useState<"kanban" | "table">("kanban");
 
-  // Filters
-  const [searchQuery, setSearchQuery] = useState("");
-  const [filterStage, setFilterStage] = useState<string>("all");
-  const [filterSource, setFilterSource] = useState<string>("all");
-  const [filterPlan, setFilterPlan] = useState<string>("all");
-
-  // Dialogs
-  const [showNewProspect, setShowNewProspect] = useState(false);
+  // Detail sheet
   const [selectedProspect, setSelectedProspect] = useState<Prospect | null>(null);
-  const [showFunnel, setShowFunnel] = useState(false);
-
-  // New prospect form
-  const [newForm, setNewForm] = useState({
-    contact_name: "", contact_email: "", contact_phone: "",
-    company_name: "", siren: "", source: "site_web",
-    plan_vise: "cabinet", montant_estime_cents: 0, notes: "",
-    next_action: "", next_action_date: "",
-  });
-
-  // Activity form
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [activities, setActivities] = useState<CrmActivity[]>([]);
   const [activityType, setActivityType] = useState("note");
   const [activityContent, setActivityContent] = useState("");
 
-  // Drag state
-  const dragRef = useRef<{ id: string; stage: string } | null>(null);
-  const [dragOverStage, setDragOverStage] = useState<string | null>(null);
+  // New prospect dialog
+  const [newDialog, setNewDialog] = useState(false);
+  const [newForm, setNewForm] = useState({
+    contact_name: "", contact_email: "", contact_phone: "",
+    company_name: "", siren: "", source: "autre", plan_vise: "solo",
+    montant_estime_cents: 2900, notes: "", next_action: "", next_action_date: "",
+    tags: [] as string[],
+  });
 
-  // Mobile stage selector
-  const [mobileStage, setMobileStage] = useState("lead");
+  // Lost / convert / delete dialogs
+  const [lostDialog, setLostDialog] = useState(false);
+  const [lostReason, setLostReason] = useState("");
+  const [convertDialog, setConvertDialog] = useState(false);
+  const [deleteDialog, setDeleteDialog] = useState(false);
 
-  // ─── Data fetching ─────────────────────────────────────────────────────────
+  // Kanban drag
+  const [dragId, setDragId] = useState<string | null>(null);
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
+  // Table filters
+  const [search, setSearch] = useState("");
+  const [sourceFilter, setSourceFilter] = useState("all");
+
+  // Onboarding
+  const [onboarding, setOnboarding] = useState<OnboardingCab[]>([]);
+
+  const fetchAll = useCallback(async () => {
     try {
-      const [{ data: pData }, { data: aData }] = await Promise.all([
-        supabase.from("admin_prospects").select("*").order("updated_at", { ascending: false }),
-        supabase.from("admin_crm_activities").select("*").order("created_at", { ascending: false }),
+      const [pRes, sRes] = await Promise.all([
+        supabase.from("admin_prospects").select("*").order("created_at", { ascending: false }),
+        supabase.rpc("admin_get_pipeline_stats"),
       ]);
-      setProspects((pData ?? []).map(p => ({ ...p, tags: Array.isArray(p.tags) ? p.tags : [] })));
-      setActivities(aData ?? []);
-    } catch {
-      toast.error("Erreur chargement CRM");
+      if (pRes.data) setProspects(pRes.data as unknown as Prospect[]);
+      if (sRes.data) setStats(sRes.data as unknown as PipelineStats);
+    } catch (err) {
+      console.error("[CRM] load error:", err);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
-
-  // ─── Filtered prospects ────────────────────────────────────────────────────
-
-  const filtered = useMemo(() => {
-    let list = prospects;
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      list = list.filter(p =>
-        p.contact_name.toLowerCase().includes(q) ||
-        (p.company_name || "").toLowerCase().includes(q) ||
-        p.contact_email.toLowerCase().includes(q)
-      );
-    }
-    if (filterStage !== "all") list = list.filter(p => p.stage === filterStage);
-    if (filterSource !== "all") list = list.filter(p => p.source === filterSource);
-    if (filterPlan !== "all") list = list.filter(p => p.plan_vise === filterPlan);
-    return list;
-  }, [prospects, searchQuery, filterStage, filterSource, filterPlan]);
-
-  // ─── Metrics ───────────────────────────────────────────────────────────────
-
-  const metrics = useMemo(() => {
-    const active = prospects.filter(p => p.stage !== "perdu" && p.stage !== "gagne");
-    const pipeline = active.reduce((s, p) => s + (p.montant_estime_cents || 0), 0);
-    const won = prospects.filter(p => p.stage === "gagne");
-    const total = prospects.filter(p => p.stage === "gagne" || p.stage === "perdu");
-    const convRate = total.length > 0 ? Math.round((won.length / total.length) * 100) : 0;
-    const avgCycle = won.length > 0
-      ? Math.round(won.reduce((s, p) => s + daysBetween(p.created_at, p.updated_at), 0) / won.length)
-      : 0;
-    return { activeCount: active.length, pipeline, convRate, avgCycle };
-  }, [prospects]);
-
-  // ─── Today's actions ───────────────────────────────────────────────────────
-
-  const todayActions = useMemo(() => {
-    const today = new Date().toISOString().split("T")[0];
-    return prospects.filter(p =>
-      p.next_action_date && p.next_action_date <= today &&
-      p.stage !== "gagne" && p.stage !== "perdu"
-    ).sort((a, b) => (a.next_action_date || "").localeCompare(b.next_action_date || ""));
-  }, [prospects]);
-
-  // ─── Funnel data ───────────────────────────────────────────────────────────
-
-  const funnelData = useMemo(() =>
-    STAGES.filter(s => s.id !== "perdu").map(s => ({
-      name: s.label,
-      value: prospects.filter(p => p.stage === s.id).length,
-      fill: s.id === "lead" ? "#64748b" : s.id === "qualifie" ? "#3b82f6" : s.id === "demo_planifiee" ? "#8b5cf6"
-        : s.id === "demo_faite" ? "#a855f7" : s.id === "proposition" ? "#f97316"
-        : s.id === "negociation" ? "#f59e0b" : "#10b981",
-    })), [prospects]);
-
-  // ─── CRUD ──────────────────────────────────────────────────────────────────
-
-  async function createProspect() {
-    if (!newForm.contact_name.trim() || !newForm.contact_email.trim()) {
-      toast.error("Nom et email requis");
-      return;
-    }
-    const { error } = await supabase.from("admin_prospects").insert({
-      contact_name: newForm.contact_name,
-      contact_email: newForm.contact_email,
-      contact_phone: newForm.contact_phone || null,
-      company_name: newForm.company_name || null,
-      siren: newForm.siren || null,
-      source: newForm.source,
-      plan_vise: newForm.plan_vise,
-      montant_estime_cents: newForm.montant_estime_cents,
-      notes: newForm.notes || null,
-      next_action: newForm.next_action || null,
-      next_action_date: newForm.next_action_date || null,
-    });
-    if (error) { toast.error("Erreur creation"); return; }
-    toast.success("Prospect cree");
-    setShowNewProspect(false);
-    setNewForm({ contact_name: "", contact_email: "", contact_phone: "", company_name: "", siren: "", source: "site_web", plan_vise: "cabinet", montant_estime_cents: 0, notes: "", next_action: "", next_action_date: "" });
-    fetchData();
-  }
-
-  async function updateStage(id: string, stage: string) {
-    const { error } = await supabase.from("admin_prospects").update({
-      stage,
-      updated_at: new Date().toISOString(),
-    }).eq("id", id);
-    if (error) { toast.error("Erreur mise a jour"); return; }
-    setProspects(prev => prev.map(p => p.id === id ? { ...p, stage, updated_at: new Date().toISOString() } : p));
-    // Auto-create activity
-    await supabase.from("admin_crm_activities").insert({
-      prospect_id: id,
-      type: "note",
-      content: `Stage change vers ${STAGES.find(s => s.id === stage)?.label || stage}`,
-      created_by: user?.id,
-    });
-  }
-
-  async function updateProspectField(id: string, field: string, value: unknown) {
-    const { error } = await supabase.from("admin_prospects").update({
-      [field]: value,
-      updated_at: new Date().toISOString(),
-    }).eq("id", id);
-    if (error) { toast.error("Erreur"); return; }
-    setProspects(prev => prev.map(p => p.id === id ? { ...p, [field]: value, updated_at: new Date().toISOString() } : p));
-    if (selectedProspect?.id === id) {
-      setSelectedProspect(prev => prev ? { ...prev, [field]: value, updated_at: new Date().toISOString() } : null);
-    }
-  }
-
-  async function addActivity(prospectId: string) {
-    if (!activityContent.trim()) return;
-    const { error } = await supabase.from("admin_crm_activities").insert({
-      prospect_id: prospectId,
-      type: activityType,
-      content: activityContent,
-      created_by: user?.id,
-    });
-    if (error) { toast.error("Erreur"); return; }
-    toast.success("Activite ajoutee");
-    setActivityContent("");
-    fetchData();
-  }
-
-  async function deleteProspect(id: string) {
-    const { error } = await supabase.from("admin_prospects").delete().eq("id", id);
-    if (error) { toast.error("Erreur suppression"); return; }
-    toast.success("Prospect supprime");
-    setSelectedProspect(null);
-    fetchData();
-  }
-
-  async function convertToClient(p: Prospect) {
+  const fetchOnboarding = useCallback(async () => {
     try {
-      const { error } = await supabase.rpc("admin_create_cabinet", {
-        p_name: p.company_name || p.contact_name,
-        p_siren: p.siren || null,
-        p_plan: p.plan_vise || "cabinet",
+      const { data } = await supabase.from("v_admin_onboarding").select("*");
+      if (data) setOnboarding(data as unknown as OnboardingCab[]);
+    } catch (err) {
+      console.error("[CRM] onboarding error:", err);
+    }
+  }, []);
+
+  useEffect(() => { fetchAll(); }, [fetchAll]);
+  useEffect(() => { if (subTab === "onboarding") fetchOnboarding(); }, [subTab, fetchOnboarding]);
+
+  async function openDetail(p: Prospect) {
+    setSelectedProspect(p);
+    setSheetOpen(true);
+    try {
+      const { data } = await supabase
+        .from("admin_crm_activities").select("*")
+        .eq("prospect_id", p.id).order("created_at", { ascending: false });
+      if (data) setActivities(data as unknown as CrmActivity[]);
+    } catch { /* ignore */ }
+  }
+
+  async function handleCreate() {
+    if (!newForm.contact_name.trim() || !newForm.contact_email.trim()) { toast.error("Nom et email requis"); return; }
+    try {
+      const { data, error } = await supabase.from("admin_prospects").insert({
+        contact_name: newForm.contact_name, contact_email: newForm.contact_email,
+        contact_phone: newForm.contact_phone || null, company_name: newForm.company_name || null,
+        siren: newForm.siren || null, source: newForm.source, plan_vise: newForm.plan_vise,
+        montant_estime_cents: newForm.montant_estime_cents, notes: newForm.notes || null,
+        next_action: newForm.next_action || null, next_action_date: newForm.next_action_date || null,
+        tags: newForm.tags, created_by: profile?.id,
+      }).select().single();
+      if (error) throw error;
+      if (data) {
+        await supabase.from("admin_crm_activities").insert({
+          prospect_id: (data as Record<string, unknown>).id, type: "note", content: "Prospect cree", created_by: profile?.id,
+        }).catch(() => {});
+      }
+      toast.success("Prospect cree");
+      setNewDialog(false);
+      setNewForm({ contact_name: "", contact_email: "", contact_phone: "", company_name: "", siren: "", source: "autre", plan_vise: "solo", montant_estime_cents: 2900, notes: "", next_action: "", next_action_date: "", tags: [] });
+      fetchAll();
+    } catch { toast.error("Erreur lors de la creation"); }
+  }
+
+  async function updateStage(prospectId: string, newStage: string) {
+    try {
+      const { error } = await supabase.from("admin_prospects").update({ stage: newStage }).eq("id", prospectId);
+      if (error) throw error;
+      setProspects((prev) => prev.map((p) => p.id === prospectId ? { ...p, stage: newStage } : p));
+      if (selectedProspect?.id === prospectId) setSelectedProspect((p) => p ? { ...p, stage: newStage } : p);
+      toast.success(`Deplace vers ${STAGE_LABELS[newStage]}`);
+    } catch { toast.error("Erreur"); }
+  }
+
+  async function handleAddActivity() {
+    if (!activityContent.trim() || !selectedProspect) return;
+    try {
+      const { error } = await supabase.from("admin_crm_activities").insert({
+        prospect_id: selectedProspect.id, type: activityType, content: activityContent, created_by: profile?.id,
       });
       if (error) throw error;
-      await updateStage(p.id, "gagne");
-      await supabase.from("admin_crm_activities").insert({
-        prospect_id: p.id,
-        type: "note",
-        content: "Converti en cabinet client",
-        created_by: user?.id,
-      });
-      toast.success("Cabinet cree et prospect marque comme gagne");
-      fetchData();
-    } catch {
-      toast.error("Erreur lors de la conversion");
-    }
+      toast.success("Activite ajoutee");
+      setActivityContent("");
+      const { data } = await supabase.from("admin_crm_activities").select("*").eq("prospect_id", selectedProspect.id).order("created_at", { ascending: false });
+      if (data) setActivities(data as unknown as CrmActivity[]);
+    } catch { toast.error("Erreur"); }
   }
 
-  async function sendFollowupEmail(p: Prospect) {
-    const { error } = await supabase.from("email_queue").insert({
-      to_email: p.contact_email,
-      template: "prospect_followup",
-      subject: `GRIMY — Suivi de votre demande`,
-      body: `Bonjour ${p.contact_name},\n\nNous revenons vers vous concernant votre interet pour GRIMY.\n\n${p.next_action ? `Prochaine etape : ${p.next_action}` : "N'hesitez pas a nous contacter pour toute question."}\n\nCordialement,\nL'equipe GRIMY`,
-      status: "pending",
+  async function handleMarkLost() {
+    if (!lostReason.trim() || !selectedProspect) return;
+    try {
+      await supabase.from("admin_prospects").update({ stage: "perdu", lost_reason: lostReason }).eq("id", selectedProspect.id);
+      await supabase.from("admin_crm_activities").insert({ prospect_id: selectedProspect.id, type: "note", content: `Marque perdu: ${lostReason}`, created_by: profile?.id }).catch(() => {});
+      toast.success("Prospect marque perdu");
+      setLostDialog(false); setLostReason(""); setSheetOpen(false); fetchAll();
+    } catch { toast.error("Erreur"); }
+  }
+
+  async function handleConvert() {
+    if (!selectedProspect) return;
+    try {
+      const { error } = await supabase.rpc("admin_convert_prospect", { p_prospect_id: selectedProspect.id, p_plan: selectedProspect.plan_vise || "solo" });
+      if (error) throw error;
+      toast.success("Prospect converti en cabinet !");
+      setConvertDialog(false); setSheetOpen(false); fetchAll();
+    } catch { toast.error("Erreur lors de la conversion"); }
+  }
+
+  async function handleDelete() {
+    if (!selectedProspect) return;
+    try {
+      await supabase.from("admin_prospects").delete().eq("id", selectedProspect.id);
+      toast.success("Prospect supprime");
+      setDeleteDialog(false); setSheetOpen(false); fetchAll();
+    } catch { toast.error("Erreur"); }
+  }
+
+  async function updateNextAction(action: string, date: string) {
+    if (!selectedProspect) return;
+    try {
+      await supabase.from("admin_prospects").update({ next_action: action || null, next_action_date: date || null }).eq("id", selectedProspect.id);
+      setSelectedProspect((p) => p ? { ...p, next_action: action, next_action_date: date } : p);
+      toast.success("Action mise a jour");
+    } catch { toast.error("Erreur"); }
+  }
+
+  async function handlePlanDemo() {
+    if (!selectedProspect) return;
+    await updateStage(selectedProspect.id, "demo_planifiee");
+    await updateNextAction("Demo", "");
+  }
+
+  const filteredProspects = useMemo(() => {
+    return prospects.filter((p) => {
+      if (search) {
+        const q = search.toLowerCase();
+        if (!p.contact_name.toLowerCase().includes(q) && !p.company_name?.toLowerCase().includes(q) && !p.contact_email.toLowerCase().includes(q)) return false;
+      }
+      if (sourceFilter !== "all" && p.source !== sourceFilter) return false;
+      return true;
     });
-    if (error) { toast.error("Erreur envoi email"); return; }
-    await supabase.from("admin_crm_activities").insert({
-      prospect_id: p.id,
-      type: "relance",
-      content: `Email de relance envoye a ${p.contact_email}`,
-      created_by: user?.id,
-    });
-    toast.success("Email programme");
-    fetchData();
+  }, [prospects, search, sourceFilter]);
+
+  const kanbanGroups = useMemo(() => {
+    const map: Record<string, Prospect[]> = {};
+    for (const s of ALL_STAGES) map[s] = [];
+    for (const p of prospects) { if (map[p.stage]) map[p.stage].push(p); }
+    return map;
+  }, [prospects]);
+
+  function getOnboardingPct(c: OnboardingCab): number {
+    let steps = 1;
+    if (c.total_clients > 0) steps++;
+    if (c.total_lm > 0) steps++;
+    if (c.total_docs > 0) steps++;
+    return steps * 25;
   }
-
-  function exportCSV() {
-    const headers = ["Nom", "Email", "Telephone", "Entreprise", "SIREN", "Source", "Stage", "Plan", "Montant EUR", "Prochaine action", "Date action", "Score", "Tags", "Cree le"];
-    const rows = prospects.map(p => [
-      p.contact_name, p.contact_email, p.contact_phone || "", p.company_name || "",
-      p.siren || "", p.source || "", p.stage, p.plan_vise || "",
-      String(p.montant_estime_cents / 100), p.next_action || "", p.next_action_date || "",
-      String(scoreProspect(p)), (p.tags || []).join(";"), p.created_at.split("T")[0],
-    ]);
-    const csv = [headers, ...rows].map(r => r.map(c => `"${c}"`).join(",")).join("\n");
-    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = `crm_prospects_${new Date().toISOString().split("T")[0]}.csv`;
-    a.click(); URL.revokeObjectURL(url);
-    toast.success("Export CSV telecharge");
-  }
-
-  // ─── Drag and drop handlers ────────────────────────────────────────────────
-
-  function handleDragStart(id: string, stage: string) {
-    dragRef.current = { id, stage };
-  }
-
-  function handleDragOver(e: React.DragEvent, stage: string) {
-    e.preventDefault();
-    setDragOverStage(stage);
-  }
-
-  function handleDrop(stage: string) {
-    if (dragRef.current && dragRef.current.stage !== stage) {
-      updateStage(dragRef.current.id, stage);
-    }
-    dragRef.current = null;
-    setDragOverStage(null);
-  }
-
-  // ─── Score badge ───────────────────────────────────────────────────────────
-
-  function ScoreBadge({ score }: { score: number }) {
-    const color = score >= 80 ? "bg-emerald-500/20 text-emerald-400" : score >= 50 ? "bg-amber-500/20 text-amber-400" : "bg-slate-500/20 text-slate-400";
-    return <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${color}`}>{score}</span>;
-  }
-
-  // ─── Prospect card ─────────────────────────────────────────────────────────
-
-  function ProspectCard({ p }: { p: Prospect }) {
-    const score = scoreProspect(p);
-    const stale = isStale(p, activities);
-    const overdue = p.next_action_date && p.next_action_date < new Date().toISOString().split("T")[0];
-    return (
-      <div
-        draggable
-        onDragStart={() => handleDragStart(p.id, p.stage)}
-        onClick={() => setSelectedProspect(p)}
-        className={`p-3 rounded-lg border cursor-pointer transition-all hover:shadow-md hover:-translate-y-0.5 group ${
-          stale ? "border-orange-500/40 bg-orange-500/5" : "border-white/10 bg-white/[0.03] hover:border-white/20"
-        }`}
-      >
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-slate-200 truncate">{p.contact_name}</p>
-            {p.company_name && <p className="text-[11px] text-slate-400 truncate">{p.company_name}</p>}
-          </div>
-          <ScoreBadge score={score} />
-        </div>
-        {/* Tags */}
-        {p.tags && p.tags.length > 0 && (
-          <div className="flex flex-wrap gap-1 mt-1.5">
-            {p.tags.map(t => {
-              const tag = TAG_OPTIONS.find(o => o.id === t);
-              return tag ? <span key={t} className={`text-[8px] px-1.5 py-0.5 rounded-full font-medium ${tag.color}`}>{tag.label}</span> : null;
-            })}
-          </div>
-        )}
-        <div className="flex items-center gap-2 mt-2 text-[10px] text-slate-500">
-          {p.plan_vise && <Badge className="text-[9px] border-0 bg-white/5 text-slate-400">{p.plan_vise}</Badge>}
-          {p.montant_estime_cents > 0 && <span>{formatCents(p.montant_estime_cents)}</span>}
-        </div>
-        {p.next_action && (
-          <div className={`flex items-center gap-1 mt-2 text-[10px] ${overdue ? "text-red-400" : "text-slate-500"}`}>
-            <Clock className="w-3 h-3" />
-            <span className="truncate">{p.next_action}</span>
-            {overdue && <AlertTriangle className="w-3 h-3 text-red-400 shrink-0" />}
-          </div>
-        )}
-        {stale && (
-          <div className="flex items-center gap-1 mt-1.5">
-            <Badge className="text-[8px] bg-orange-500/20 text-orange-400 border-0">Inactif 7j+</Badge>
-            <button
-              onClick={e => { e.stopPropagation(); sendFollowupEmail(p); }}
-              className="text-[9px] text-orange-400 hover:text-orange-300 underline"
-            >Relancer</button>
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  // ─── Loading skeleton ──────────────────────────────────────────────────────
 
   if (loading) {
     return (
-      <div className="space-y-4">
-        <div className="grid grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map(i => (
-            <div key={i} className="h-24 rounded-xl border border-white/10 bg-white/[0.02] animate-pulse" />
-          ))}
+      <div className="space-y-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)}
         </div>
-        <div className="grid grid-cols-4 gap-3">
-          {[1, 2, 3, 4].map(i => (
-            <div key={i} className="space-y-2">
-              <div className="h-6 w-24 rounded bg-white/5 animate-pulse" />
-              {[1, 2].map(j => <div key={j} className="h-28 rounded-lg border border-white/10 bg-white/[0.02] animate-pulse" />)}
-            </div>
-          ))}
-        </div>
+        <Skeleton className="h-96 rounded-xl" />
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      {/* ─── KPI Cards ─── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="p-4 rounded-xl border border-white/10 bg-white/[0.02]">
-          <div className="flex items-center gap-2 text-sm text-slate-400 mb-1"><Users className="w-4 h-4" /> Prospects actifs</div>
-          <p className="text-2xl font-bold text-slate-100">{metrics.activeCount}</p>
+      {/* Sub-tabs */}
+      <div className="flex items-center gap-2">
+        <div className="flex gap-1 bg-white/5 border border-white/10 rounded-lg p-1">
+          {(["pipeline", "onboarding", "analytics"] as const).map((t) => (
+            <button key={t} onClick={() => setSubTab(t)} className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${subTab === t ? "bg-blue-500/20 text-blue-300" : "text-slate-400 hover:text-slate-200 hover:bg-white/5"}`}>
+              {t === "pipeline" ? "Pipeline" : t === "onboarding" ? "Onboarding" : "Analytics"}
+            </button>
+          ))}
         </div>
-        <div className="p-4 rounded-xl border border-white/10 bg-white/[0.02]">
-          <div className="flex items-center gap-2 text-sm text-slate-400 mb-1"><DollarSign className="w-4 h-4" /> Valeur pipeline</div>
-          <p className="text-2xl font-bold text-slate-100">{formatCents(metrics.pipeline)}</p>
-        </div>
-        <div className="p-4 rounded-xl border border-white/10 bg-white/[0.02]">
-          <div className="flex items-center gap-2 text-sm text-slate-400 mb-1"><TrendingUp className="w-4 h-4" /> Taux conversion</div>
-          <p className="text-2xl font-bold text-slate-100">{metrics.convRate}%</p>
-        </div>
-        <div className="p-4 rounded-xl border border-white/10 bg-white/[0.02]">
-          <div className="flex items-center gap-2 text-sm text-slate-400 mb-1"><Clock className="w-4 h-4" /> Cycle moyen</div>
-          <p className="text-2xl font-bold text-slate-100">{metrics.avgCycle}j</p>
-        </div>
-      </div>
-
-      {/* ─── Today's Actions ─── */}
-      {todayActions.length > 0 && (
-        <div className="p-4 rounded-xl border border-amber-500/30 bg-amber-500/5">
-          <div className="flex items-center gap-2 mb-3">
-            <Bell className="w-4 h-4 text-amber-400" />
-            <h3 className="text-sm font-semibold text-amber-400">Actions du jour ({todayActions.length})</h3>
-          </div>
-          <div className="space-y-2">
-            {todayActions.slice(0, 5).map(p => {
-              const overdue = p.next_action_date! < new Date().toISOString().split("T")[0];
-              return (
-                <div key={p.id} className="flex items-center justify-between p-2 rounded-lg bg-white/[0.03]" onClick={() => setSelectedProspect(p)}>
-                  <div className="flex items-center gap-3 min-w-0">
-                    {overdue && <Badge className="text-[9px] bg-red-500/20 text-red-400 border-0 shrink-0">En retard</Badge>}
-                    <span className="text-sm text-slate-200 truncate">{p.contact_name}</span>
-                    <span className="text-xs text-slate-500 truncate">{p.next_action}</span>
-                  </div>
-                  <span className="text-[10px] text-slate-500 shrink-0">{p.next_action_date}</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* ─── Toolbar ─── */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-2 flex-wrap">
-          <div className="relative">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-            <Input
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              placeholder="Rechercher..."
-              className="pl-9 w-56 h-9 bg-white/5 border-white/10 text-sm"
-            />
-          </div>
-          <Select value={filterStage} onValueChange={setFilterStage}>
-            <SelectTrigger className="w-36 h-9 bg-white/5 border-white/10 text-sm"><SelectValue placeholder="Stage" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tous les stages</SelectItem>
-              {STAGES.map(s => <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={filterSource} onValueChange={setFilterSource}>
-            <SelectTrigger className="w-36 h-9 bg-white/5 border-white/10 text-sm"><SelectValue placeholder="Source" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Toutes sources</SelectItem>
-              {SOURCES.map(s => <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={filterPlan} onValueChange={setFilterPlan}>
-            <SelectTrigger className="w-32 h-9 bg-white/5 border-white/10 text-sm"><SelectValue placeholder="Plan" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tous plans</SelectItem>
-              {PLANS.map(s => <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={() => setShowFunnel(f => !f)} className="text-xs text-slate-400 h-9">
-            <BarChart3 className="w-4 h-4 mr-1" /> Funnel
-          </Button>
-          <Button variant="ghost" size="sm" onClick={() => setViewMode(v => v === "kanban" ? "list" : "kanban")} className="text-xs text-slate-400 h-9">
-            {viewMode === "kanban" ? <List className="w-4 h-4 mr-1" /> : <Columns3 className="w-4 h-4 mr-1" />}
-            {viewMode === "kanban" ? "Liste" : "Kanban"}
-          </Button>
-          <Button variant="ghost" size="sm" onClick={exportCSV} className="text-xs text-slate-400 h-9">
-            <Download className="w-4 h-4 mr-1" /> Export
-          </Button>
-          <Button size="sm" onClick={() => setShowNewProspect(true)} className="gap-1.5 bg-blue-600 hover:bg-blue-700 h-9">
-            <Plus className="w-4 h-4" /> Prospect
-          </Button>
-        </div>
-      </div>
-
-      {/* ─── Funnel Chart ─── */}
-      {showFunnel && (
-        <div className="p-4 rounded-xl border border-white/10 bg-white/[0.02]">
-          <h3 className="text-sm font-semibold text-slate-300 mb-3">Entonnoir de conversion</h3>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={funnelData} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                <XAxis type="number" stroke="#64748b" fontSize={11} />
-                <YAxis type="category" dataKey="name" stroke="#64748b" fontSize={11} width={100} />
-                <Tooltip contentStyle={{ backgroundColor: "#1e293b", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, fontSize: 12 }} />
-                <Bar dataKey="value" radius={[0, 4, 4, 0]}>
-                  {funnelData.map((entry, idx) => (
-                    <rect key={idx} fill={entry.fill} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      )}
-
-      {/* ─── Kanban View ─── */}
-      {viewMode === "kanban" && (
-        <>
-          {/* Mobile: select + list */}
-          <div className="sm:hidden space-y-3">
-            <Select value={mobileStage} onValueChange={setMobileStage}>
-              <SelectTrigger className="w-full bg-white/5 border-white/10">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {STAGES.map(s => <SelectItem key={s.id} value={s.id}>{s.label} ({filtered.filter(p => p.stage === s.id).length})</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <div className="space-y-2">
-              {filtered.filter(p => p.stage === mobileStage).map(p => <ProspectCard key={p.id} p={p} />)}
-              {filtered.filter(p => p.stage === mobileStage).length === 0 && (
-                <p className="text-center text-sm text-slate-500 py-8">Aucun prospect</p>
-              )}
+        {subTab === "pipeline" && (
+          <>
+            <div className="flex gap-1 bg-white/5 border border-white/10 rounded-lg p-0.5 ml-2">
+              <button onClick={() => setViewMode("kanban")} className={`p-1.5 rounded ${viewMode === "kanban" ? "bg-blue-500/20 text-blue-300" : "text-slate-500"}`}><LayoutGrid className="h-4 w-4" /></button>
+              <button onClick={() => setViewMode("table")} className={`p-1.5 rounded ${viewMode === "table" ? "bg-blue-500/20 text-blue-300" : "text-slate-500"}`}><List className="h-4 w-4" /></button>
             </div>
-          </div>
+            <button onClick={() => setNewDialog(true)} className="ml-auto flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">
+              <Plus className="h-4 w-4" /> Nouveau prospect
+            </button>
+          </>
+        )}
+      </div>
 
-          {/* Desktop: horizontal kanban */}
-          <div className="hidden sm:flex gap-3 overflow-x-auto pb-4" style={{ minHeight: 400 }}>
-            {STAGES.map(stage => {
-              const stageProspects = filtered.filter(p => p.stage === stage.id);
+      {/* ═══ PIPELINE ═══ */}
+      {subTab === "pipeline" && (
+        <>
+          {/* KPI Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[
+              { label: "Prospects actifs", value: stats?.total_prospects ?? 0, icon: Users, color: "text-blue-400" },
+              { label: "Valeur pipeline", value: `${((stats?.total_value_cents ?? 0) / 100).toLocaleString("fr-FR")} €`, icon: Euro, color: "text-emerald-400" },
+              { label: "Taux conversion", value: `${stats?.conversion_rate ?? 0}%`, icon: TrendingUp, color: "text-violet-400" },
+              { label: "Actions en retard", value: stats?.overdue_actions ?? 0, icon: AlertTriangle, color: "text-red-400", alert: (stats?.overdue_actions ?? 0) > 0 },
+            ].map((kpi) => {
+              const Icon = kpi.icon;
               return (
-                <div
-                  key={stage.id}
-                  className={`flex-shrink-0 w-56 rounded-xl border transition-colors ${
-                    dragOverStage === stage.id ? `${stage.border} ${stage.bg}` : "border-white/10 bg-white/[0.02]"
-                  }`}
-                  onDragOver={e => handleDragOver(e, stage.id)}
-                  onDragLeave={() => setDragOverStage(null)}
-                  onDrop={() => handleDrop(stage.id)}
-                >
-                  {/* Column header */}
-                  <div className="flex items-center justify-between px-3 py-2.5 border-b border-white/5">
-                    <div className="flex items-center gap-2">
-                      <div className={`w-2.5 h-2.5 rounded-full ${stage.color}`} />
-                      <span className="text-xs font-semibold text-slate-300">{stage.label}</span>
-                    </div>
-                    <span className="text-[10px] font-medium text-slate-500 bg-white/5 px-1.5 py-0.5 rounded-full">
-                      {stageProspects.length}
-                    </span>
+                <div key={kpi.label} className="bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col gap-2">
+                  <div className="flex items-center gap-2">
+                    <Icon className={`h-4 w-4 ${kpi.color}`} />
+                    <span className="text-xs text-slate-400">{kpi.label}</span>
+                    {"alert" in kpi && kpi.alert && <span className="ml-auto w-2 h-2 rounded-full bg-red-500 animate-pulse" />}
                   </div>
-                  {/* Cards */}
-                  <div className="p-2 space-y-2 max-h-[600px] overflow-y-auto">
-                    {stageProspects.map(p => <ProspectCard key={p.id} p={p} />)}
-                    {stageProspects.length === 0 && (
-                      <div className="text-center py-8 text-xs text-slate-600">
-                        <p>Glissez un prospect ici</p>
-                      </div>
-                    )}
-                  </div>
+                  <span className={`text-2xl font-bold ${kpi.color}`}>{kpi.value}</span>
                 </div>
               );
             })}
           </div>
+
+          {viewMode === "kanban" ? (
+            <>
+              {/* Mobile: select + list */}
+              <div className="md:hidden space-y-3">
+                {prospects.filter((p) => !["gagne", "perdu"].includes(p.stage)).map((p) => (
+                  <div key={p.id} onClick={() => openDetail(p)} className="bg-white/5 border border-white/10 rounded-lg p-3 cursor-pointer hover:bg-white/10 transition-colors">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-slate-200">{p.contact_name}</span>
+                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium border ${STAGE_COLORS[p.stage]}`}>{STAGE_LABELS[p.stage]}</span>
+                    </div>
+                    {p.company_name && <p className="text-xs text-slate-500 mt-0.5">{p.company_name}</p>}
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop kanban */}
+              <div className="hidden md:flex gap-3 overflow-x-auto pb-2">
+                {STAGES_ORDER.map((stage) => {
+                  const items = kanbanGroups[stage] || [];
+                  const totalVal = items.reduce((s, p) => s + p.montant_estime_cents, 0);
+                  return (
+                    <div key={stage} className="flex-shrink-0 w-[220px] bg-white/[0.03] border border-white/[0.06] rounded-xl flex flex-col"
+                      onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add("ring-1", "ring-blue-500/40"); }}
+                      onDragLeave={(e) => { e.currentTarget.classList.remove("ring-1", "ring-blue-500/40"); }}
+                      onDrop={(e) => { e.preventDefault(); e.currentTarget.classList.remove("ring-1", "ring-blue-500/40"); if (dragId) { updateStage(dragId, stage); setDragId(null); } }}>
+                      <div className="px-3 py-2.5 border-b border-white/[0.06]">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-semibold text-slate-300">{STAGE_LABELS[stage]}</span>
+                          <span className="text-[10px] text-slate-500 bg-white/5 px-1.5 py-0.5 rounded-full">{items.length}</span>
+                        </div>
+                        <p className="text-[10px] text-slate-600 mt-0.5">{(totalVal / 100).toLocaleString("fr-FR")} €</p>
+                      </div>
+                      <div className="flex-1 overflow-y-auto p-2 space-y-2 min-h-[120px] max-h-[500px]">
+                        {items.map((p) => (
+                          <div key={p.id} draggable onDragStart={() => setDragId(p.id)} onClick={() => openDetail(p)}
+                            className="bg-white/5 border border-white/10 rounded-lg p-2.5 cursor-grab hover:bg-white/10 transition-all active:cursor-grabbing">
+                            <div className="flex items-start gap-1.5">
+                              <GripVertical className="h-3 w-3 text-slate-600 shrink-0 mt-0.5" />
+                              <div className="min-w-0 flex-1">
+                                <p className="text-xs font-medium text-slate-200 truncate">{p.contact_name}</p>
+                                {p.company_name && <p className="text-[10px] text-slate-500 truncate">{p.company_name}</p>}
+                              </div>
+                            </div>
+                            <div className="flex flex-wrap gap-1 mt-1.5">
+                              {p.plan_vise && <span className="px-1 py-0.5 rounded text-[9px] bg-blue-500/20 text-blue-300">{p.plan_vise}</span>}
+                              <span className={`px-1 py-0.5 rounded text-[9px] ${SOURCE_COLORS[p.source] || "bg-slate-500/20 text-slate-300"}`}>{SOURCE_LABELS[p.source] || p.source}</span>
+                            </div>
+                            {p.montant_estime_cents > 0 && <p className="text-[10px] text-emerald-400 mt-1">{(p.montant_estime_cents / 100).toLocaleString("fr-FR")} €/mois</p>}
+                            {p.next_action_date && <p className={`text-[10px] mt-1 flex items-center gap-1 ${isOverdue(p.next_action_date) ? "text-red-400" : "text-slate-500"}`}><Calendar className="h-2.5 w-2.5" /> {p.next_action_date}</p>}
+                          </div>
+                        ))}
+                        {items.length === 0 && <p className="text-[10px] text-slate-600 text-center py-4">Aucun prospect</p>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Final stages */}
+              <div className="flex gap-3">
+                {FINAL_STAGES.map((stage) => {
+                  const items = kanbanGroups[stage] || [];
+                  return (
+                    <div key={stage} className={`flex-1 rounded-lg p-3 border ${stage === "gagne" ? "bg-emerald-500/5 border-emerald-500/20" : "bg-slate-500/5 border-slate-500/20"}`}>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs font-semibold ${stage === "gagne" ? "text-emerald-400" : "text-slate-400"}`}>{STAGE_LABELS[stage]}</span>
+                        <span className="text-[10px] text-slate-500">{items.length}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          ) : (
+            /* Table View */
+            <div className="space-y-3">
+              <div className="flex flex-wrap gap-2">
+                <div className="relative flex-1 min-w-[200px]">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                  <input type="text" placeholder="Rechercher..." value={search} onChange={(e) => setSearch(e.target.value)} className="w-full pl-10 pr-4 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-200" />
+                </div>
+                <select value={sourceFilter} onChange={(e) => setSourceFilter(e.target.value)} className="px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-200">
+                  <option value="all">Toutes sources</option>
+                  {Object.entries(SOURCE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                </select>
+              </div>
+              <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-xs text-slate-500 border-b border-white/10">
+                        <th className="px-4 py-3">Contact</th><th className="px-4 py-3">Entreprise</th><th className="px-4 py-3">Stage</th>
+                        <th className="px-4 py-3">Source</th><th className="px-4 py-3">Plan</th><th className="px-4 py-3">Montant</th>
+                        <th className="px-4 py-3">Action</th><th className="px-4 py-3">Tags</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredProspects.map((p) => (
+                        <tr key={p.id} onClick={() => openDetail(p)} className="border-b border-white/5 hover:bg-white/[0.02] cursor-pointer">
+                          <td className="px-4 py-3"><p className="text-slate-200 font-medium">{p.contact_name}</p><p className="text-[11px] text-slate-500">{p.contact_email}</p></td>
+                          <td className="px-4 py-3 text-slate-400">{p.company_name || "—"}</td>
+                          <td className="px-4 py-3"><span className={`px-2 py-0.5 rounded-full text-[10px] font-medium border ${STAGE_COLORS[p.stage]}`}>{STAGE_LABELS[p.stage]}</span></td>
+                          <td className="px-4 py-3"><span className={`px-1.5 py-0.5 rounded text-[10px] ${SOURCE_COLORS[p.source]}`}>{SOURCE_LABELS[p.source]}</span></td>
+                          <td className="px-4 py-3 text-slate-400 capitalize">{p.plan_vise || "—"}</td>
+                          <td className="px-4 py-3 text-emerald-400">{p.montant_estime_cents > 0 ? `${(p.montant_estime_cents / 100).toLocaleString("fr-FR")} €` : "—"}</td>
+                          <td className="px-4 py-3">{p.next_action_date ? <span className={`text-xs ${isOverdue(p.next_action_date) ? "text-red-400" : "text-slate-500"}`}>{p.next_action_date}</span> : "—"}</td>
+                          <td className="px-4 py-3"><div className="flex gap-1 flex-wrap">{(Array.isArray(p.tags) ? p.tags : []).map((t: string) => <span key={t} className={`px-1 py-0.5 rounded text-[9px] ${TAG_COLORS[t] || "bg-slate-500/20 text-slate-300"}`}>{t}</span>)}</div></td>
+                        </tr>
+                      ))}
+                      {filteredProspects.length === 0 && (
+                        <tr><td colSpan={8} className="px-4 py-12 text-center text-slate-500">
+                          <Users className="h-8 w-8 mx-auto mb-2 text-slate-600" />
+                          Aucun prospect. <button onClick={() => setNewDialog(true)} className="text-blue-400 hover:underline">Creer le premier</button>
+                        </td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
         </>
       )}
 
-      {/* ─── List View ─── */}
-      {viewMode === "list" && (
-        <div className="rounded-xl border border-white/10 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-white/[0.03] border-b border-white/5">
-                  <th className="text-left py-3 px-4 text-slate-400 font-medium">Nom</th>
-                  <th className="text-left py-3 px-4 text-slate-400 font-medium">Entreprise</th>
-                  <th className="text-left py-3 px-4 text-slate-400 font-medium">Stage</th>
-                  <th className="text-left py-3 px-4 text-slate-400 font-medium">Source</th>
-                  <th className="text-left py-3 px-4 text-slate-400 font-medium">Plan</th>
-                  <th className="text-right py-3 px-4 text-slate-400 font-medium">Montant</th>
-                  <th className="text-left py-3 px-4 text-slate-400 font-medium">Score</th>
-                  <th className="text-left py-3 px-4 text-slate-400 font-medium">Action</th>
-                  <th className="text-left py-3 px-4 text-slate-400 font-medium">Tags</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map(p => {
-                  const stale_ = isStale(p, activities);
-                  const stageDef = STAGES.find(s => s.id === p.stage);
-                  return (
-                    <tr
-                      key={p.id}
-                      onClick={() => setSelectedProspect(p)}
-                      className={`border-b border-white/5 cursor-pointer hover:bg-white/[0.03] transition-colors ${stale_ ? "bg-orange-500/5" : ""}`}
-                    >
-                      <td className="py-2.5 px-4">
-                        <div>
-                          <p className="text-slate-200">{p.contact_name}</p>
-                          <p className="text-[10px] text-slate-500">{p.contact_email}</p>
-                        </div>
-                      </td>
-                      <td className="py-2.5 px-4 text-slate-400">{p.company_name || "—"}</td>
-                      <td className="py-2.5 px-4">
-                        <Badge className={`text-[10px] border-0 ${stageDef?.bg} ${stageDef?.text}`}>{stageDef?.label}</Badge>
-                      </td>
-                      <td className="py-2.5 px-4 text-slate-400 text-xs">{SOURCES.find(s => s.id === p.source)?.label || "—"}</td>
-                      <td className="py-2.5 px-4 text-slate-400 text-xs">{p.plan_vise || "—"}</td>
-                      <td className="py-2.5 px-4 text-right text-slate-300 font-mono text-xs">{p.montant_estime_cents > 0 ? formatCents(p.montant_estime_cents) : "—"}</td>
-                      <td className="py-2.5 px-4"><ScoreBadge score={scoreProspect(p)} /></td>
-                      <td className="py-2.5 px-4 text-[10px] text-slate-500 max-w-[150px] truncate">{p.next_action || "—"}</td>
-                      <td className="py-2.5 px-4">
-                        <div className="flex gap-1">
-                          {(p.tags || []).map(t => {
-                            const tag = TAG_OPTIONS.find(o => o.id === t);
-                            return tag ? <span key={t} className={`text-[8px] px-1 py-0.5 rounded-full ${tag.color}`}>{tag.label}</span> : null;
-                          })}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-                {filtered.length === 0 && (
-                  <tr><td colSpan={9} className="text-center py-12 text-slate-500">Aucun prospect trouve</td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* ─── New Prospect Dialog ─── */}
-      {showNewProspect && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={e => { if (e.target === e.currentTarget) setShowNewProspect(false); }}>
-          <div className="bg-slate-900 border border-white/10 rounded-2xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl">
-            <div className="flex items-center justify-between mb-5">
-              <h3 className="text-lg font-semibold text-slate-100">Nouveau prospect</h3>
-              <button onClick={() => setShowNewProspect(false)} className="text-slate-500 hover:text-slate-300"><X className="w-5 h-5" /></button>
-            </div>
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label className="text-xs text-slate-400">Nom contact *</Label>
-                  <Input value={newForm.contact_name} onChange={e => setNewForm(f => ({ ...f, contact_name: e.target.value }))} className="bg-white/5 border-white/10 mt-1" />
-                </div>
-                <div>
-                  <Label className="text-xs text-slate-400">Email *</Label>
-                  <Input type="email" value={newForm.contact_email} onChange={e => setNewForm(f => ({ ...f, contact_email: e.target.value }))} className="bg-white/5 border-white/10 mt-1" />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label className="text-xs text-slate-400">Telephone</Label>
-                  <Input value={newForm.contact_phone} onChange={e => setNewForm(f => ({ ...f, contact_phone: e.target.value }))} className="bg-white/5 border-white/10 mt-1" />
-                </div>
-                <div>
-                  <Label className="text-xs text-slate-400">Entreprise</Label>
-                  <Input value={newForm.company_name} onChange={e => setNewForm(f => ({ ...f, company_name: e.target.value }))} className="bg-white/5 border-white/10 mt-1" />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label className="text-xs text-slate-400">SIREN</Label>
-                  <Input value={newForm.siren} onChange={e => setNewForm(f => ({ ...f, siren: e.target.value }))} className="bg-white/5 border-white/10 mt-1" />
-                </div>
-                <div>
-                  <Label className="text-xs text-slate-400">Source</Label>
-                  <Select value={newForm.source} onValueChange={v => setNewForm(f => ({ ...f, source: v }))}>
-                    <SelectTrigger className="bg-white/5 border-white/10 mt-1"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {SOURCES.map(s => <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div>
-                <Label className="text-xs text-slate-400 mb-2 block">Plan vise</Label>
-                <div className="flex gap-2">
-                  {PLANS.map(p => (
-                    <button
-                      key={p.id}
-                      onClick={() => setNewForm(f => ({ ...f, plan_vise: p.id, montant_estime_cents: p.id === "solo" ? 2900 : p.id === "cabinet" ? 7900 : 19900 }))}
-                      className={`flex-1 p-3 rounded-lg border text-center transition-all ${
-                        newForm.plan_vise === p.id ? "border-blue-500/50 bg-blue-500/10" : "border-white/10 bg-white/[0.02] hover:bg-white/5"
-                      }`}
-                    >
-                      <p className="text-sm font-medium text-slate-200">{p.label}</p>
-                      <p className="text-[10px] text-slate-500">{p.price}</p>
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label className="text-xs text-slate-400">Montant estime (EUR)</Label>
-                  <Input type="number" value={newForm.montant_estime_cents / 100} onChange={e => setNewForm(f => ({ ...f, montant_estime_cents: Math.round(Number(e.target.value) * 100) }))} className="bg-white/5 border-white/10 mt-1" />
-                </div>
-                <div>
-                  <Label className="text-xs text-slate-400">Prochaine action date</Label>
-                  <Input type="date" value={newForm.next_action_date} onChange={e => setNewForm(f => ({ ...f, next_action_date: e.target.value }))} className="bg-white/5 border-white/10 mt-1" />
-                </div>
-              </div>
-              <div>
-                <Label className="text-xs text-slate-400">Prochaine action</Label>
-                <Input value={newForm.next_action} onChange={e => setNewForm(f => ({ ...f, next_action: e.target.value }))} placeholder="Ex: Planifier demo, Envoyer proposition..." className="bg-white/5 border-white/10 mt-1" />
-              </div>
-              <div>
-                <Label className="text-xs text-slate-400">Notes</Label>
-                <Textarea value={newForm.notes} onChange={e => setNewForm(f => ({ ...f, notes: e.target.value }))} rows={3} className="bg-white/5 border-white/10 mt-1" />
-              </div>
-              <div className="flex justify-end gap-2 pt-2">
-                <Button variant="ghost" onClick={() => setShowNewProspect(false)}>Annuler</Button>
-                <Button onClick={createProspect} className="bg-blue-600 hover:bg-blue-700">Creer le prospect</Button>
-              </div>
+      {/* ═══ ONBOARDING ═══ */}
+      {subTab === "onboarding" && (
+        <div className="space-y-4">
+          <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex items-center gap-3">
+            <Rocket className="h-5 w-5 text-blue-400" />
+            <div>
+              <p className="text-sm font-medium text-slate-200">{onboarding.length} cabinet(s) en cours d'onboarding</p>
+              <p className="text-xs text-slate-500">Cabinets crees dans les 90 derniers jours</p>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* ─── Prospect Detail Sheet ─── */}
-      {selectedProspect && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-sm" onClick={e => { if (e.target === e.currentTarget) setSelectedProspect(null); }}>
-          <div className="w-full max-w-xl bg-slate-900 border-l border-white/10 h-full overflow-y-auto shadow-2xl animate-slide-in-right">
-            <div className="sticky top-0 bg-slate-900/95 backdrop-blur-sm border-b border-white/10 p-4 z-10">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-slate-100">{selectedProspect.contact_name}</h3>
-                <button onClick={() => setSelectedProspect(null)} className="text-slate-500 hover:text-slate-300"><X className="w-5 h-5" /></button>
-              </div>
-              {selectedProspect.company_name && <p className="text-sm text-slate-400 mt-0.5">{selectedProspect.company_name}</p>}
-            </div>
-
-            <div className="p-4 space-y-5">
-              {/* Info grid */}
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <p className="text-[10px] text-slate-500 uppercase">Email</p>
-                  <a href={`mailto:${selectedProspect.contact_email}`} className="text-blue-400 hover:underline text-xs">{selectedProspect.contact_email}</a>
-                </div>
-                <div>
-                  <p className="text-[10px] text-slate-500 uppercase">Telephone</p>
-                  <p className="text-xs text-slate-300">{selectedProspect.contact_phone || "—"}</p>
-                </div>
-                <div>
-                  <p className="text-[10px] text-slate-500 uppercase">SIREN</p>
-                  <p className="text-xs text-slate-300">{selectedProspect.siren || "—"}</p>
-                </div>
-                <div>
-                  <p className="text-[10px] text-slate-500 uppercase">Source</p>
-                  <p className="text-xs text-slate-300">{SOURCES.find(s => s.id === selectedProspect.source)?.label || "—"}</p>
-                </div>
-                <div>
-                  <p className="text-[10px] text-slate-500 uppercase">Plan vise</p>
-                  <p className="text-xs text-slate-300">{selectedProspect.plan_vise || "—"}</p>
-                </div>
-                <div>
-                  <p className="text-[10px] text-slate-500 uppercase">Montant estime</p>
-                  <p className="text-xs text-slate-300">{selectedProspect.montant_estime_cents > 0 ? formatCents(selectedProspect.montant_estime_cents) : "—"}</p>
-                </div>
-                <div>
-                  <p className="text-[10px] text-slate-500 uppercase">Score</p>
-                  <ScoreBadge score={scoreProspect(selectedProspect)} />
-                </div>
-                <div>
-                  <p className="text-[10px] text-slate-500 uppercase">Cree le</p>
-                  <p className="text-xs text-slate-300">{new Date(selectedProspect.created_at).toLocaleDateString("fr-FR")}</p>
-                </div>
-              </div>
-
-              {/* Stage selector */}
-              <div>
-                <Label className="text-xs text-slate-500 uppercase mb-2 block">Stage</Label>
-                <div className="flex flex-wrap gap-1.5">
-                  {STAGES.map(s => (
-                    <button
-                      key={s.id}
-                      onClick={() => updateStage(selectedProspect.id, s.id)}
-                      className={`text-[10px] px-2.5 py-1.5 rounded-lg border font-medium transition-all ${
-                        selectedProspect.stage === s.id ? `${s.border} ${s.bg} ${s.text}` : "border-white/10 text-slate-500 hover:bg-white/5"
-                      }`}
-                    >{s.label}</button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Tags */}
-              <div>
-                <Label className="text-xs text-slate-500 uppercase mb-2 block">Etiquettes</Label>
-                <div className="flex flex-wrap gap-1.5">
-                  {TAG_OPTIONS.map(tag => {
-                    const active = (selectedProspect.tags || []).includes(tag.id);
+          <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-xs text-slate-500 border-b border-white/10">
+                    <th className="px-4 py-3">Cabinet</th><th className="px-4 py-3">Contact</th><th className="px-4 py-3">Date</th>
+                    <th className="px-4 py-3">Plan</th><th className="px-4 py-3">Progression</th><th className="px-4 py-3">Statut</th><th className="px-4 py-3"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {onboarding.map((c) => {
+                    const pct = getOnboardingPct(c);
+                    const daysSince = Math.floor((Date.now() - new Date(c.created_at).getTime()) / 86400000);
+                    const needsRelance = pct === 25 && daysSince > 7;
+                    const steps = [
+                      { label: "Compte", ok: true }, { label: "1er client", ok: c.total_clients > 0 },
+                      { label: "1ere LM", ok: c.total_lm > 0 }, { label: "Documents", ok: c.total_docs > 0 },
+                    ];
                     return (
-                      <button
-                        key={tag.id}
-                        onClick={() => {
-                          const newTags = active
-                            ? (selectedProspect.tags || []).filter(t => t !== tag.id)
-                            : [...(selectedProspect.tags || []), tag.id];
-                          updateProspectField(selectedProspect.id, "tags", newTags);
-                        }}
-                        className={`text-[10px] px-2.5 py-1 rounded-full font-medium transition-all border ${
-                          active ? `${tag.color} border-current` : "text-slate-500 border-white/10 hover:bg-white/5"
-                        }`}
-                      >{tag.label}</button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Next action */}
-              <div className="grid grid-cols-3 gap-2">
-                <div className="col-span-2">
-                  <Label className="text-xs text-slate-500">Prochaine action</Label>
-                  <Input
-                    value={selectedProspect.next_action || ""}
-                    onChange={e => updateProspectField(selectedProspect.id, "next_action", e.target.value)}
-                    className="bg-white/5 border-white/10 mt-1 text-sm"
-                    placeholder="Ex: Appeler pour proposition"
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs text-slate-500">Date</Label>
-                  <Input
-                    type="date"
-                    value={selectedProspect.next_action_date || ""}
-                    onChange={e => updateProspectField(selectedProspect.id, "next_action_date", e.target.value)}
-                    className="bg-white/5 border-white/10 mt-1 text-sm"
-                  />
-                </div>
-              </div>
-
-              {/* Notes */}
-              <div>
-                <Label className="text-xs text-slate-500">Notes</Label>
-                <Textarea
-                  value={selectedProspect.notes || ""}
-                  onChange={e => updateProspectField(selectedProspect.id, "notes", e.target.value)}
-                  rows={3}
-                  className="bg-white/5 border-white/10 mt-1 text-sm"
-                />
-              </div>
-
-              {/* Raison perte */}
-              {selectedProspect.stage === "perdu" && (
-                <div>
-                  <Label className="text-xs text-slate-500">Raison de la perte</Label>
-                  <Input
-                    value={selectedProspect.lost_reason || ""}
-                    onChange={e => updateProspectField(selectedProspect.id, "lost_reason", e.target.value)}
-                    className="bg-white/5 border-white/10 mt-1 text-sm"
-                    placeholder="Prix, fonctionnalites, concurrent..."
-                  />
-                </div>
-              )}
-
-              {/* Action buttons */}
-              <div className="flex flex-wrap gap-2">
-                {selectedProspect.contact_phone && (
-                  <a href={`tel:${selectedProspect.contact_phone}`}>
-                    <Button variant="outline" size="sm" className="text-xs border-white/10 h-8">
-                      <Phone className="w-3.5 h-3.5 mr-1" /> Appeler
-                    </Button>
-                  </a>
-                )}
-                <a href={`mailto:${selectedProspect.contact_email}`}>
-                  <Button variant="outline" size="sm" className="text-xs border-white/10 h-8">
-                    <Mail className="w-3.5 h-3.5 mr-1" /> Email
-                  </Button>
-                </a>
-                <Button variant="outline" size="sm" className="text-xs border-white/10 h-8" onClick={() => sendFollowupEmail(selectedProspect)}>
-                  <Send className="w-3.5 h-3.5 mr-1" /> Relance email
-                </Button>
-                {selectedProspect.stage !== "gagne" && selectedProspect.stage !== "perdu" && (
-                  <Button size="sm" className="text-xs bg-emerald-600 hover:bg-emerald-700 h-8" onClick={() => convertToClient(selectedProspect)}>
-                    <ArrowRightLeft className="w-3.5 h-3.5 mr-1" /> Convertir en cabinet
-                  </Button>
-                )}
-                <Button variant="ghost" size="sm" className="text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10 h-8 ml-auto" onClick={() => deleteProspect(selectedProspect.id)}>
-                  <Trash2 className="w-3.5 h-3.5 mr-1" /> Supprimer
-                </Button>
-              </div>
-
-              {/* Onboarding tracker for won prospects */}
-              {selectedProspect.stage === "gagne" && selectedProspect.cabinet_id && (
-                <OnboardingTracker cabinetId={selectedProspect.cabinet_id} />
-              )}
-
-              {/* Activity timeline */}
-              <div>
-                <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Historique activites</h4>
-                {/* Add activity form */}
-                <div className="flex items-center gap-2 mb-3 p-3 rounded-lg border border-white/10 bg-white/[0.02]">
-                  <Select value={activityType} onValueChange={setActivityType}>
-                    <SelectTrigger className="w-28 h-8 bg-white/5 border-white/10 text-xs"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {ACTIVITY_TYPES.map(t => <SelectItem key={t.id} value={t.id}>{t.label}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                  <Input
-                    value={activityContent}
-                    onChange={e => setActivityContent(e.target.value)}
-                    placeholder="Ajouter une activite..."
-                    className="bg-white/5 border-white/10 h-8 text-xs flex-1"
-                    onKeyDown={e => { if (e.key === "Enter") addActivity(selectedProspect.id); }}
-                  />
-                  <Button size="sm" onClick={() => addActivity(selectedProspect.id)} disabled={!activityContent.trim()} className="h-8 px-3 bg-blue-600 hover:bg-blue-700">
-                    <Plus className="w-3.5 h-3.5" />
-                  </Button>
-                </div>
-                {/* Timeline */}
-                <div className="space-y-2">
-                  {activities.filter(a => a.prospect_id === selectedProspect.id).map(a => {
-                    const aType = ACTIVITY_TYPES.find(t => t.id === a.type);
-                    const Icon = aType?.icon || FileText;
-                    return (
-                      <div key={a.id} className="flex items-start gap-3 p-2.5 rounded-lg bg-white/[0.02] border border-white/5">
-                        <div className="w-7 h-7 rounded-full bg-white/5 flex items-center justify-center shrink-0 mt-0.5">
-                          <Icon className="w-3.5 h-3.5 text-slate-400" />
-                        </div>
-                        <div className="min-w-0 flex-1">
+                      <tr key={c.cabinet_id} className="border-b border-white/5">
+                        <td className="px-4 py-3 text-slate-200 font-medium">{c.cabinet_nom}</td>
+                        <td className="px-4 py-3 text-slate-400">{c.contact_name || c.contact_email || "—"}</td>
+                        <td className="px-4 py-3 text-slate-500">{formatRelative(c.created_at)}</td>
+                        <td className="px-4 py-3"><span className="px-2 py-0.5 rounded-full text-xs bg-blue-500/20 text-blue-300 capitalize">{c.plan || "—"}</span></td>
+                        <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
-                            <Badge className="text-[8px] border-0 bg-white/5 text-slate-400">{aType?.label || a.type}</Badge>
-                            <span className="text-[10px] text-slate-600">{new Date(a.created_at).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>
+                            <div className="w-24 h-2 rounded-full bg-white/5"><div className={`h-full rounded-full transition-all ${pct === 100 ? "bg-emerald-500" : "bg-blue-500"}`} style={{ width: `${pct}%` }} /></div>
+                            <span className="text-xs text-slate-500">{pct}%</span>
                           </div>
-                          <p className="text-xs text-slate-300 mt-0.5">{a.content}</p>
-                        </div>
-                      </div>
+                          <div className="flex gap-1 mt-1">
+                            {steps.map((s) => <span key={s.label} className={`text-[9px] px-1 py-0.5 rounded ${s.ok ? "bg-emerald-500/20 text-emerald-300" : "bg-slate-500/10 text-slate-600"}`}>{s.label}</span>)}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          {pct === 100 && <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-500/20 text-emerald-300">Complet</span>}
+                          {needsRelance && <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-red-500/20 text-red-300 animate-pulse">A relancer</span>}
+                        </td>
+                        <td className="px-4 py-3">
+                          {c.contact_email && (
+                            <button onClick={() => {
+                              const missing = [c.total_clients === 0 ? "ajouter votre premier client" : null, c.total_lm === 0 ? "creer votre premiere lettre de mission" : null, c.total_docs === 0 ? "uploader vos documents" : null].filter(Boolean).join(", ");
+                              const body = encodeURIComponent(`Bonjour ${c.contact_name || ""},\n\nNous esperons que votre experience avec GRIMY se passe bien.\n\nPour tirer le meilleur parti de la plateforme, il vous reste a : ${missing || "finaliser votre configuration"}.\n\nN hesitez pas a nous contacter si vous avez besoin d aide.\n\nCordialement,\nL equipe GRIMY`);
+                              window.open(`mailto:${c.contact_email}?subject=${encodeURIComponent("GRIMY — Besoin d'aide pour demarrer ?")}&body=${body}`, "_blank");
+                              if (c.prospect_id) { supabase.from("admin_crm_activities").insert({ prospect_id: c.prospect_id, type: "relance", content: `Relance onboarding - ${pct}% complete`, created_by: profile?.id }).catch(() => {}); }
+                            }} className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1"><Mail className="h-3 w-3" /> Relancer</button>
+                          )}
+                        </td>
+                      </tr>
                     );
                   })}
-                  {activities.filter(a => a.prospect_id === selectedProspect.id).length === 0 && (
-                    <p className="text-center text-xs text-slate-600 py-4">Aucune activite</p>
+                  {onboarding.length === 0 && <tr><td colSpan={7} className="px-4 py-12 text-center text-slate-500"><Rocket className="h-8 w-8 mx-auto mb-2 text-slate-600" />Aucun cabinet recent</td></tr>}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ ANALYTICS ═══ */}
+      {subTab === "analytics" && stats && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Funnel */}
+            <div className="bg-white/5 border border-white/10 rounded-xl p-6">
+              <h3 className="text-sm font-semibold text-slate-200 mb-4">Funnel Pipeline</h3>
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={ALL_STAGES.map((s) => ({ stage: STAGE_LABELS[s], count: stats.stages?.[s] || 0 }))} layout="vertical" margin={{ left: 100 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                  <XAxis type="number" tick={{ fill: "#94a3b8", fontSize: 10 }} />
+                  <YAxis type="category" dataKey="stage" tick={{ fill: "#94a3b8", fontSize: 11 }} width={90} />
+                  <ReTooltip contentStyle={{ background: "#1e293b", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8 }} />
+                  <Bar dataKey="count" radius={[0, 4, 4, 0]} barSize={20}>
+                    {ALL_STAGES.map((s) => <Cell key={s} fill={STAGE_CHART_COLORS[s]} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Sources Pie */}
+            <div className="bg-white/5 border border-white/10 rounded-xl p-6">
+              <h3 className="text-sm font-semibold text-slate-200 mb-4">Repartition par source</h3>
+              {stats.sources && Object.keys(stats.sources).length > 0 ? (
+                <ResponsiveContainer width="100%" height={250}>
+                  <PieChart>
+                    <Pie data={Object.entries(stats.sources).map(([k, v]) => ({ name: SOURCE_LABELS[k] || k, value: v }))} cx="50%" cy="50%" outerRadius={80} dataKey="value" label={({ name, percent }: { name: string; percent: number }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false}>
+                      {Object.keys(stats.sources).map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
+                    </Pie>
+                    <ReTooltip contentStyle={{ background: "#1e293b", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8 }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : <p className="text-sm text-slate-600 text-center py-10">Aucune donnee</p>}
+            </div>
+
+            {/* Monthly conversions */}
+            <div className="bg-white/5 border border-white/10 rounded-xl p-6">
+              <h3 className="text-sm font-semibold text-slate-200 mb-4">Conversions mensuelles</h3>
+              {stats.monthly_conversions?.length > 0 ? (
+                <ResponsiveContainer width="100%" height={250}>
+                  <LineChart data={stats.monthly_conversions.map((m) => ({ month: new Date(m.month).toLocaleDateString("fr-FR", { month: "short" }), conversions: m.conversions }))}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                    <XAxis dataKey="month" tick={{ fill: "#94a3b8", fontSize: 11 }} />
+                    <YAxis tick={{ fill: "#94a3b8", fontSize: 11 }} allowDecimals={false} />
+                    <ReTooltip contentStyle={{ background: "#1e293b", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8 }} />
+                    <Line type="monotone" dataKey="conversions" stroke="#34d399" strokeWidth={2.5} dot={{ fill: "#34d399", r: 3 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : <p className="text-sm text-slate-600 text-center py-10">Aucune conversion</p>}
+            </div>
+
+            {/* Value by plan */}
+            <div className="bg-white/5 border border-white/10 rounded-xl p-6">
+              <h3 className="text-sm font-semibold text-slate-200 mb-4">Valeur pipeline par plan</h3>
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={["solo", "cabinet", "enterprise"].map((plan) => ({
+                  plan: plan.charAt(0).toUpperCase() + plan.slice(1),
+                  value: prospects.filter((p) => p.plan_vise === plan && !["gagne", "perdu"].includes(p.stage)).reduce((s, p) => s + p.montant_estime_cents, 0) / 100,
+                }))}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                  <XAxis dataKey="plan" tick={{ fill: "#94a3b8", fontSize: 11 }} />
+                  <YAxis tick={{ fill: "#94a3b8", fontSize: 11 }} tickFormatter={(v) => `${v}€`} />
+                  <ReTooltip contentStyle={{ background: "#1e293b", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8 }} formatter={(v: number) => [`${v.toLocaleString("fr-FR")} €`]} />
+                  <Bar dataKey="value" radius={[4, 4, 0, 0]} barSize={40}>
+                    <Cell fill="#60a5fa" /><Cell fill="#a78bfa" /><Cell fill="#34d399" />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Overdue actions */}
+          {(stats.overdue_actions ?? 0) > 0 && (
+            <div className="bg-white/5 border border-white/10 rounded-xl p-6">
+              <h3 className="text-sm font-semibold text-slate-200 mb-4 flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-red-400" /> Actions en retard</h3>
+              <div className="space-y-2">
+                {prospects.filter((p) => isOverdue(p.next_action_date) && !["gagne", "perdu"].includes(p.stage)).sort((a, b) => new Date(a.next_action_date!).getTime() - new Date(b.next_action_date!).getTime()).slice(0, 10).map((p) => (
+                  <div key={p.id} onClick={() => openDetail(p)} className="flex items-center justify-between py-2 border-b border-white/5 cursor-pointer hover:bg-white/[0.02] px-2 rounded">
+                    <div><span className="text-sm text-slate-200">{p.contact_name}</span>{p.next_action && <span className="text-xs text-slate-500 ml-2">— {p.next_action}</span>}</div>
+                    <span className="text-xs text-red-400">{p.next_action_date}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ═══ PROSPECT DETAIL SHEET ═══ */}
+      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+        <SheetContent className="w-full sm:max-w-[600px] overflow-y-auto">
+          {selectedProspect && (
+            <>
+              <SheetHeader>
+                <SheetTitle className="flex items-center gap-2 text-slate-200">
+                  {selectedProspect.contact_name}
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium border ${STAGE_COLORS[selectedProspect.stage]}`}>{STAGE_LABELS[selectedProspect.stage]}</span>
+                </SheetTitle>
+              </SheetHeader>
+              <div className="space-y-5 mt-6">
+                {/* Info */}
+                <div className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-2">
+                  <div className="flex items-center justify-between text-sm"><span className="text-slate-500">Email</span><a href={`mailto:${selectedProspect.contact_email}`} className="text-blue-400 hover:underline">{selectedProspect.contact_email}</a></div>
+                  {selectedProspect.contact_phone && <div className="flex items-center justify-between text-sm"><span className="text-slate-500">Telephone</span><a href={`tel:${selectedProspect.contact_phone}`} className="text-blue-400 hover:underline">{selectedProspect.contact_phone}</a></div>}
+                  {selectedProspect.company_name && <div className="flex items-center justify-between text-sm"><span className="text-slate-500">Entreprise</span><span className="text-slate-300">{selectedProspect.company_name}</span></div>}
+                  {selectedProspect.siren && <div className="flex items-center justify-between text-sm"><span className="text-slate-500">SIREN</span><span className="text-slate-300 font-mono">{selectedProspect.siren}</span></div>}
+                  <div className="flex items-center justify-between text-sm"><span className="text-slate-500">Source</span><span className={`px-1.5 py-0.5 rounded text-[10px] ${SOURCE_COLORS[selectedProspect.source]}`}>{SOURCE_LABELS[selectedProspect.source]}</span></div>
+                  <div className="flex items-center justify-between text-sm"><span className="text-slate-500">Plan vise</span><span className="text-slate-300 capitalize">{selectedProspect.plan_vise || "—"}</span></div>
+                  <div className="flex items-center justify-between text-sm"><span className="text-slate-500">Montant</span><span className="text-emerald-400">{(selectedProspect.montant_estime_cents / 100).toLocaleString("fr-FR")} €/mois</span></div>
+                  <div className="flex items-center justify-between text-sm"><span className="text-slate-500">Cree</span><span className="text-slate-400">{formatRelative(selectedProspect.created_at)}</span></div>
+                  <div className="flex flex-wrap gap-1 pt-1">{(Array.isArray(selectedProspect.tags) ? selectedProspect.tags : []).map((t: string) => <span key={t} className={`px-1.5 py-0.5 rounded text-[10px] ${TAG_COLORS[t] || "bg-slate-500/20 text-slate-300"}`}>{t}</span>)}</div>
+                </div>
+
+                {/* Next action */}
+                <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                  <h4 className="text-xs font-semibold text-slate-400 uppercase mb-2">Prochaine action</h4>
+                  <div className="flex gap-2">
+                    <input type="text" defaultValue={selectedProspect.next_action || ""} placeholder="Action..." className="flex-1 px-2 py-1.5 bg-white/5 border border-white/10 rounded text-sm text-slate-200" onBlur={(e) => updateNextAction(e.target.value, selectedProspect.next_action_date || "")} />
+                    <input type="date" defaultValue={selectedProspect.next_action_date || ""} className="px-2 py-1.5 bg-white/5 border border-white/10 rounded text-sm text-slate-200" onBlur={(e) => updateNextAction(selectedProspect.next_action || "", e.target.value)} />
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex flex-wrap gap-2">
+                  <button onClick={() => { window.open(`mailto:${selectedProspect.contact_email}?subject=${encodeURIComponent("GRIMY — Suite a notre echange")}&body=${encodeURIComponent(`Bonjour ${selectedProspect.contact_name},\n\n`)}`, "_blank"); }} className="flex items-center gap-1.5 px-3 py-2 text-xs bg-blue-500/20 text-blue-300 rounded-lg hover:bg-blue-500/30 transition-colors"><Mail className="h-3 w-3" /> Email</button>
+                  <button disabled={!selectedProspect.contact_phone} onClick={() => window.open(`tel:${selectedProspect.contact_phone}`, "_blank")} className="flex items-center gap-1.5 px-3 py-2 text-xs bg-emerald-500/20 text-emerald-300 rounded-lg hover:bg-emerald-500/30 disabled:opacity-40 transition-colors"><Phone className="h-3 w-3" /> Appeler</button>
+                  <button onClick={handlePlanDemo} className="flex items-center gap-1.5 px-3 py-2 text-xs bg-violet-500/20 text-violet-300 rounded-lg hover:bg-violet-500/30 transition-colors"><Video className="h-3 w-3" /> Planifier demo</button>
+                  <button onClick={() => setLostDialog(true)} className="flex items-center gap-1.5 px-3 py-2 text-xs bg-red-500/20 text-red-300 rounded-lg hover:bg-red-500/30 transition-colors"><X className="h-3 w-3" /> Perdu</button>
+                  {["proposition", "negociation"].includes(selectedProspect.stage) && (
+                    <button onClick={() => setConvertDialog(true)} className="flex items-center gap-1.5 px-3 py-2 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"><UserCheck className="h-3 w-3" /> Convertir</button>
                   )}
                 </div>
+
+                {/* Stage change */}
+                <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                  <h4 className="text-xs font-semibold text-slate-400 uppercase mb-2">Changer l'etape</h4>
+                  <div className="flex flex-wrap gap-1">
+                    {ALL_STAGES.map((s) => (
+                      <button key={s} onClick={() => updateStage(selectedProspect.id, s)} disabled={s === selectedProspect.stage} className={`px-2 py-1 rounded text-[10px] font-medium border transition-colors disabled:opacity-40 ${s === selectedProspect.stage ? STAGE_COLORS[s] : "border-white/10 text-slate-500 hover:bg-white/5"}`}>{STAGE_LABELS[s]}</button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Timeline */}
+                <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                  <h4 className="text-xs font-semibold text-slate-400 uppercase mb-3">Activites</h4>
+                  <div className="space-y-3 max-h-64 overflow-y-auto">
+                    {activities.map((a) => {
+                      const Icon = ACTIVITY_ICONS[a.type] || FileText;
+                      return (
+                        <div key={a.id} className="flex gap-3">
+                          <div className="shrink-0 w-6 h-6 rounded-full bg-white/5 flex items-center justify-center mt-0.5"><Icon className="h-3 w-3 text-slate-500" /></div>
+                          <div><p className="text-sm text-slate-300">{a.content}</p><p className="text-[10px] text-slate-600">{formatRelative(a.created_at)} — <span className="capitalize">{a.type}</span></p></div>
+                        </div>
+                      );
+                    })}
+                    {activities.length === 0 && <p className="text-sm text-slate-600 text-center py-4">Aucune activite</p>}
+                  </div>
+                  <div className="mt-3 pt-3 border-t border-white/[0.06] flex gap-2">
+                    <select value={activityType} onChange={(e) => setActivityType(e.target.value)} className="px-2 py-1.5 bg-white/5 border border-white/10 rounded text-xs text-slate-200 w-28">
+                      {["note", "appel", "email", "demo", "reunion", "relance"].map((t) => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                    <input type="text" value={activityContent} onChange={(e) => setActivityContent(e.target.value)} placeholder="Contenu..." className="flex-1 px-2 py-1.5 bg-white/5 border border-white/10 rounded text-sm text-slate-200" onKeyDown={(e) => e.key === "Enter" && handleAddActivity()} />
+                    <button onClick={handleAddActivity} disabled={!activityContent.trim()} className="px-3 py-1.5 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 disabled:opacity-40 transition-colors">Ajouter</button>
+                  </div>
+                </div>
+
+                <button onClick={() => setDeleteDialog(true)} className="text-xs text-red-400/60 hover:text-red-400 flex items-center gap-1"><Trash2 className="h-3 w-3" /> Supprimer ce prospect</button>
+              </div>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
+
+      {/* ═══ DIALOGS ═══ */}
+
+      {/* New Prospect */}
+      <Dialog open={newDialog} onOpenChange={setNewDialog}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Nouveau prospect</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div><label className="text-xs text-slate-400">Nom du contact *</label><input type="text" value={newForm.contact_name} onChange={(e) => setNewForm({ ...newForm, contact_name: e.target.value })} className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-200 mt-1" /></div>
+              <div><label className="text-xs text-slate-400">Email *</label><input type="email" value={newForm.contact_email} onChange={(e) => setNewForm({ ...newForm, contact_email: e.target.value })} className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-200 mt-1" /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><label className="text-xs text-slate-400">Telephone</label><input type="tel" value={newForm.contact_phone} onChange={(e) => setNewForm({ ...newForm, contact_phone: e.target.value })} className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-200 mt-1" /></div>
+              <div><label className="text-xs text-slate-400">Entreprise</label><input type="text" value={newForm.company_name} onChange={(e) => setNewForm({ ...newForm, company_name: e.target.value })} className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-200 mt-1" /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><label className="text-xs text-slate-400">SIREN</label><input type="text" value={newForm.siren} onChange={(e) => setNewForm({ ...newForm, siren: e.target.value })} className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-200 mt-1" /></div>
+              <div><label className="text-xs text-slate-400">Source</label><select value={newForm.source} onChange={(e) => setNewForm({ ...newForm, source: e.target.value })} className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-200 mt-1">{Object.entries(SOURCE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></div>
+            </div>
+            <div>
+              <label className="text-xs text-slate-400">Plan vise</label>
+              <div className="flex gap-2 mt-1">
+                {(["solo", "cabinet", "enterprise"] as const).map((p) => (
+                  <button key={p} onClick={() => setNewForm({ ...newForm, plan_vise: p, montant_estime_cents: PLAN_PRICES[p] })} className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${newForm.plan_vise === p ? "bg-blue-500/20 text-blue-300 border-blue-500/30" : "bg-white/5 text-slate-400 border-white/10"}`}>
+                    <span className="capitalize">{p}</span><span className="block text-[10px] mt-0.5 text-slate-500">{PLAN_PRICES[p] / 100} €/mois</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div><label className="text-xs text-slate-400">Montant estime (€/mois)</label><input type="number" value={newForm.montant_estime_cents / 100} onChange={(e) => setNewForm({ ...newForm, montant_estime_cents: Math.round(parseFloat(e.target.value || "0") * 100) })} className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-200 mt-1" /></div>
+            <div><label className="text-xs text-slate-400">Notes</label><textarea value={newForm.notes} onChange={(e) => setNewForm({ ...newForm, notes: e.target.value })} rows={3} className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-200 mt-1 resize-none" /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><label className="text-xs text-slate-400">Prochaine action</label><input type="text" value={newForm.next_action} onChange={(e) => setNewForm({ ...newForm, next_action: e.target.value })} className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-200 mt-1" /></div>
+              <div><label className="text-xs text-slate-400">Date action</label><input type="date" value={newForm.next_action_date} onChange={(e) => setNewForm({ ...newForm, next_action_date: e.target.value })} className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-200 mt-1" /></div>
+            </div>
+            <div>
+              <label className="text-xs text-slate-400">Tags</label>
+              <div className="flex flex-wrap gap-1.5 mt-1">
+                {TAG_OPTIONS.map((t) => <button key={t} onClick={() => setNewForm((f) => ({ ...f, tags: f.tags.includes(t) ? f.tags.filter((x) => x !== t) : [...f.tags, t] }))} className={`px-2 py-1 rounded text-xs transition-colors ${newForm.tags.includes(t) ? TAG_COLORS[t] || "bg-blue-500/20 text-blue-300" : "bg-white/5 text-slate-500 hover:bg-white/10"}`}>{t}</button>)}
               </div>
             </div>
           </div>
-        </div>
-      )}
-    </div>
-  );
-}
+          <DialogFooter>
+            <button onClick={() => setNewDialog(false)} className="px-4 py-2 text-sm text-slate-400">Annuler</button>
+            <button onClick={handleCreate} disabled={!newForm.contact_name.trim() || !newForm.contact_email.trim()} className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-40 transition-colors">Creer</button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-// ─── Onboarding Tracker ────────────────────────────────────────────────────────
+      {/* Lost */}
+      <Dialog open={lostDialog} onOpenChange={setLostDialog}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Marquer comme perdu</DialogTitle></DialogHeader>
+          <div><label className="text-sm text-slate-300">Raison de la perte *</label><textarea value={lostReason} onChange={(e) => setLostReason(e.target.value)} rows={3} placeholder="Ex: budget insuffisant, concurrent choisi..." className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-200 mt-1 resize-none" /></div>
+          <DialogFooter>
+            <button onClick={() => setLostDialog(false)} className="px-4 py-2 text-sm text-slate-400">Annuler</button>
+            <button onClick={handleMarkLost} disabled={!lostReason.trim()} className="px-4 py-2 text-sm bg-red-600 hover:bg-red-700 text-white rounded-lg disabled:opacity-40 transition-colors">Confirmer</button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-function OnboardingTracker({ cabinetId }: { cabinetId: string }) {
-  const [data, setData] = useState<{ clients: number; lettres: number; created: string } | null>(null);
+      {/* Convert */}
+      <AlertDialog open={convertDialog} onOpenChange={setConvertDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Convertir en cabinet</AlertDialogTitle>
+            <AlertDialogDescription>
+              {selectedProspect && <div className="space-y-1 mt-2"><p><strong>Nom :</strong> {selectedProspect.company_name || selectedProspect.contact_name}</p>{selectedProspect.siren && <p><strong>SIREN :</strong> {selectedProspect.siren}</p>}<p><strong>Plan :</strong> {selectedProspect.plan_vise || "solo"}</p></div>}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter><AlertDialogCancel>Annuler</AlertDialogCancel><AlertDialogAction onClick={handleConvert} className="bg-emerald-600 hover:bg-emerald-700">Convertir</AlertDialogAction></AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
-  useEffect(() => {
-    async function fetch() {
-      const [{ count: clients }, { count: lettres }, { data: cab }] = await Promise.all([
-        supabase.from("clients").select("*", { count: "exact", head: true }).eq("cabinet_id", cabinetId),
-        supabase.from("lettres_mission").select("*", { count: "exact", head: true }).eq("cabinet_id", cabinetId),
-        supabase.from("cabinets").select("created_at").eq("id", cabinetId).single(),
-      ]);
-      setData({ clients: clients || 0, lettres: lettres || 0, created: cab?.data?.created_at || "" });
-    }
-    fetch();
-  }, [cabinetId]);
-
-  if (!data) return null;
-
-  const checks = [
-    { label: "Compte cree", done: true },
-    { label: "Premier client ajoute", done: data.clients > 0 },
-    { label: "Premiere lettre de mission", done: data.lettres > 0 },
-    { label: "Formation faite", done: false },
-  ];
-  const pct = Math.round((checks.filter(c => c.done).length / checks.length) * 100);
-
-  return (
-    <div className="p-3 rounded-lg border border-emerald-500/20 bg-emerald-500/5">
-      <div className="flex items-center justify-between mb-2">
-        <h4 className="text-xs font-semibold text-emerald-400">Onboarding</h4>
-        <span className="text-[10px] text-emerald-400 font-bold">{pct}%</span>
-      </div>
-      <Progress value={pct} className="h-1.5 mb-3" />
-      <div className="space-y-1.5">
-        {checks.map(c => (
-          <div key={c.label} className="flex items-center gap-2 text-xs">
-            {c.done
-              ? <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
-              : <div className="w-3.5 h-3.5 rounded-full border border-slate-600" />
-            }
-            <span className={c.done ? "text-emerald-400" : "text-slate-500"}>{c.label}</span>
-          </div>
-        ))}
-      </div>
+      {/* Delete */}
+      <AlertDialog open={deleteDialog} onOpenChange={setDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader><AlertDialogTitle>Supprimer le prospect</AlertDialogTitle><AlertDialogDescription>Cette action est irreversible. Toutes les activites associees seront supprimees.</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogFooter><AlertDialogCancel>Annuler</AlertDialogCancel><AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700">Supprimer</AlertDialogAction></AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
