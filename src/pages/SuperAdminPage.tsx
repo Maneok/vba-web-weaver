@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { Shield, LayoutDashboard, Building2, AlertTriangle, CreditCard, Megaphone, Settings, Activity } from "lucide-react";
+import { Shield, LayoutDashboard, Building2, AlertTriangle, CreditCard, Megaphone, Settings, Activity, Target } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import AdminOverview from "@/components/admin/AdminOverview";
 import AdminCabinets from "@/components/admin/AdminCabinets";
@@ -10,8 +10,9 @@ import AdminPayments from "@/components/admin/AdminPayments";
 import AdminBroadcasts from "@/components/admin/AdminBroadcasts";
 import AdminSettings from "@/components/admin/AdminSettings";
 import AdminMonitoring from "@/components/admin/AdminMonitoring";
+import AdminCRM from "@/components/admin/AdminCRM";
 
-type TabId = "overview" | "cabinets" | "unpaid" | "payments" | "broadcasts" | "settings" | "monitoring";
+type TabId = "overview" | "cabinets" | "unpaid" | "payments" | "broadcasts" | "settings" | "monitoring" | "crm";
 
 interface TabDef {
   id: TabId;
@@ -27,6 +28,7 @@ const TABS: TabDef[] = [
   { id: "broadcasts", label: "Communications", icon: Megaphone },
   { id: "settings", label: "Parametres", icon: Settings },
   { id: "monitoring", label: "Monitoring", icon: Activity },
+  { id: "crm", label: "CRM", icon: Target },
 ];
 
 export default function SuperAdminPage() {
@@ -116,6 +118,7 @@ export default function SuperAdminPage() {
         {activeTab === "broadcasts" && <AdminBroadcasts />}
         {activeTab === "settings" && <AdminSettings />}
         {activeTab === "monitoring" && <AdminMonitoring onAlertCount={setMonitoringAlertCount} />}
+        {activeTab === "crm" && <AdminCRM />}
       </div>
     </div>
   );
