@@ -229,13 +229,13 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
     const active = isItemActive(item.to);
     const { isFooter, showAddButton, notificationDot, staggerIndex = 0 } = opts;
 
-    /* OPT-1: Build class list — h-10, rounded-lg */
+    /* OPT-1: Build class list — h-8 compact, rounded-lg */
     /* OPT-2: transition-colors duration-150 for smooth hover */
     /* OPT-3: focus-visible ring with blue tint */
     /* OPT-4: active:scale-[0.98] click feedback */
     /* OPT-5: sidebar-item-enter stagger animation */
     const itemClasses = [
-      "group relative flex items-center h-10 rounded-lg",
+      "group relative flex items-center h-8 rounded-lg",
       "transition-all duration-150 ease-out",
       "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30 focus-visible:ring-offset-0",
       "active:scale-[0.98]",
@@ -244,7 +244,7 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
 
     if (collapsed) {
       /* OPT-6: Collapsed items centered with fixed size */
-      itemClasses.push("justify-center mx-auto w-10");
+      itemClasses.push("justify-center mx-auto w-8");
       if (active) {
         /* OPT-7: Active collapsed — blue bg + subtle shadow */
         itemClasses.push(
@@ -258,8 +258,8 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
         itemClasses.push("text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/[0.06] hover:text-slate-900 dark:hover:text-white");
       }
     } else {
-      /* OPT-9: Expanded items — gap-3 for icon spacing */
-      itemClasses.push("px-3 gap-3");
+      /* OPT-9: Expanded items — gap-2.5 for icon spacing */
+      itemClasses.push("px-2.5 gap-2.5");
       if (active) {
         /* OPT-10: Active expanded — blue bg + left padding for bar + subtle glow */
         itemClasses.push(
@@ -292,10 +292,10 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
         )}
 
         {/* OPT-13: Icon wrapper with hover circle bg */}
-        <span className="relative shrink-0 flex items-center justify-center w-6 h-6 rounded-md transition-colors duration-150 group-hover:bg-slate-200/50 dark:group-hover:bg-white/[0.04]">
+        <span className="relative shrink-0 flex items-center justify-center w-5 h-5 rounded-md transition-colors duration-150 group-hover:bg-slate-200/50 dark:group-hover:bg-white/[0.04]">
           <Icon
             className={[
-              "w-[18px] h-[18px] transition-all duration-150",
+              "w-4 h-4 transition-all duration-150",
               "group-hover:scale-105",
               active ? "text-blue-600 dark:text-blue-400" : "",
             ].join(" ")}
@@ -313,7 +313,7 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
             {/* OPT-15: Text — tracking-[0.01em] for readability + semibold when active */}
             <span
               className={[
-                "text-sm truncate transition-opacity duration-150 tracking-[0.01em]",
+                "text-[13px] truncate transition-opacity duration-150 tracking-[0.01em]",
                 active ? "font-semibold" : "font-medium",
               ].join(" ")}
               title={item.label}
@@ -388,9 +388,9 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
         />
       );
     }
-    /* OPT-21: Section label — uppercase, tiny, with left dot accent */
+    /* OPT-21: Section label — uppercase, tiny, with left dot accent — compact */
     return (
-      <p className="flex items-center gap-1.5 px-3 mb-1.5 mt-7 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400/80 dark:text-slate-500/80 pointer-events-none select-none transition-opacity duration-200">
+      <p className="flex items-center gap-1.5 px-2.5 mb-1 mt-4 text-[9px] font-semibold uppercase tracking-[0.1em] text-slate-400/80 dark:text-slate-500/80 pointer-events-none select-none transition-opacity duration-200">
         <span className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-600" />
         {label}
       </p>
@@ -426,13 +426,13 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
           "transition-all duration-300 ease-[cubic-bezier(0.25,0.46,0.45,0.94)]",
           collapsed
             ? "-translate-x-full lg:translate-x-0 lg:w-[72px]"
-            : "translate-x-0 w-[260px]",
+            : "translate-x-0 w-[230px]",
         ].join(" ")}
       >
         {/* ═══ Header ═══ */}
         <div
           className={[
-            "h-16 flex items-center shrink-0",
+            "h-12 flex items-center shrink-0",
             /* OPT-27: Header border with scroll-aware shadow */
             "border-b border-slate-200/60 dark:border-white/[0.06]",
             isScrolled ? "shadow-sm shadow-black/[0.03] dark:shadow-black/20" : "",
@@ -498,7 +498,7 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
           ref={navRef}
           aria-label="Menu principal"
           className={[
-            "flex-1 overflow-y-auto px-3 py-4",
+            "flex-1 overflow-y-auto px-2.5 py-2.5",
             /* OPT-33: Subtle thin scrollbar, visible only on hover */
             "[&::-webkit-scrollbar]:w-[3px]",
             "[&::-webkit-scrollbar-thumb]:rounded-full",
@@ -545,7 +545,7 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
         </nav>
 
         {/* ═══ Footer (pinned at bottom) ═══ */}
-        <div className="mt-auto shrink-0 border-t border-slate-200/60 dark:border-white/[0.06] px-3 pt-2 pb-3">
+        <div className="mt-auto shrink-0 border-t border-slate-200/60 dark:border-white/[0.06] px-2.5 pt-1.5 pb-2">
           {/* OPT-34: Footer nav items — muted style */}
           <div className={`space-y-0.5 ${collapsed ? "flex flex-col items-center space-y-0.5" : ""}`}>
             {FOOTER_NAV.map((item) => renderItem(item, { isFooter: true }))}
@@ -561,13 +561,13 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
                       to="/super-admin"
                       aria-label="Super Admin"
                       className={[
-                        "group relative flex items-center justify-center mx-auto w-10 h-10 rounded-lg transition-all duration-150",
+                        "group relative flex items-center justify-center mx-auto w-8 h-8 rounded-lg transition-all duration-150",
                         isItemActive("/super-admin")
                           ? "bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 shadow-sm shadow-indigo-500/10"
                           : "text-indigo-400 dark:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 hover:text-indigo-600 dark:hover:text-indigo-300",
                       ].join(" ")}
                     >
-                      <ShieldCheck className="w-[18px] h-[18px]" strokeWidth={1.5} />
+                      <ShieldCheck className="w-4 h-4" strokeWidth={1.5} />
                     </NavLink>
                   </TooltipTrigger>
                   <TooltipContent side="right" sideOffset={8} className="font-medium text-sm px-3 py-1.5 shadow-lg">
@@ -578,7 +578,7 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
                 <NavLink
                   to="/super-admin"
                   className={[
-                    "group relative flex items-center h-10 px-3 gap-3 rounded-lg transition-all duration-150",
+                    "group relative flex items-center h-8 px-2.5 gap-2.5 rounded-lg transition-all duration-150",
                     isItemActive("/super-admin")
                       ? "bg-indigo-50/80 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 shadow-sm shadow-indigo-500/5"
                       : "text-indigo-500 dark:text-indigo-400 hover:bg-indigo-50/80 dark:hover:bg-indigo-500/10 hover:text-indigo-700 dark:hover:text-indigo-300",
@@ -587,10 +587,10 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
                   {isItemActive("/super-admin") && (
                     <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-full bg-gradient-to-b from-indigo-400 to-indigo-600 sidebar-bar-enter" />
                   )}
-                  <span className="relative shrink-0 flex items-center justify-center w-6 h-6 rounded-md">
-                    <ShieldCheck className="w-[18px] h-[18px]" strokeWidth={1.5} />
+                  <span className="relative shrink-0 flex items-center justify-center w-5 h-5 rounded-md">
+                    <ShieldCheck className="w-4 h-4" strokeWidth={1.5} />
                   </span>
-                  <span className={`text-sm truncate tracking-[0.01em] ${isItemActive("/super-admin") ? "font-semibold" : "font-medium"}`}>
+                  <span className={`text-[13px] truncate tracking-[0.01em] ${isItemActive("/super-admin") ? "font-semibold" : "font-medium"}`}>
                     Super Admin
                   </span>
                   <span className="ml-auto text-[9px] font-medium px-1.5 py-[1px] rounded-full bg-indigo-500/15 text-indigo-500 dark:bg-indigo-500/20 dark:text-indigo-400">
@@ -603,8 +603,8 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
 
           {/* ── User profile ── */}
           <div
-            className={`mt-3 pt-3 border-t border-slate-200/60 dark:border-white/[0.06] ${
-              collapsed ? "flex flex-col items-center gap-2" : ""
+            className={`mt-2 pt-2 border-t border-slate-200/60 dark:border-white/[0.06] ${
+              collapsed ? "flex flex-col items-center gap-1.5" : ""
             }`}
           >
             {collapsed ? (
@@ -638,9 +638,9 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
                     <button
                       onClick={handleSignOut}
                       aria-label="Deconnexion"
-                      className="w-10 h-10 rounded-lg flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all duration-200"
+                      className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all duration-200"
                     >
-                      <LogOut className="w-[18px] h-[18px] transition-transform duration-200 group-hover:-translate-x-0.5" strokeWidth={1.5} />
+                      <LogOut className="w-4 h-4 transition-transform duration-200 group-hover:-translate-x-0.5" strokeWidth={1.5} />
                     </button>
                   </TooltipTrigger>
                   <TooltipContent side="right" sideOffset={8}>Deconnexion</TooltipContent>
@@ -648,11 +648,11 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
               </>
             ) : (
               /* OPT-38: Expanded — full profile block with hover bg */
-              <div className="flex items-center gap-3 px-2 py-2 -mx-1 rounded-lg hover:bg-slate-100/60 dark:hover:bg-white/[0.03] transition-colors duration-150 group/profile">
+              <div className="flex items-center gap-2.5 px-2 py-1.5 -mx-1 rounded-lg hover:bg-slate-100/60 dark:hover:bg-white/[0.03] transition-colors duration-150 group/profile">
                 {/* OPT-39: Avatar with gradient ring + status dot */}
                 <div className="relative shrink-0">
-                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500/20 to-indigo-500/20 dark:from-blue-500/25 dark:to-indigo-500/25 p-[2px]">
-                    <div className="w-full h-full rounded-full bg-white dark:bg-[#0B1120] text-blue-600 dark:text-blue-400 text-xs font-bold flex items-center justify-center">
+                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500/20 to-indigo-500/20 dark:from-blue-500/25 dark:to-indigo-500/25 p-[1.5px]">
+                    <div className="w-full h-full rounded-full bg-white dark:bg-[#0B1120] text-blue-600 dark:text-blue-400 text-[10px] font-bold flex items-center justify-center">
                       {userInitials}
                     </div>
                   </div>
@@ -663,7 +663,7 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
                 <div className="min-w-0 flex-1">
                   {/* OPT-41: Name with stronger weight */}
                   <p
-                    className="text-[13px] font-semibold text-slate-700 dark:text-slate-200 truncate leading-tight"
+                    className="text-[12px] font-semibold text-slate-700 dark:text-slate-200 truncate leading-tight"
                     title={profile?.full_name || undefined}
                   >
                     {profile?.full_name}
@@ -694,7 +694,7 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
           </div>
 
           {/* OPT-44: Version + trust footer */}
-          <div className={`mt-2 text-center select-none ${collapsed ? "px-0.5" : "px-2"}`}>
+          <div className={`mt-1 text-center select-none ${collapsed ? "px-0.5" : "px-2"}`}>
             {!collapsed && (
               /* OPT-45: Compliance trust line */
               <p className="text-[9px] text-slate-400/70 dark:text-slate-600/70 mb-0.5 tracking-wide">

@@ -57,7 +57,7 @@ export default function AppLayout() {
       // Sync CSS var immediately (before first paint) to avoid layout flash
       document.documentElement.style.setProperty(
         "--sidebar-offset",
-        collapsed ? "72px" : "260px"
+        collapsed ? "72px" : "230px"
       );
       return collapsed;
     } catch {
