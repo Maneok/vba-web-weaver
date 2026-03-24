@@ -77,9 +77,11 @@ const PdfTableRepartition: React.FC<Props> = ({ rows, theme: themeIn }) => {
       </RoundedTableWrapper>
 
       {/* V2-32/33: Summary badges with border for definition + wrap protection */}
-      <View style={{ flexDirection: "row", justifyContent: "flex-end", marginTop: 6, gap: 8 }} wrap={false}>
-        <Badge text={`Cabinet : ${cabinetCount} tâches`} bgColor="#E8F5E9" textColor={theme.success} bordered />
-        <Badge text={`Client : ${clientCount} tâches`} bgColor="#E3F2FD" textColor={theme.primaire} bordered />
+      <View style={{ flexDirection: "row", justifyContent: "flex-end", marginTop: 6 }} wrap={false}>
+        <View style={{ marginRight: 8 }}>
+          <Badge text={`Cabinet : ${cabinetCount} tâches`} bgColor="#E8F5E9" textColor={theme.success || "#2E7D32"} bordered />
+        </View>
+        <Badge text={`Client : ${clientCount} tâches`} bgColor="#E3F2FD" textColor={theme.primaire || "#2E75B6"} bordered />
       </View>
     </View>
   );
