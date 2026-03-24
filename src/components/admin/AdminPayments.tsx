@@ -3,6 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { formatDateFr } from "@/lib/dateUtils";
+import { logger } from "@/lib/logger";
+import { DollarSign, Download, Copy } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 
 interface Payment {
@@ -66,6 +68,8 @@ export default function AdminPayments() {
         if (paymentsRes.error) throw paymentsRes.error;
         setPayments((paymentsRes.data ?? []) as unknown as Payment[]);
 
+        if (revenueRes.error) logger.warn("[AdminPayments] Revenue error:", revenueRes.error);
+
         // 32. Revenue chart data
         if (revenueRes.data && Array.isArray(revenueRes.data)) {
           setRevenueChart(
@@ -78,7 +82,7 @@ export default function AdminPayments() {
           );
         }
       } catch (err) {
-        console.error("[AdminPayments] Load error:", err);
+        logger.error("[AdminPayments] Load error:", err);
         toast.error("Erreur lors du chargement des paiements");
       } finally {
         setLoading(false);
@@ -114,6 +118,63 @@ export default function AdminPayments() {
       .reduce((sum, p) => sum + (p.amount || 0), 0);
   }, [filtered]);
 
+  // F18: Revenue KPI values
+  const todayRevenue = useMemo(() => {
+    const today = new Date().toISOString().split("T")[0];
+    return payments
+      .filter((p) => p.status === "succeeded" && p.created_at?.startsWith(today))
+      .reduce((sum, p) => sum + (p.amount || 0), 0);
+  }, [payments]);
+
+  const weekRevenue = useMemo(() => {
+    const now = Date.now();
+    return payments
+      .filter((p) => p.status === "succeeded" && (now - new Date(p.created_at).getTime()) / (1000 * 60 * 60 * 24) <= 7)
+      .reduce((sum, p) => sum + (p.amount || 0), 0);
+  }, [payments]);
+
+  const monthRevenue = useMemo(() => {
+    const now = Date.now();
+    return payments
+      .filter((p) => p.status === "succeeded" && (now - new Date(p.created_at).getTime()) / (1000 * 60 * 60 * 24) <= 30)
+      .reduce((sum, p) => sum + (p.amount || 0), 0);
+  }, [payments]);
+
+  // F19: Status counts
+  const statusCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: payments.length, succeeded: 0, failed: 0, refunded: 0 };
+    for (const p of payments) {
+      if (counts[p.status] !== undefined) counts[p.status]++;
+    }
+    return counts;
+  }, [payments]);
+
+  // F20: CSV export
+  function downloadCsv() {
+    if (filtered.length === 0) {
+      toast.warning("Aucun paiement a exporter");
+      return;
+    }
+    const headers = ["Date", "Cabinet", "Montant (EUR)", "Statut", "Description", "Plan"];
+    const rows = filtered.map((p) => [
+      formatDateFr(p.created_at),
+      p.cabinet_name,
+      (p.amount / 100).toFixed(2),
+      statusLabels[p.status] ?? p.status,
+      (p.description || "").replace(/"/g, '""'),
+      p.plan || "",
+    ]);
+    const csv = [headers.join(";"), ...rows.map((r) => r.map((v) => `"${v}"`).join(";"))].join("\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `paiements_${new Date().toISOString().split("T")[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success(`${filtered.length} paiement(s) exportes`);
+  }
+
   if (loading) {
     return (
       <div className="space-y-4">
@@ -131,6 +192,27 @@ export default function AdminPayments() {
 
   return (
     <div className="space-y-4">
+      {/* F18: Revenue KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {[
+          { label: "Aujourd'hui", value: todayRevenue },
+          { label: "7 derniers jours", value: weekRevenue },
+          { label: "30 derniers jours", value: monthRevenue },
+        ].map((kpi) => (
+          <div key={kpi.label} className="bg-white/5 border border-white/10 rounded-xl p-4 flex items-center gap-3">
+            <div className="p-2 bg-emerald-500/20 rounded-lg">
+              <DollarSign className="h-4 w-4 text-emerald-400" />
+            </div>
+            <div>
+              <p className="text-xs text-slate-400">{kpi.label}</p>
+              <p className="text-lg font-bold text-emerald-400">
+                {(kpi.value / 100).toLocaleString("fr-FR", { minimumFractionDigits: 2 })} &euro;
+              </p>
+            </div>
+          </div>
+        ))}
+      </div>
+
       {/* 32. Revenue chart */}
       {revenueChart.length > 0 && (
         <div className="bg-white/5 border border-white/10 rounded-xl p-6">
@@ -174,7 +256,7 @@ export default function AdminPayments() {
                   : "bg-white/5 text-slate-400 dark:text-slate-500 dark:text-slate-400 border border-white/10 hover:bg-white/10"
               }`}
             >
-              {f.label}
+              {f.label} ({statusCounts[f.value] ?? 0})
             </button>
           ))}
         </div>
@@ -213,6 +295,14 @@ export default function AdminPayments() {
             <option key={c} value={c}>{c}</option>
           ))}
         </select>
+
+        {/* F20: CSV Export */}
+        <button
+          onClick={downloadCsv}
+          className="flex items-center gap-1.5 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-400 hover:bg-white/10 transition-colors ml-auto"
+        >
+          <Download className="h-3.5 w-3.5" /> Exporter CSV
+        </button>
       </div>
 
       {/* Table */}
@@ -234,7 +324,16 @@ export default function AdminPayments() {
                   <td className="px-4 py-3 text-slate-400 dark:text-slate-500 dark:text-slate-400">
                     {formatDateFr(p.created_at)}
                   </td>
-                  <td className="px-4 py-3 text-slate-800 dark:text-slate-200">{p.cabinet_name}</td>
+                  <td
+                    className="px-4 py-3 text-slate-800 dark:text-slate-200 cursor-pointer hover:text-blue-400 transition-colors"
+                    title="Cliquer pour copier"
+                    onClick={() => {
+                      navigator.clipboard.writeText(p.cabinet_name);
+                      toast.success(`"${p.cabinet_name}" copie`);
+                    }}
+                  >
+                    {p.cabinet_name} <Copy className="h-3 w-3 inline ml-1 opacity-40" />
+                  </td>
                   <td className="px-4 py-3 text-slate-800 dark:text-slate-200 font-medium">
                     {(p.amount / 100).toLocaleString("fr-FR", { minimumFractionDigits: 2 })} &euro;
                   </td>

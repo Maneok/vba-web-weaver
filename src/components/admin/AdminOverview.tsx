@@ -1,9 +1,11 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Building2, CreditCard, Users, AlertTriangle, TrendingUp, UserCheck, FolderOpen, Wrench, BarChart3, Percent, UserMinus } from "lucide-react";
+import { Building2, CreditCard, Users, AlertTriangle, TrendingUp, UserCheck, FolderOpen, Wrench, BarChart3, Percent, UserMinus, RefreshCw } from "lucide-react";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDateFr } from "@/lib/dateUtils";
+import { logger } from "@/lib/logger";
+import { toast } from "sonner";
 
 interface AdminStats {
   total_cabinets: number;
@@ -85,9 +87,9 @@ export default function AdminOverview() {
   const [topCabinets, setTopCabinets] = useState<TopCabinet[]>([]);
   const [heatmapData, setHeatmapData] = useState<HeatmapCell[]>([]);
   const [alerts, setAlerts] = useState<string[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    async function load() {
+  const loadData = useCallback(async () => {
       setLoading(true);
       try {
         const [statsRes, signupsRes, cabinetsRes] = await Promise.all([
@@ -154,7 +156,7 @@ export default function AdminOverview() {
           .order("checked_at", { ascending: false })
           .limit(5);
         if (healthRes.data && healthRes.data.length > 0) {
-          const services = [...new Set(healthRes.data.map((h) => String((h as Record<string, unknown>).service)))];
+          const services = [...new Set(healthRes.data.map((h) => String(h && typeof h === 'object' && 'service' in h ? h.service : '')))];
           alertsList.push(`Edge Functions down: ${services.join(", ")}`);
         }
 
@@ -171,13 +173,15 @@ export default function AdminOverview() {
 
         setAlerts(alertsList);
       } catch (err) {
-        console.error("[AdminOverview] Load error:", err);
+        logger.error("[AdminOverview] Load error:", err);
       } finally {
         setLoading(false);
       }
-    }
-    load();
   }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   // Heatmap max value for color scaling
   const heatmapMax = useMemo(() => Math.max(1, ...heatmapData.map((h) => h.count)), [heatmapData]);
@@ -192,6 +196,14 @@ export default function AdminOverview() {
     }
     return grid;
   }, [heatmapData]);
+
+  const revenuePerUser = stats?.active_users ? Math.round((stats.mrr_cents / 100) / stats.active_users) : 0;
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadData();
+    setRefreshing(false);
+  };
 
   if (loading) {
     return (
@@ -234,12 +246,45 @@ export default function AdminOverview() {
         </div>
       )}
 
+      {/* F5: Quick Actions Row */}
+      <div className="flex flex-wrap gap-2">
+        {["Voir cabinets", "Voir impayes", "Lancer maintenance"].map((label) => (
+          <button
+            key={label}
+            onClick={() => toast("Naviguez via les onglets")}
+            className="px-3 py-1.5 text-xs font-medium rounded-lg bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10 transition-colors"
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* F1: Refresh button */}
+      <div className="flex justify-end">
+        <button
+          onClick={handleRefresh}
+          disabled={refreshing}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10 transition-colors disabled:opacity-50"
+        >
+          <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
+          Actualiser
+        </button>
+      </div>
+
       {/* KPI Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {kpis.map((kpi) => {
           const Icon = kpi.icon;
+          const isMrr = kpi.label === "MRR";
           return (
-            <div key={kpi.label} className="bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col gap-2">
+            <div
+              key={kpi.label}
+              className={`bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col gap-2 ${isMrr ? "cursor-pointer hover:bg-white/10 transition-colors" : ""}`}
+              onClick={isMrr ? () => {
+                navigator.clipboard.writeText(String(kpi.value));
+                toast("MRR copie !");
+              } : undefined}
+            >
               <div className="flex items-center gap-2">
                 <Icon className={`h-4 w-4 ${kpi.color}`} />
                 <span className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">{kpi.label}</span>
@@ -277,12 +322,12 @@ export default function AdminOverview() {
         <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col gap-2">
           <div className="flex items-center gap-2">
             <BarChart3 className="h-4 w-4 text-blue-400" />
-            <span className="text-xs text-slate-400">MRR actuel</span>
+            <span className="text-xs text-slate-400">Revenu par utilisateur</span>
           </div>
           <span className="text-2xl font-bold text-blue-400">
-            {((stats?.mrr_cents ?? 0) / 100).toLocaleString("fr-FR", { minimumFractionDigits: 0 })} €
+            {revenuePerUser} €/user
           </span>
-          <span className="text-[10px] text-slate-600">Revenu mensuel recurrent</span>
+          <span className="text-[10px] text-slate-600">MRR / utilisateurs actifs</span>
         </div>
       </div>
 
@@ -307,26 +352,39 @@ export default function AdminOverview() {
 
       {/* Signups Chart */}
       <div className="bg-white/5 border border-white/10 rounded-xl p-6">
-        <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200 mb-4">Inscriptions des 30 derniers jours</h3>
-        <ResponsiveContainer width="100%" height={250}>
-          <BarChart data={signups}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
-            <XAxis
-              dataKey="day"
-              tick={{ fill: "#94a3b8", fontSize: 11 }}
-              tickFormatter={(val) => {
-                const d = new Date(val);
-                return `${d.getDate()}/${d.getMonth() + 1}`;
-              }}
-            />
-            <YAxis tick={{ fill: "#94a3b8", fontSize: 11 }} allowDecimals={false} />
-            <Tooltip
-              contentStyle={{ background: "#1e293b", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#e2e8f0" }}
-              labelFormatter={(val) => formatDateFr(val)}
-            />
-            <Bar dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Inscriptions" />
-          </BarChart>
-        </ResponsiveContainer>
+        <div className="flex items-center gap-2 mb-4">
+          <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200">Inscriptions des 30 derniers jours</h3>
+          {signups.length > 0 && (
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-blue-500/20 text-blue-300">
+              {signups.reduce((s, d) => s + d.count, 0)} inscriptions
+            </span>
+          )}
+        </div>
+        {signups.length === 0 ? (
+          <div className="flex items-center justify-center h-[250px]">
+            <p className="text-sm text-slate-500">Aucune inscription sur cette periode</p>
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height={250}>
+            <BarChart data={signups}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+              <XAxis
+                dataKey="day"
+                tick={{ fill: "#94a3b8", fontSize: 11 }}
+                tickFormatter={(val) => {
+                  const d = new Date(val);
+                  return `${d.getDate()}/${d.getMonth() + 1}`;
+                }}
+              />
+              <YAxis tick={{ fill: "#94a3b8", fontSize: 11 }} allowDecimals={false} />
+              <Tooltip
+                contentStyle={{ background: "#1e293b", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#e2e8f0" }}
+                labelFormatter={(val) => formatDateFr(val)}
+              />
+              <Bar dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Inscriptions" />
+            </BarChart>
+          </ResponsiveContainer>
+        )}
       </div>
 
       {/* 21. Top 5 cabinets + 22. Heatmap */}

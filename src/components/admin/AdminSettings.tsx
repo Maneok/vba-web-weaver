@@ -1,12 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Save, Plus, Trash2, Wrench, Building2, GitBranch, UserPlus, Shield, History, Database, AlertTriangle } from "lucide-react";
+import { Save, Plus, Trash2, Wrench, Building2, GitBranch, UserPlus, Shield, History, Database, AlertTriangle, X } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { formatDateTimeFr } from "@/lib/dateUtils";
+import { logger } from "@/lib/logger";
 
 interface ConfigItem {
   key: string;
@@ -61,6 +62,8 @@ export default function AdminSettings() {
   const [configChanges, setConfigChanges] = useState<ConfigChange[]>([]);
   // 39. Maintenance mode
   const [maintenanceMode, setMaintenanceMode] = useState(false);
+  // F28. Confirm save dialog
+  const [saveDialog, setSaveDialog] = useState(false);
 
   useEffect(() => {
     loadAll();
@@ -103,7 +106,7 @@ export default function AdminSettings() {
         setConfigChanges(changelogRes.data as unknown as ConfigChange[]);
       }
     } catch (err) {
-      console.error("[AdminSettings] Load error:", err);
+      logger.error("[AdminSettings] Load error:", err);
       toast.error("Erreur lors du chargement de la configuration");
     } finally {
       setLoading(false);
@@ -122,6 +125,7 @@ export default function AdminSettings() {
       setOriginalConfigs(Object.fromEntries(configs.map((c) => [c.key, c.value])));
       loadAll(); // Refresh changelog
     } catch (err) {
+      logger.error("[AdminSettings] Save error:", err);
       toast.error("Erreur lors de la sauvegarde");
     } finally {
       setSaving(false);
@@ -138,6 +142,7 @@ export default function AdminSettings() {
       setNewAdminEmail("");
       loadAll();
     } catch (err) {
+      logger.error("[AdminSettings] Add super-admin error:", err);
       toast.error("Erreur lors de l'ajout du super-admin");
     }
   }
@@ -152,6 +157,7 @@ export default function AdminSettings() {
       setRemoveAdminDialog(null);
       loadAll();
     } catch (err) {
+      logger.error("[AdminSettings] Remove super-admin error:", err);
       toast.error("Erreur lors du retrait du super-admin");
     }
   }
@@ -163,6 +169,7 @@ export default function AdminSettings() {
       setMaintenanceResult(JSON.stringify(data, null, 2));
       toast.success("Maintenance lancee avec succes");
     } catch (err) {
+      logger.error("[AdminSettings] Maintenance error:", err);
       toast.error("Erreur lors du lancement de la maintenance");
     }
   }
@@ -177,6 +184,7 @@ export default function AdminSettings() {
         setMaintenanceResult(JSON.stringify(data, null, 2));
       }
     } catch (err) {
+      logger.error("[AdminSettings] Backup error:", err);
       toast.error("Erreur lors de la creation du snapshot");
     }
   }
@@ -198,6 +206,7 @@ export default function AdminSettings() {
       );
       loadAll(); // Refresh changelog
     } catch (err) {
+      logger.error("[AdminSettings] Toggle maintenance error:", err);
       toast.error("Erreur lors du changement de mode");
     }
   }
@@ -216,6 +225,7 @@ export default function AdminSettings() {
       setNewCabinetName("");
       setNewCabinetSiren("");
     } catch (err) {
+      logger.error("[AdminSettings] Create cabinet error:", err);
       toast.error("Erreur lors de la creation du cabinet");
     }
   }
@@ -223,6 +233,23 @@ export default function AdminSettings() {
   function updateConfigValue(key: string, value: string) {
     setConfigs((prev) => prev.map((c) => (c.key === key ? { ...c, value } : c)));
   }
+
+  // F32. Copy email to clipboard
+  function handleCopyEmail(email: string) {
+    navigator.clipboard.writeText(email).then(() => {
+      toast.success("Email copie");
+    });
+  }
+
+  // F31. Validation
+  const hasValidationErrors = useMemo(() => {
+    return configs.some((c) => c.type === "email" && c.value && !c.value.includes("@"));
+  }, [configs]);
+
+  // Changed keys for save dialog
+  const changedConfigs = useMemo(() => {
+    return configs.filter((c) => originalConfigs[c.key] !== c.value);
+  }, [configs, originalConfigs]);
 
   if (loading) {
     return (
@@ -259,26 +286,50 @@ export default function AdminSettings() {
       <div className="bg-white/5 border border-white/10 rounded-xl p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200">Configuration GRIMY</h3>
+          {/* F28. Save button opens confirm dialog */}
           <button
-            onClick={handleSave}
-            disabled={saving || !hasChanges}
+            onClick={() => setSaveDialog(true)}
+            disabled={saving || !hasChanges || hasValidationErrors}
             className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-slate-900 dark:text-white rounded-lg disabled:opacity-45 transition-colors"
           >
             <Save className="h-3.5 w-3.5" /> {saving ? "Sauvegarde..." : "Sauvegarder"}
           </button>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {configs.filter((c) => c.key !== "maintenance_mode").map((c) => (
-            <div key={c.key}>
-              <label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 mb-1 block">{c.label}</label>
-              <input
-                type={c.type}
-                value={c.value}
-                onChange={(e) => updateConfigValue(c.key, e.target.value)}
-                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-              />
-            </div>
-          ))}
+          {configs.filter((c) => c.key !== "maintenance_mode").map((c) => {
+            const isDirty = originalConfigs[c.key] !== c.value;
+            const isEmailInvalid = c.type === "email" && c.value && !c.value.includes("@");
+            return (
+              <div key={c.key}>
+                <label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 mb-1 flex items-center gap-1.5">
+                  {c.label}
+                  {/* F29. Dirty indicator */}
+                  {isDirty && (
+                    <span className="inline-block w-2 h-2 rounded-full bg-amber-400" />
+                  )}
+                </label>
+                <div className="flex items-center gap-1">
+                  <input
+                    type={c.type}
+                    value={c.value}
+                    onChange={(e) => updateConfigValue(c.key, e.target.value)}
+                    className={`w-full px-3 py-2 bg-white/5 border rounded-lg text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isEmailInvalid ? "border-red-500" : "border-white/10"}`}
+                    {...(c.type === "number" ? { min: "0" } : {})}
+                  />
+                  {/* F30. Reset single */}
+                  {isDirty && (
+                    <button
+                      onClick={() => updateConfigValue(c.key, originalConfigs[c.key])}
+                      className="p-1.5 text-slate-400 hover:text-slate-200 rounded hover:bg-white/10 transition-colors shrink-0"
+                      title="Reinitialiser"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -290,16 +341,16 @@ export default function AdminSettings() {
         {configChanges.length > 0 ? (
           <div className="space-y-2">
             {configChanges.map((ch) => {
-              const oldStr = ch.old_data ? JSON.stringify(ch.old_data) : "—";
-              const newStr = ch.new_data ? JSON.stringify(ch.new_data) : "—";
+              const oldStr = ch.old_data ? JSON.stringify(ch.old_data) : "\u2014";
+              const newStr = ch.new_data ? JSON.stringify(ch.new_data) : "\u2014";
               return (
                 <div key={ch.id} className="flex flex-wrap items-center gap-2 text-sm border-b border-white/5 pb-2">
                   <span className="text-xs text-slate-500">{formatDateTimeFr(ch.created_at)}</span>
-                  <span className="text-slate-400">—</span>
+                  <span className="text-slate-400">{"\u2014"}</span>
                   <span className="text-slate-300">{ch.user_email ?? "Systeme"}</span>
                   <span className="text-slate-600">:</span>
                   <span className="text-red-400/60 text-xs line-through truncate max-w-[150px]">{oldStr}</span>
-                  <span className="text-slate-500">→</span>
+                  <span className="text-slate-500">{"\u2192"}</span>
                   <span className="text-emerald-400 text-xs truncate max-w-[150px]">{newStr}</span>
                 </div>
               );
@@ -328,7 +379,14 @@ export default function AdminSettings() {
             <div key={admin.id} className="flex items-center justify-between py-2 border-b border-white/5">
               <div>
                 <p className="text-sm text-slate-800 dark:text-slate-200">{admin.full_name || admin.email}</p>
-                <p className="text-xs text-slate-400 dark:text-slate-500">{admin.email}</p>
+                {/* F32. Clickable email to copy */}
+                <button
+                  onClick={() => handleCopyEmail(admin.email)}
+                  className="text-xs text-slate-400 dark:text-slate-500 hover:text-blue-400 transition-colors cursor-pointer"
+                  title="Cliquer pour copier"
+                >
+                  {admin.email}
+                </button>
               </div>
               {admin.id !== profile?.id && (
                 <button
@@ -436,6 +494,39 @@ export default function AdminSettings() {
             <AlertDialogCancel>Annuler</AlertDialogCancel>
             <AlertDialogAction onClick={() => removeAdminDialog && handleRemoveSuperAdmin(removeAdminDialog)} className="bg-red-600 hover:bg-red-700">
               Retirer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* F28. Confirm save dialog */}
+      <AlertDialog open={saveDialog} onOpenChange={setSaveDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Sauvegarder {changedConfigs.length} modification(s) ?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div>
+                <p className="mb-2">Les parametres suivants seront mis a jour :</p>
+                <ul className="list-disc list-inside space-y-1 text-sm">
+                  {changedConfigs.map((c) => (
+                    <li key={c.key}>
+                      <span className="font-medium">{c.label}</span> : {originalConfigs[c.key]} → {c.value}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setSaveDialog(false);
+                handleSave();
+              }}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              Sauvegarder
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

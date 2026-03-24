@@ -1,9 +1,10 @@
 import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Mail, PauseCircle, PlayCircle, DollarSign, Clock, MessageSquare } from "lucide-react";
+import { Mail, PauseCircle, PlayCircle, DollarSign, Clock, MessageSquare, RefreshCw } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import { logger } from "@/lib/logger";
 
 interface UnpaidCabinet {
   cabinet_id: string;
@@ -25,12 +26,23 @@ export default function AdminUnpaid() {
   const [unpaid, setUnpaid] = useState<UnpaidCabinet[]>([]);
   const [loading, setLoading] = useState(true);
   const [suspendDialog, setSuspendDialog] = useState<string | null>(null);
+  const [reactivateDialog, setReactivateDialog] = useState<string | null>(null);
   const [relances, setRelances] = useState<Record<string, Relance[]>>({});
   const [expandedRelance, setExpandedRelance] = useState<string | null>(null);
+  const [autoRefresh, setAutoRefresh] = useState(false);
 
   useEffect(() => {
     loadUnpaid();
   }, []);
+
+  // F17: Auto-refresh every 60 seconds
+  useEffect(() => {
+    if (!autoRefresh) return;
+    const interval = setInterval(() => {
+      loadUnpaid();
+    }, 60_000);
+    return () => clearInterval(interval);
+  }, [autoRefresh]);
 
   async function loadUnpaid() {
     setLoading(true);
@@ -44,7 +56,7 @@ export default function AdminUnpaid() {
           .order("created_at", { ascending: false }),
       ]);
       if (unpaidRes.error) throw unpaidRes.error;
-      setUnpaid((unpaidRes.data ?? []) as unknown as UnpaidCabinet[]);
+      setUnpaid((unpaidRes.data ?? []).sort((a: any, b: any) => (b.days_overdue || 0) - (a.days_overdue || 0)) as unknown as UnpaidCabinet[]);
 
       // Group relances by cabinet_id
       if (relancesRes.data) {
@@ -56,7 +68,7 @@ export default function AdminUnpaid() {
         setRelances(map);
       }
     } catch (err) {
-      console.error("[AdminUnpaid] Load error:", err);
+      logger.error("[AdminUnpaid] Load error:", err);
       toast.error("Erreur lors du chargement des impayes");
     } finally {
       setLoading(false);
@@ -114,15 +126,41 @@ export default function AdminUnpaid() {
       const { error } = await supabase.rpc("admin_reactivate", { p_cabinet_id: cabinetId, p_plan: "solo" });
       if (error) throw error;
       toast.success("Cabinet reactive");
+      setReactivateDialog(null);
       loadUnpaid();
     } catch (err) {
       toast.error("Erreur lors de la reactivation");
     }
   }
 
+  // F16: Bulk relance
+  async function handleBulkRelance() {
+    const toRelance = unpaid.filter((cab) => !wasRelancedToday(cab.cabinet_id));
+    if (toRelance.length === 0) {
+      toast.info("Tous les cabinets ont deja ete relances aujourd'hui");
+      return;
+    }
+    for (const cab of toRelance) {
+      await sendRelance(cab);
+    }
+    toast.success(`${toRelance.length} relance(s) envoyee(s)`);
+  }
+
   // 31. Total amount unpaid
   const totalUnpaid = useMemo(() => {
     return unpaid.reduce((sum, c) => sum + (c.monthly_amount || 0), 0);
+  }, [unpaid]);
+
+  // F15: Aging distribution
+  const agingDistribution = useMemo(() => {
+    let d1_7 = 0, d8_15 = 0, d16plus = 0;
+    for (const c of unpaid) {
+      const d = c.days_overdue || 0;
+      if (d <= 7) d1_7++;
+      else if (d <= 15) d8_15++;
+      else d16plus++;
+    }
+    return { d1_7, d8_15, d16plus };
   }, [unpaid]);
 
   if (loading) {
@@ -165,10 +203,46 @@ export default function AdminUnpaid() {
               {(totalUnpaid / 100).toLocaleString("fr-FR", { minimumFractionDigits: 2 })} €
             </p>
           </div>
-          <div className="ml-auto text-right">
-            <p className="text-2xl font-bold text-red-400">{unpaid.length}</p>
-            <p className="text-sm text-slate-500">cabinet(s)</p>
+          <div className="ml-auto flex items-center gap-3">
+            {/* F16: Bulk relance */}
+            <button
+              onClick={handleBulkRelance}
+              className="flex items-center gap-1.5 px-3 py-2 text-xs bg-blue-500/20 text-blue-300 rounded-lg hover:bg-blue-500/30 transition-colors"
+            >
+              <Mail className="h-3.5 w-3.5" /> Relancer tous
+            </button>
+            {/* F17: Auto-refresh toggle */}
+            <button
+              onClick={() => setAutoRefresh((v) => !v)}
+              className={`flex items-center gap-1.5 px-3 py-2 text-xs rounded-lg transition-colors ${
+                autoRefresh
+                  ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                  : "bg-white/5 text-slate-400 border border-white/10 hover:bg-white/10"
+              }`}
+              title={autoRefresh ? "Desactiver le rafraichissement auto" : "Rafraichir toutes les 60s"}
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${autoRefresh ? "animate-spin" : ""}`} /> Auto
+            </button>
+            <div className="text-right">
+              <p className="text-2xl font-bold text-red-400">{unpaid.length}</p>
+              <p className="text-sm text-slate-500">cabinet(s)</p>
+            </div>
           </div>
+        </div>
+      )}
+
+      {/* F15: Aging distribution badges */}
+      {unpaid.length > 0 && (
+        <div className="flex gap-3">
+          <span className="px-3 py-1 rounded-full text-xs font-medium bg-amber-500/20 text-amber-300">
+            1-7j: {agingDistribution.d1_7}
+          </span>
+          <span className="px-3 py-1 rounded-full text-xs font-medium bg-red-500/20 text-red-300">
+            8-15j: {agingDistribution.d8_15}
+          </span>
+          <span className="px-3 py-1 rounded-full text-xs font-medium bg-red-500/20 text-red-300 animate-pulse">
+            16+j: {agingDistribution.d16plus}
+          </span>
         </div>
       )}
 
@@ -271,7 +345,7 @@ export default function AdminUnpaid() {
                             <PauseCircle className="h-3 w-3" /> Suspendre
                           </button>
                           <button
-                            onClick={() => handleReactivate(cab.cabinet_id)}
+                            onClick={() => setReactivateDialog(cab.cabinet_id)}
                             className="flex items-center gap-1 px-2.5 py-1.5 text-xs bg-emerald-500/20 text-emerald-300 rounded-lg hover:bg-emerald-500/30 transition-colors"
                             title="Reactiver le cabinet"
                           >
@@ -301,6 +375,24 @@ export default function AdminUnpaid() {
             <AlertDialogCancel>Annuler</AlertDialogCancel>
             <AlertDialogAction onClick={() => suspendDialog && handleSuspend(suspendDialog)} className="bg-red-600 hover:bg-red-700">
               Suspendre
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* F14: Reactivate Confirmation */}
+      <AlertDialog open={!!reactivateDialog} onOpenChange={() => setReactivateDialog(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmer la reactivation</AlertDialogTitle>
+            <AlertDialogDescription>
+              Etes-vous sur de vouloir reactiver ce cabinet ? L'abonnement sera remis au plan Solo par defaut.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={() => reactivateDialog && handleReactivate(reactivateDialog)} className="bg-emerald-600 hover:bg-emerald-700">
+              Reactiver
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

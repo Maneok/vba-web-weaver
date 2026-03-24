@@ -1,10 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Megaphone, Plus, Send, FileText, Eye } from "lucide-react";
+import { Megaphone, Plus, Send, FileText, Eye, Trash2, Copy, Search, ArrowUpDown } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { formatDateTimeFr } from "@/lib/dateUtils";
+import { logger } from "@/lib/logger";
 
 interface Broadcast {
   id: string;
@@ -65,10 +67,32 @@ export default function AdminBroadcasts() {
   const [selectedTemplate, setSelectedTemplate] = useState(-1);
   // 36. Scheduled broadcast
   const [scheduledAt, setScheduledAt] = useState("");
+  // F22. Delete broadcast
+  const [deleteDialog, setDeleteDialog] = useState<string | null>(null);
+  // F25. Preview
+  const [showPreview, setShowPreview] = useState(false);
+  // F26. Search
+  const [searchQuery, setSearchQuery] = useState("");
+  // F27. Sort
+  const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
 
   useEffect(() => {
     loadBroadcasts();
   }, []);
+
+  // F26 + F27: filtered and sorted broadcasts
+  const filteredBroadcasts = useMemo(() => {
+    let result = broadcasts;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter((b) => b.title.toLowerCase().includes(q));
+    }
+    if (sortOrder === "oldest") {
+      result = [...result].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    }
+    // "newest" is already the default order from DB
+    return result;
+  }, [broadcasts, searchQuery, sortOrder]);
 
   async function loadBroadcasts() {
     setLoading(true);
@@ -80,7 +104,7 @@ export default function AdminBroadcasts() {
       if (error) throw error;
       setBroadcasts((data ?? []) as unknown as Broadcast[]);
     } catch (err) {
-      console.error("[AdminBroadcasts] Load error:", err);
+      logger.error("[AdminBroadcasts] Load error:", err);
       toast.error("Erreur lors du chargement des annonces");
     } finally {
       setLoading(false);
@@ -128,6 +152,29 @@ export default function AdminBroadcasts() {
     }
   }
 
+  // F22. Delete broadcast
+  async function handleDeleteBroadcast() {
+    if (!deleteDialog) return;
+    try {
+      const { error } = await supabase.from("admin_broadcasts").delete().eq("id", deleteDialog);
+      if (error) throw error;
+      toast.success("Annonce supprimee");
+      setDeleteDialog(null);
+      loadBroadcasts();
+    } catch (err) {
+      logger.error("[AdminBroadcasts] Delete error:", err);
+      toast.error("Erreur lors de la suppression de l'annonce");
+    }
+  }
+
+  // F23. Duplicate broadcast
+  function handleDuplicate(b: Broadcast) {
+    setTitle(b.title);
+    setMessage(b.message);
+    setTarget(b.target);
+    setDialogOpen(true);
+  }
+
   // 34. Apply template
   function applyTemplate(idx: number) {
     setSelectedTemplate(idx);
@@ -164,15 +211,36 @@ export default function AdminBroadcasts() {
         </button>
       </div>
 
+      {/* F26. Search + F27. Sort */}
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Rechercher par titre..."
+            className="w-full pl-9 pr-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+          />
+        </div>
+        <button
+          onClick={() => setSortOrder(sortOrder === "newest" ? "oldest" : "newest")}
+          className="flex items-center gap-1.5 px-3 py-2 text-xs bg-white/5 border border-white/10 rounded-lg text-slate-700 dark:text-slate-300 hover:bg-white/10 transition-colors shrink-0"
+        >
+          <ArrowUpDown className="h-3.5 w-3.5" />
+          {sortOrder === "newest" ? "Plus recents" : "Plus anciens"}
+        </button>
+      </div>
+
       {/* Broadcasts List */}
-      {broadcasts.length === 0 ? (
+      {filteredBroadcasts.length === 0 ? (
         <div className="bg-white/5 border border-white/10 rounded-xl p-12 text-center">
           <Megaphone className="h-8 w-8 text-slate-400 dark:text-slate-500 mx-auto mb-3" />
           <p className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-sm">Aucune annonce envoyee</p>
         </div>
       ) : (
         <div className="space-y-3">
-          {broadcasts.map((b) => {
+          {filteredBroadcasts.map((b) => {
             const isScheduled = b.scheduled_at && new Date(b.scheduled_at) > new Date();
             const readCount = Array.isArray(b.read_by) ? b.read_by.length : 0;
             return (
@@ -191,9 +259,27 @@ export default function AdminBroadcasts() {
                     <p className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400 mt-1 whitespace-pre-wrap">{b.message}</p>
                   </div>
                   <div className="text-right shrink-0 space-y-1">
-                    <span className="px-2 py-0.5 rounded-full text-xs bg-blue-500/20 text-blue-300">
-                      {targetLabels[b.target] ?? b.target}
-                    </span>
+                    <div className="flex items-center gap-1 justify-end">
+                      <span className="px-2 py-0.5 rounded-full text-xs bg-blue-500/20 text-blue-300">
+                        {targetLabels[b.target] ?? b.target}
+                      </span>
+                      {/* F23. Duplicate button */}
+                      <button
+                        onClick={() => handleDuplicate(b)}
+                        className="p-1 text-slate-400 hover:text-blue-400 rounded hover:bg-white/10 transition-colors"
+                        title="Dupliquer"
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                      </button>
+                      {/* F22. Delete button */}
+                      <button
+                        onClick={() => setDeleteDialog(b.id)}
+                        className="p-1 text-slate-400 hover:text-red-400 rounded hover:bg-white/10 transition-colors"
+                        title="Supprimer"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
                     <p className="text-xs text-slate-400 dark:text-slate-500">{b.recipients_count} destinataire(s)</p>
                     {/* 35. Read status */}
                     {b.recipients_count > 0 && (
@@ -254,6 +340,10 @@ export default function AdminBroadcasts() {
                 placeholder="Contenu de l'annonce..."
                 className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-800 dark:text-slate-200 mt-1 resize-none"
               />
+              {/* F24. Character count */}
+              <p className={`text-xs mt-1 ${message.length > 500 ? "text-red-400" : "text-slate-400 dark:text-slate-500"}`}>
+                {message.length} / 500 caracteres
+              </p>
             </div>
             <div>
               <label className="text-sm text-slate-700 dark:text-slate-300">Cible</label>
@@ -282,6 +372,28 @@ export default function AdminBroadcasts() {
                 <p className="text-[11px] text-amber-400 mt-1">L'annonce sera envoyee automatiquement a la date choisie.</p>
               )}
             </div>
+
+            {/* F25. Preview section */}
+            <div>
+              <button
+                type="button"
+                onClick={() => setShowPreview(!showPreview)}
+                className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
+              >
+                {showPreview ? "Masquer l'apercu" : "Apercu"}
+              </button>
+              {showPreview && (
+                <div className="mt-2 bg-white/5 border border-white/10 rounded-xl p-4">
+                  <div className="flex items-center gap-2 mb-1">
+                    <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-200">{title || "Sans titre"}</h4>
+                    <span className="px-2 py-0.5 rounded-full text-xs bg-blue-500/20 text-blue-300">
+                      {targetLabels[target] ?? target}
+                    </span>
+                  </div>
+                  <p className="text-sm text-slate-400 dark:text-slate-500 whitespace-pre-wrap">{message || "Aucun message"}</p>
+                </div>
+              )}
+            </div>
           </div>
           <DialogFooter>
             <button onClick={() => setDialogOpen(false)} className="px-4 py-2 text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200">Annuler</button>
@@ -295,6 +407,24 @@ export default function AdminBroadcasts() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* F22. Delete confirmation dialog */}
+      <AlertDialog open={!!deleteDialog} onOpenChange={() => setDeleteDialog(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer l'annonce</AlertDialogTitle>
+            <AlertDialogDescription>
+              Etes-vous sur de vouloir supprimer cette annonce ? Cette action est irreversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteBroadcast} className="bg-red-600 hover:bg-red-700">
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

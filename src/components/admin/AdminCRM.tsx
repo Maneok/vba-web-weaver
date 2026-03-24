@@ -4,13 +4,14 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import {
   Users, Euro, TrendingUp, AlertTriangle, Plus, Search, Phone, Mail, Video,
   Bell, FileText, CheckCircle, Rocket, GripVertical, LayoutGrid, List,
-  X, Trash2, UserCheck, Calendar, Tag,
+  X, Trash2, UserCheck, Calendar, Tag, Copy,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import { logger } from "@/lib/logger";
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip as ReTooltip, ResponsiveContainer,
@@ -176,12 +177,19 @@ export default function AdminCRM() {
   const [convertDialog, setConvertDialog] = useState(false);
   const [deleteDialog, setDeleteDialog] = useState(false);
 
+  // Next action editing
+  const [editAction, setEditAction] = useState("");
+  const [editActionDate, setEditActionDate] = useState("");
+
   // Kanban drag
   const [dragId, setDragId] = useState<string | null>(null);
 
   // Table filters
   const [search, setSearch] = useState("");
   const [sourceFilter, setSourceFilter] = useState("all");
+
+  // Kanban search
+  const [kanbanSearch, setKanbanSearch] = useState("");
 
   // Onboarding
   const [onboarding, setOnboarding] = useState<OnboardingCab[]>([]);
@@ -215,13 +223,15 @@ export default function AdminCRM() {
 
   async function openDetail(p: Prospect) {
     setSelectedProspect(p);
+    setEditAction(p.next_action || "");
+    setEditActionDate(p.next_action_date || "");
     setSheetOpen(true);
     try {
       const { data } = await supabase
         .from("admin_crm_activities").select("*")
         .eq("prospect_id", p.id).order("created_at", { ascending: false });
       if (data) setActivities(data as unknown as CrmActivity[]);
-    } catch { /* ignore */ }
+    } catch (err) { logger.warn("[CRM]", "load activities:", err); toast.error("Erreur chargement activites"); }
   }
 
   async function handleCreate() {
@@ -239,7 +249,7 @@ export default function AdminCRM() {
       if (data) {
         await supabase.from("admin_crm_activities").insert({
           prospect_id: (data as Record<string, unknown>).id, type: "note", content: "Prospect cree", created_by: profile?.id,
-        }).catch(() => {});
+        }).catch((e) => { logger.warn("[CRM]", "activity error:", e); });
       }
       toast.success("Prospect cree");
       setNewDialog(false);
@@ -276,7 +286,7 @@ export default function AdminCRM() {
     if (!lostReason.trim() || !selectedProspect) return;
     try {
       await supabase.from("admin_prospects").update({ stage: "perdu", lost_reason: lostReason }).eq("id", selectedProspect.id);
-      await supabase.from("admin_crm_activities").insert({ prospect_id: selectedProspect.id, type: "note", content: `Marque perdu: ${lostReason}`, created_by: profile?.id }).catch(() => {});
+      await supabase.from("admin_crm_activities").insert({ prospect_id: selectedProspect.id, type: "note", content: `Marque perdu: ${lostReason}`, created_by: profile?.id }).catch((e) => { logger.warn("[CRM]", "activity error:", e); });
       toast.success("Prospect marque perdu");
       setLostDialog(false); setLostReason(""); setSheetOpen(false); fetchAll();
     } catch { toast.error("Erreur"); }
@@ -330,9 +340,13 @@ export default function AdminCRM() {
   const kanbanGroups = useMemo(() => {
     const map: Record<string, Prospect[]> = {};
     for (const s of ALL_STAGES) map[s] = [];
-    for (const p of prospects) { if (map[p.stage]) map[p.stage].push(p); }
+    const q = kanbanSearch.toLowerCase();
+    for (const p of prospects) {
+      if (q && !p.contact_name.toLowerCase().includes(q) && !(p.company_name ?? "").toLowerCase().includes(q)) continue;
+      if (map[p.stage]) map[p.stage].push(p);
+    }
     return map;
-  }, [prospects]);
+  }, [prospects, kanbanSearch]);
 
   function getOnboardingPct(c: OnboardingCab): number {
     let steps = 1;
@@ -418,6 +432,12 @@ export default function AdminCRM() {
               </div>
 
               {/* Desktop kanban */}
+              <div className="hidden md:block">
+                <div className="relative mb-3 max-w-xs">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                  <input type="text" placeholder="Rechercher dans le kanban..." value={kanbanSearch} onChange={(e) => setKanbanSearch(e.target.value)} className="w-full pl-10 pr-4 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-200" />
+                </div>
+              </div>
               <div className="hidden md:flex gap-3 overflow-x-auto pb-2">
                 {STAGES_ORDER.map((stage) => {
                   const items = kanbanGroups[stage] || [];
@@ -451,6 +471,7 @@ export default function AdminCRM() {
                             </div>
                             {p.montant_estime_cents > 0 && <p className="text-[10px] text-emerald-400 mt-1">{(p.montant_estime_cents / 100).toLocaleString("fr-FR")} €/mois</p>}
                             {p.next_action_date && <p className={`text-[10px] mt-1 flex items-center gap-1 ${isOverdue(p.next_action_date) ? "text-red-400" : "text-slate-500"}`}><Calendar className="h-2.5 w-2.5" /> {p.next_action_date}</p>}
+                            <p className="text-[9px] text-slate-600 mt-0.5">il y a {Math.floor((Date.now() - new Date(p.created_at).getTime()) / 86400000)}j</p>
                           </div>
                         ))}
                         {items.length === 0 && <p className="text-[10px] text-slate-600 text-center py-4">Aucun prospect</p>}
@@ -478,6 +499,16 @@ export default function AdminCRM() {
           ) : (
             /* Table View */
             <div className="space-y-3">
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {ALL_STAGES.map((s) => {
+                  const count = kanbanGroups[s]?.length ?? 0;
+                  return (
+                    <span key={s} className={`px-2 py-0.5 rounded-full text-[10px] font-medium border ${STAGE_COLORS[s]}`}>
+                      {STAGE_LABELS[s]} ({count})
+                    </span>
+                  );
+                })}
+              </div>
               <div className="flex flex-wrap gap-2">
                 <div className="relative flex-1 min-w-[200px]">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
@@ -579,7 +610,7 @@ export default function AdminCRM() {
                               const missing = [c.total_clients === 0 ? "ajouter votre premier client" : null, c.total_lm === 0 ? "creer votre premiere lettre de mission" : null, c.total_docs === 0 ? "uploader vos documents" : null].filter(Boolean).join(", ");
                               const body = encodeURIComponent(`Bonjour ${c.contact_name || ""},\n\nNous esperons que votre experience avec GRIMY se passe bien.\n\nPour tirer le meilleur parti de la plateforme, il vous reste a : ${missing || "finaliser votre configuration"}.\n\nN hesitez pas a nous contacter si vous avez besoin d aide.\n\nCordialement,\nL equipe GRIMY`);
                               window.open(`mailto:${c.contact_email}?subject=${encodeURIComponent("GRIMY — Besoin d'aide pour demarrer ?")}&body=${body}`, "_blank");
-                              if (c.prospect_id) { supabase.from("admin_crm_activities").insert({ prospect_id: c.prospect_id, type: "relance", content: `Relance onboarding - ${pct}% complete`, created_by: profile?.id }).catch(() => {}); }
+                              if (c.prospect_id) { supabase.from("admin_crm_activities").insert({ prospect_id: c.prospect_id, type: "relance", content: `Relance onboarding - ${pct}% complete`, created_by: profile?.id }).catch((e) => { logger.warn("[CRM]", "activity error:", e); }); }
                             }} className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1"><Mail className="h-3 w-3" /> Relancer</button>
                           )}
                         </td>
@@ -711,8 +742,8 @@ export default function AdminCRM() {
                 <div className="bg-white/5 border border-white/10 rounded-xl p-4">
                   <h4 className="text-xs font-semibold text-slate-400 uppercase mb-2">Prochaine action</h4>
                   <div className="flex gap-2">
-                    <input type="text" defaultValue={selectedProspect.next_action || ""} placeholder="Action..." className="flex-1 px-2 py-1.5 bg-white/5 border border-white/10 rounded text-sm text-slate-200" onBlur={(e) => updateNextAction(e.target.value, selectedProspect.next_action_date || "")} />
-                    <input type="date" defaultValue={selectedProspect.next_action_date || ""} className="px-2 py-1.5 bg-white/5 border border-white/10 rounded text-sm text-slate-200" onBlur={(e) => updateNextAction(selectedProspect.next_action || "", e.target.value)} />
+                    <input type="text" value={editAction} onChange={(e) => setEditAction(e.target.value)} placeholder="Action..." className="flex-1 px-2 py-1.5 bg-white/5 border border-white/10 rounded text-sm text-slate-200" onBlur={(e) => updateNextAction(e.target.value, editActionDate)} />
+                    <input type="date" value={editActionDate} onChange={(e) => setEditActionDate(e.target.value)} className="px-2 py-1.5 bg-white/5 border border-white/10 rounded text-sm text-slate-200" onBlur={(e) => updateNextAction(editAction, e.target.value)} />
                   </div>
                 </div>
 
@@ -725,6 +756,24 @@ export default function AdminCRM() {
                   {["proposition", "negociation"].includes(selectedProspect.stage) && (
                     <button onClick={() => setConvertDialog(true)} className="flex items-center gap-1.5 px-3 py-2 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"><UserCheck className="h-3 w-3" /> Convertir</button>
                   )}
+                  <button onClick={() => {
+                    setNewForm({
+                      contact_name: selectedProspect.contact_name,
+                      contact_email: selectedProspect.contact_email,
+                      contact_phone: selectedProspect.contact_phone || "",
+                      company_name: selectedProspect.company_name || "",
+                      siren: selectedProspect.siren || "",
+                      source: selectedProspect.source,
+                      plan_vise: selectedProspect.plan_vise || "solo",
+                      montant_estime_cents: selectedProspect.montant_estime_cents,
+                      notes: selectedProspect.notes || "",
+                      next_action: selectedProspect.next_action || "",
+                      next_action_date: selectedProspect.next_action_date || "",
+                      tags: Array.isArray(selectedProspect.tags) ? [...selectedProspect.tags] : [],
+                    });
+                    setSheetOpen(false);
+                    setNewDialog(true);
+                  }} className="flex items-center gap-1.5 px-3 py-2 text-xs bg-slate-500/20 text-slate-300 rounded-lg hover:bg-slate-500/30 transition-colors"><Copy className="h-3 w-3" /> Dupliquer</button>
                 </div>
 
                 {/* Stage change */}

@@ -23,6 +23,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { toast } from "sonner";
+import { logger } from "@/lib/logger";
 import {
   AreaChart,
   Area,
@@ -346,7 +347,8 @@ export default function AdminMonitoring({ onAlertCount }: { onAlertCount?: (n: n
 
       setLastRefresh(Date.now());
     } catch (err) {
-      console.error("[AdminMonitoring] fetch error:", err);
+      logger.error("[Monitoring]", "fetch error:", err);
+      toast.error("Erreur de chargement du monitoring");
     } finally {
       setLoading(false);
     }
@@ -432,7 +434,8 @@ export default function AdminMonitoring({ onAlertCount }: { onAlertCount?: (n: n
         response_time_ms: r.ms,
         checked_at: new Date().toISOString(),
       }));
-      await supabase.from("health_checks").insert(inserts);
+      const { error: insertErr } = await supabase.from("health_checks").insert(inserts);
+      if (insertErr) logger.warn("[Monitoring]", "health_checks insert failed:", insertErr);
 
       // 17. If any service is down, create notification
       const downSvcs = results.filter((r) => r.status === "down");
@@ -479,29 +482,37 @@ export default function AdminMonitoring({ onAlertCount }: { onAlertCount?: (n: n
 
   // 16. Export CSV
   const handleExportLogs = () => {
-    const headers = ["Date", "Cabinet", "Utilisateur", "Action", "Details"];
-    const rows = filteredAuditLogs.map((l) => [
-      new Date(l.created_at).toISOString(),
-      l.cabinet_id ?? "",
-      l.user_email ?? "",
-      l.action,
-      JSON.stringify(l.new_data ?? ""),
-    ]);
-    downloadCsv(`logs_${new Date().toISOString().slice(0, 10)}.csv`, headers, rows);
-    toast.success("Export CSV telecharge");
+    try {
+      const headers = ["Date", "Cabinet", "Utilisateur", "Action", "Details"];
+      const rows = filteredAuditLogs.map((l) => [
+        new Date(l.created_at).toISOString(),
+        l.cabinet_id ?? "",
+        l.user_email ?? "",
+        l.action,
+        JSON.stringify(l.new_data ?? ""),
+      ]);
+      downloadCsv(`logs_${new Date().toISOString().slice(0, 10)}.csv`, headers, rows);
+      toast.success("Export CSV telecharge");
+    } catch {
+      toast.error("Erreur lors de l'export");
+    }
   };
 
   const handleExportHealthChecks = () => {
-    const headers = ["Date", "Service", "Status", "Temps (ms)", "Erreur"];
-    const rows = incidents.map((i) => [
-      new Date(i.checked_at).toISOString(),
-      i.service,
-      i.status,
-      String(i.response_time_ms ?? ""),
-      i.error_message ?? "",
-    ]);
-    downloadCsv(`health_checks_${new Date().toISOString().slice(0, 10)}.csv`, headers, rows);
-    toast.success("Export CSV telecharge");
+    try {
+      const headers = ["Date", "Service", "Status", "Temps (ms)", "Erreur"];
+      const rows = incidents.map((i) => [
+        new Date(i.checked_at).toISOString(),
+        i.service,
+        i.status,
+        String(i.response_time_ms ?? ""),
+        i.error_message ?? "",
+      ]);
+      downloadCsv(`health_checks_${new Date().toISOString().slice(0, 10)}.csv`, headers, rows);
+      toast.success("Export CSV telecharge");
+    } catch {
+      toast.error("Erreur lors de l'export");
+    }
   };
 
   // 7. Filtered audit logs
@@ -648,7 +659,14 @@ export default function AdminMonitoring({ onAlertCount }: { onAlertCount?: (n: n
                 )}
               </div>
               {check && (
-                <p className="text-[10px] text-slate-600 mt-auto">{formatRelative(check.checked_at)}</p>
+                <>
+                  <p className="text-[10px] mt-auto">
+                    <span className={check.status === "up" ? "text-emerald-400" : check.status === "degraded" ? "text-amber-400" : "text-red-400"}>
+                      {check.status === "up" ? "Dernier: OK" : check.status === "degraded" ? "Dernier: Degrade" : "Dernier: DOWN"}
+                    </span>
+                  </p>
+                  <p className="text-[10px] text-slate-600">{formatRelative(check.checked_at)}</p>
+                </>
               )}
             </div>
           );
@@ -684,16 +702,16 @@ export default function AdminMonitoring({ onAlertCount }: { onAlertCount?: (n: n
           <div className="flex items-center gap-2 mb-3">
             <Users className="h-4 w-4 text-slate-400" />
             <h3 className="text-sm font-semibold text-slate-200">Sessions actives</h3>
-            <span className="ml-auto text-xs font-bold text-blue-400">{activeSessions.length}</span>
+            <span className="ml-auto text-xs font-bold text-blue-400">{(activeSessions ?? []).length}</span>
           </div>
           <div className="space-y-1.5 max-h-32 overflow-y-auto">
-            {activeSessions.slice(0, 8).map((s) => (
+            {(activeSessions ?? []).slice(0, 8).map((s) => (
               <div key={s.id} className="flex items-center justify-between text-[11px]">
                 <span className="text-slate-300 truncate max-w-[120px]">{s.user_id.slice(0, 8)}...</span>
                 <span className="text-slate-500">{s.last_activity ? formatRelative(s.last_activity) : "—"}</span>
               </div>
             ))}
-            {activeSessions.length === 0 && <p className="text-[11px] text-slate-600">Aucune session</p>}
+            {(activeSessions ?? []).length === 0 && <p className="text-[11px] text-slate-600">Aucune session</p>}
           </div>
         </div>
 
@@ -867,6 +885,11 @@ export default function AdminMonitoring({ onAlertCount }: { onAlertCount?: (n: n
         <div className="flex items-center gap-2 mb-3">
           <AlertTriangle className="h-4 w-4 text-red-400" />
           <h3 className="text-sm font-semibold text-slate-200">Incidents recents</h3>
+          {incidents.length > 0 && (
+            <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-red-500 text-white min-w-[18px] text-center">
+              {incidents.length}
+            </span>
+          )}
           <button
             onClick={handleExportHealthChecks}
             className="ml-auto flex items-center gap-1 text-[11px] text-slate-500 hover:text-slate-300 transition-colors"
@@ -997,6 +1020,14 @@ export default function AdminMonitoring({ onAlertCount }: { onAlertCount?: (n: n
             onChange={(e) => setLogActionFilter(e.target.value)}
             className="text-[11px] bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-slate-300 outline-none w-32 placeholder:text-slate-600"
           />
+          {(logCabinetFilter || logActionFilter) && (
+            <button
+              onClick={() => { setLogCabinetFilter(""); setLogActionFilter(""); }}
+              className="text-[11px] text-slate-500 hover:text-slate-300 transition-colors px-2 py-1 bg-white/5 border border-white/10 rounded-lg"
+            >
+              Reinitialiser
+            </button>
+          )}
           <button
             onClick={handleExportLogs}
             className="flex items-center gap-1 text-[11px] text-slate-500 hover:text-slate-300 transition-colors"

@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Search, MoreHorizontal, Download, Trash2, PauseCircle, PlayCircle, ArrowRightLeft, Clock, Tag, StickyNote, FileText, RefreshCw, Activity, GitCompare } from "lucide-react";
+import { Search, MoreHorizontal, Download, Trash2, PauseCircle, PlayCircle, ArrowRightLeft, Clock, Tag, StickyNote, FileText, RefreshCw, Activity, GitCompare, Copy } from "lucide-react";
+import { logger } from "@/lib/logger";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -68,6 +69,23 @@ const statusLabels: Record<string, string> = {
   past_due: "Impaye",
   suspended: "Suspendu",
 };
+
+// F8. Plan badge colors
+const planColors: Record<string, string> = {
+  solo: "bg-blue-500/20 text-blue-300",
+  cabinet: "bg-violet-500/20 text-violet-300",
+  enterprise: "bg-emerald-500/20 text-emerald-300",
+};
+
+// F11. Last activity dot color helper
+function getActivityDotColor(lastLogin: string | null): string {
+  if (!lastLogin) return "bg-gray-400";
+  const diffMs = Date.now() - new Date(lastLogin).getTime();
+  const diffHours = diffMs / (1000 * 60 * 60);
+  if (diffHours < 24) return "bg-emerald-400";
+  if (diffHours < 7 * 24) return "bg-orange-400";
+  return "bg-red-400";
+}
 
 // 27. Tag definitions
 const TAG_OPTIONS = [
@@ -146,6 +164,9 @@ export default function AdminCabinets() {
   const [compareData, setCompareData] = useState<Record<string, Record<string, unknown>> | null>(null);
   // 27. Tags
   const [cabinetTags, setCabinetTags] = useState<Record<string, string[]>>({});
+  // F7. Sort columns
+  const [sortCol, setSortCol] = useState<string>("name");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
   useEffect(() => {
     loadCabinets();
@@ -172,7 +193,7 @@ export default function AdminCabinets() {
         setCabinetTags(map);
       }
     } catch (err) {
-      console.error("[AdminCabinets] Load error:", err);
+      logger.error("[AdminCabinets] Load error:", err);
       toast.error("Erreur lors du chargement des cabinets");
     } finally {
       setLoading(false);
@@ -209,7 +230,7 @@ export default function AdminCabinets() {
         setTimeline(timelineRes.data as unknown as TimelineEntry[]);
       }
     } catch (err) {
-      console.error("[AdminCabinets] Detail error:", err);
+      logger.error("[AdminCabinets] Detail error:", err);
       toast.error("Erreur lors du chargement du detail");
     } finally {
       setDetailLoading(false);
@@ -332,7 +353,14 @@ export default function AdminCabinets() {
       const { error } = await supabase.rpc("admin_add_note", { p_cabinet_id: cabinetId, p_note: tag, p_type: "tag" });
       if (error) {
         // Fallback: insert directly
-        await supabase.from("admin_notes").insert({ cabinet_id: cabinetId, note: tag, type: "tag" });
+        try {
+          const { error: insertError } = await supabase.from("admin_notes").insert({ cabinet_id: cabinetId, note: tag, type: "tag" });
+          if (insertError) throw insertError;
+        } catch (fallbackErr) {
+          logger.error("[AdminCabinets] Fallback tag insert error:", fallbackErr);
+          toast.error("Erreur lors de l'ajout du tag");
+          return;
+        }
       }
       toast.success(`Tag "${tag}" ajoute`);
       loadCabinets();
@@ -359,7 +387,7 @@ export default function AdminCabinets() {
           users: cab.active_users,
           last_login: cab.last_login,
           lettres: (data as Record<string, unknown>)?.lettres_count ?? "—",
-          mrr: (data as Record<string, unknown>)?.mrr ?? "—",
+          documents: (data as Record<string, unknown>)?.documents_count ?? "—",
           avg_risk: (data as Record<string, unknown>)?.avg_risk_score ?? "—",
         };
       }
@@ -397,7 +425,7 @@ export default function AdminCabinets() {
   }
 
   const filtered = useMemo(() => {
-    return cabinets.filter((c) => {
+    const result = cabinets.filter((c) => {
       const matchSearch = !search ||
         c.name?.toLowerCase().includes(search.toLowerCase()) ||
         c.admin_email?.toLowerCase().includes(search.toLowerCase());
@@ -405,7 +433,36 @@ export default function AdminCabinets() {
       const matchTag = tagFilter === "all" || (cabinetTags[c.id] || []).includes(tagFilter);
       return matchSearch && matchStatus && matchTag;
     });
-  }, [cabinets, search, statusFilter, tagFilter, cabinetTags]);
+    // F7. Sort
+    result.sort((a, b) => {
+      let aVal: string | number = "";
+      let bVal: string | number = "";
+      switch (sortCol) {
+        case "name":
+          aVal = (a.name ?? "").toLowerCase();
+          bVal = (b.name ?? "").toLowerCase();
+          break;
+        case "plan":
+          aVal = (a.subscription_status ?? "").toLowerCase();
+          bVal = (b.subscription_status ?? "").toLowerCase();
+          break;
+        case "total_clients":
+          aVal = a.total_clients ?? 0;
+          bVal = b.total_clients ?? 0;
+          break;
+        case "last_login":
+          aVal = a.last_login ?? "";
+          bVal = b.last_login ?? "";
+          break;
+        default:
+          return 0;
+      }
+      if (aVal < bVal) return sortDir === "asc" ? -1 : 1;
+      if (aVal > bVal) return sortDir === "asc" ? 1 : -1;
+      return 0;
+    });
+    return result;
+  }, [cabinets, search, statusFilter, tagFilter, cabinetTags, sortCol, sortDir]);
 
   if (loading) {
     return (
@@ -515,7 +572,7 @@ export default function AdminCabinets() {
               </tr>
             </thead>
             <tbody>
-              {["plan", "clients", "users", "lettres", "mrr", "avg_risk", "last_login"].map((key) => (
+              {["plan", "clients", "users", "lettres", "documents", "avg_risk", "last_login"].map((key) => (
                 <tr key={key} className="border-b border-white/[0.03]">
                   <td className="py-1.5 px-2 text-slate-500 capitalize">{key.replace("_", " ")}</td>
                   {Object.values(compareData).map((data, i) => (
@@ -543,14 +600,27 @@ export default function AdminCabinets() {
             <thead>
               <tr className="text-left text-xs text-slate-400 dark:text-slate-500 border-b border-white/10">
                 {compareMode && <th className="px-2 py-3 w-8"></th>}
-                <th className="px-4 py-3">Nom</th>
-                <th className="px-4 py-3">Plan</th>
-                <th className="px-4 py-3">Statut</th>
-                <th className="px-4 py-3">Users</th>
-                <th className="px-4 py-3">Clients</th>
-                <th className="px-4 py-3">Admin</th>
-                <th className="px-4 py-3">Derniere connexion</th>
-                <th className="px-4 py-3">Trial</th>
+                {([
+                  { key: "name", label: "Nom", sortable: true },
+                  { key: "plan", label: "Plan", sortable: true },
+                  { key: "status", label: "Statut", sortable: false },
+                  { key: "users", label: "Users", sortable: false },
+                  { key: "total_clients", label: "Clients", sortable: true },
+                  { key: "admin", label: "Admin", sortable: false },
+                  { key: "last_login", label: "Derniere connexion", sortable: true },
+                  { key: "trial", label: "Trial", sortable: false },
+                ] as const).map((col) => (
+                  <th
+                    key={col.key}
+                    className={`px-4 py-3 ${col.sortable ? "cursor-pointer select-none hover:text-slate-300" : ""}`}
+                    onClick={col.sortable ? () => { setSortCol(col.key); setSortDir((prev) => sortCol === col.key ? (prev === "asc" ? "desc" : "asc") : "asc"); } : undefined}
+                  >
+                    {col.label}
+                    {col.sortable && sortCol === col.key && (
+                      <span className="ml-1">{sortDir === "asc" ? "\u25B2" : "\u25BC"}</span>
+                    )}
+                  </th>
+                ))}
                 <th className="px-4 py-3 w-10"></th>
               </tr>
             </thead>
@@ -585,7 +655,7 @@ export default function AdminCabinets() {
                     ))}
                   </td>
                   <td className="px-4 py-3">
-                    <span className="px-2 py-0.5 rounded-full text-xs bg-blue-500/20 text-blue-300 capitalize">{cab.plan}</span>
+                    <span className={`px-2 py-0.5 rounded-full text-xs capitalize ${planColors[cab.plan] ?? "bg-slate-500/20 text-slate-300"}`}>{cab.plan}</span>
                   </td>
                   <td className="px-4 py-3">
                     <span className={`px-2 py-0.5 rounded-full text-xs ${statusColors[cab.subscription_status] ?? "bg-slate-500/20 text-slate-700 dark:text-slate-300"}`}>
@@ -594,8 +664,17 @@ export default function AdminCabinets() {
                   </td>
                   <td className="px-4 py-3 text-slate-400 dark:text-slate-500 dark:text-slate-400">{cab.active_users}/{cab.max_users}</td>
                   <td className="px-4 py-3 text-slate-400 dark:text-slate-500 dark:text-slate-400">{cab.total_clients}/{cab.max_clients}</td>
-                  <td className="px-4 py-3 text-slate-400 dark:text-slate-500 dark:text-slate-400 truncate max-w-[180px]">{cab.admin_email}</td>
-                  <td className="px-4 py-3 text-slate-400 dark:text-slate-500">{formatRelative(cab.last_login)}</td>
+                  <td
+                    className="px-4 py-3 text-slate-400 dark:text-slate-500 dark:text-slate-400 truncate max-w-[180px] cursor-pointer hover:text-slate-300"
+                    title="Cliquer pour copier"
+                    onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(cab.admin_email); toast("Email copie"); }}
+                  >{cab.admin_email}</td>
+                  <td className="px-4 py-3 text-slate-400 dark:text-slate-500">
+                    <span className="flex items-center gap-1.5">
+                      <span className={`inline-block w-2 h-2 rounded-full shrink-0 ${getActivityDotColor(cab.last_login)}`} />
+                      {formatRelative(cab.last_login)}
+                    </span>
+                  </td>
                   <td className="px-4 py-3 text-slate-400 dark:text-slate-500">
                     {cab.trial_days_remaining != null && cab.trial_days_remaining > 0
                       ? `${cab.trial_days_remaining}j`
@@ -647,6 +726,11 @@ export default function AdminCabinets() {
             </tbody>
           </table>
         </div>
+      </div>
+
+      {/* F10. Row count footer */}
+      <div className="text-xs text-slate-500 text-right px-1">
+        {filtered.length} / {cabinets.length} cabinets
       </div>
 
       {/* Cabinet Detail Sheet */}

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { Shield, LayoutDashboard, Building2, AlertTriangle, CreditCard, Megaphone, Settings, Activity, Target } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { logger } from "@/lib/logger";
 import AdminOverview from "@/components/admin/AdminOverview";
 import AdminCabinets from "@/components/admin/AdminCabinets";
 import AdminUnpaid from "@/components/admin/AdminUnpaid";
@@ -53,8 +54,8 @@ export default function SuperAdminPage() {
         if (data && Array.isArray(data)) {
           setUnpaidCount(data.length);
         }
-      } catch {
-        // Silently ignore
+      } catch (err) {
+        logger.warn("[SuperAdmin]", "unpaid count error:", err);
       }
     }
     fetchUnpaidCount();
