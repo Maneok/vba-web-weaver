@@ -11,7 +11,6 @@ import {
   Building2,
   CheckSquare,
   Activity,
-  Settings,
   HelpCircle,
   LogOut,
   ChevronsLeft,
@@ -64,7 +63,6 @@ const PILOTAGE: NavItem[] = [
 
 const FOOTER_NAV: NavItem[] = [
   { to: "/diagnostic", label: "Diagnostic 360", icon: Activity, shortcut: "3" },
-  { to: "/parametres", label: "Parametres", icon: Settings, shortcut: "P" },
   { to: "/aide", label: "Aide", icon: HelpCircle, shortcut: "?" },
 ];
 
