@@ -53,7 +53,7 @@ interface TimelineEntry {
 // 27. Tag type
 interface CabinetTag {
   cabinet_id: string;
-  tag: string;
+  content: string;
 }
 
 const statusColors: Record<string, string> = {
@@ -178,17 +178,32 @@ export default function AdminCabinets() {
       const [cabRes, tagsRes] = await Promise.all([
         supabase.from("v_admin_dashboard").select("*"),
         // 27. Load tags
-        supabase.from("admin_notes").select("cabinet_id, note").eq("type", "tag"),
+        supabase.from("admin_notes").select("cabinet_id, content, note_type").eq("note_type", "tag"),
       ]);
       if (cabRes.error) throw cabRes.error;
-      setCabinets((cabRes.data ?? []) as unknown as Cabinet[]);
+      // Map DB column names to our interface
+      const mapped = (cabRes.data ?? []).filter((row: Record<string, unknown>) => row.cabinet_id !== "00000000-0000-0000-0000-000000000000").map((row: Record<string, unknown>) => ({
+        id: row.cabinet_id as string,
+        name: (row.cabinet_nom as string) || "",
+        plan: (row.plan as string) || "",
+        subscription_status: (row.sub_status as string) || "",
+        active_users: Number(row.active_users) || 0,
+        max_users: Number(row.max_seats) || 0,
+        total_clients: Number(row.total_clients) || 0,
+        max_clients: Number(row.max_clients) || 0,
+        admin_email: (row.admin_names as string) || "",
+        last_login: (row.last_login as string) || null,
+        trial_days_remaining: row.days_remaining != null ? Number(row.days_remaining) : null,
+        created_at: (row.cabinet_created as string) || "",
+      }));
+      setCabinets(mapped);
 
       // Parse tags
       if (tagsRes.data) {
         const map: Record<string, string[]> = {};
         for (const row of tagsRes.data as unknown as CabinetTag[]) {
           if (!map[row.cabinet_id]) map[row.cabinet_id] = [];
-          if (!map[row.cabinet_id].includes(row.tag)) map[row.cabinet_id].push(row.tag);
+          if (row.content && !map[row.cabinet_id].includes(row.content)) map[row.cabinet_id].push(row.content);
         }
         setCabinetTags(map);
       }
@@ -208,10 +223,8 @@ export default function AdminCabinets() {
     setEnrichedStats(null);
     setTimeline([]);
     try {
-      const [detailRes, enrichedRes, timelineRes] = await Promise.all([
+      const [detailRes, timelineRes] = await Promise.all([
         supabase.rpc("admin_cabinet_detail", { p_cabinet_id: cab.id }),
-        // 24. Enriched stats
-        supabase.rpc("admin_cabinet_enriched_stats", { p_cabinet_id: cab.id }),
         // 25. Timeline
         supabase
           .from("audit_trail")
@@ -221,11 +234,25 @@ export default function AdminCabinets() {
           .limit(50),
       ]);
       if (detailRes.error) throw detailRes.error;
-      setCabinetDetail(detailRes.data as unknown as CabinetDetail);
+      // Map RPC response to our CabinetDetail interface
+      const raw = detailRes.data as Record<string, unknown>;
+      setCabinetDetail({
+        cabinet: (raw.cabinet as Record<string, unknown>) ?? {},
+        subscription: (raw.subscription as Record<string, unknown>) ?? {},
+        users: (raw.users as Array<Record<string, unknown>>) ?? [],
+        recent_audits: (raw.last_5_audits as Array<Record<string, unknown>>) ?? [],
+        payment_history: (raw.payments as Array<Record<string, unknown>>) ?? [],
+        notes: (raw.notes as Array<Record<string, unknown>>) ?? [],
+      });
 
-      if (enrichedRes.data) {
-        setEnrichedStats(enrichedRes.data as unknown as CabinetEnrichedStats);
-      }
+      // 24. Enriched stats from the same RPC response
+      setEnrichedStats({
+        lettres_count: Number(raw.lettres_count) || 0,
+        documents_count: Number(raw.clients_count) || 0,
+        avg_risk_score: null,
+        last_review_date: null,
+      });
+
       if (timelineRes.data) {
         setTimeline(timelineRes.data as unknown as TimelineEntry[]);
       }
@@ -321,7 +348,7 @@ export default function AdminCabinets() {
 
   async function handlePurge(cabinetId: string) {
     try {
-      const { error } = await supabase.rpc("admin_purge_cabinet", { p_cabinet_id: cabinetId });
+      const { error } = await supabase.rpc("admin_purge", { p_cabinet_id: cabinetId });
       if (error) throw error;
       toast.success("Cabinet purge avec succes");
       setPurgeDialog(null);
@@ -336,7 +363,7 @@ export default function AdminCabinets() {
   async function handleAddNote(cabinetId: string) {
     if (!noteText.trim()) return;
     try {
-      const { error } = await supabase.rpc("admin_add_note", { p_cabinet_id: cabinetId, p_note: noteText });
+      const { error } = await supabase.rpc("admin_add_note", { p_cabinet_id: cabinetId, p_content: noteText });
       if (error) throw error;
       toast.success("Note ajoutee");
       setNoteText("");
@@ -350,11 +377,11 @@ export default function AdminCabinets() {
   // 27. Add tag
   async function handleAddTag(cabinetId: string, tag: string) {
     try {
-      const { error } = await supabase.rpc("admin_add_note", { p_cabinet_id: cabinetId, p_note: tag, p_type: "tag" });
+      const { error } = await supabase.rpc("admin_add_note", { p_cabinet_id: cabinetId, p_content: tag, p_type: "tag" });
       if (error) {
         // Fallback: insert directly
         try {
-          const { error: insertError } = await supabase.from("admin_notes").insert({ cabinet_id: cabinetId, note: tag, type: "tag" });
+          const { error: insertError } = await supabase.from("admin_notes").insert({ cabinet_id: cabinetId, content: tag, note_type: "tag" });
           if (insertError) throw insertError;
         } catch (fallbackErr) {
           logger.error("[AdminCabinets] Fallback tag insert error:", fallbackErr);
@@ -380,15 +407,15 @@ export default function AdminCabinets() {
       for (const id of compareSelected) {
         const cab = cabinets.find((c) => c.id === id);
         if (!cab) continue;
-        const { data } = await supabase.rpc("admin_cabinet_enriched_stats", { p_cabinet_id: id });
+        const { data } = await supabase.rpc("admin_cabinet_detail", { p_cabinet_id: id });
+        const raw = (data as Record<string, unknown>) ?? {};
         results[cab.name] = {
           plan: cab.plan,
           clients: cab.total_clients,
           users: cab.active_users,
           last_login: cab.last_login,
-          lettres: (data as Record<string, unknown>)?.lettres_count ?? "—",
-          documents: (data as Record<string, unknown>)?.documents_count ?? "—",
-          avg_risk: (data as Record<string, unknown>)?.avg_risk_score ?? "—",
+          lettres: raw.lettres_count ?? "—",
+          audits: raw.audit_count ?? "—",
         };
       }
       setCompareData(results);
@@ -572,7 +599,7 @@ export default function AdminCabinets() {
               </tr>
             </thead>
             <tbody>
-              {["plan", "clients", "users", "lettres", "documents", "avg_risk", "last_login"].map((key) => (
+              {["plan", "clients", "users", "lettres", "audits", "last_login"].map((key) => (
                 <tr key={key} className="border-b border-white/[0.03]">
                   <td className="py-1.5 px-2 text-slate-500 capitalize">{key.replace("_", " ")}</td>
                   {Object.values(compareData).map((data, i) => (
@@ -876,7 +903,7 @@ export default function AdminCabinets() {
                 <h4 className="text-xs font-semibold text-slate-400 dark:text-slate-500 dark:text-slate-400 uppercase">Historique paiements</h4>
                 {(cabinetDetail.payment_history ?? []).slice(0, 5).map((p, i) => (
                   <div key={i} className="flex justify-between text-sm">
-                    <span className="text-slate-700 dark:text-slate-300">{((Number(p.amount) || 0) / 100).toFixed(2)} &euro;</span>
+                    <span className="text-slate-700 dark:text-slate-300">{((Number(p.amount_cents ?? p.amount) || 0) / 100).toFixed(2)} &euro;</span>
                     <span className="text-slate-400 dark:text-slate-500">{formatRelative(String(p.created_at ?? ""))}</span>
                   </div>
                 ))}
@@ -896,7 +923,7 @@ export default function AdminCabinets() {
                 </div>
                 {(cabinetDetail.notes ?? []).map((n, i) => (
                   <div key={i} className="text-sm border-b border-white/5 pb-2">
-                    <p className="text-slate-700 dark:text-slate-300">{String(n.note)}</p>
+                    <p className="text-slate-700 dark:text-slate-300">{String(n.content ?? n.note ?? "")}</p>
                     <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">{formatRelative(String(n.created_at ?? ""))}</p>
                   </div>
                 ))}

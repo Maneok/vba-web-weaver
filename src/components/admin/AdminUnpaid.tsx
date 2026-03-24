@@ -18,7 +18,7 @@ interface UnpaidCabinet {
 
 interface Relance {
   cabinet_id: string;
-  note: string;
+  content: string;
   created_at: string;
 }
 
@@ -51,8 +51,8 @@ export default function AdminUnpaid() {
         supabase.rpc("admin_list_unpaid"),
         supabase
           .from("admin_notes")
-          .select("cabinet_id, note, created_at")
-          .eq("type", "relance")
+          .select("cabinet_id, content, created_at")
+          .eq("note_type", "relance")
           .order("created_at", { ascending: false }),
       ]);
       if (unpaidRes.error) throw unpaidRes.error;
@@ -93,7 +93,7 @@ export default function AdminUnpaid() {
     try {
       await supabase.rpc("admin_add_note", {
         p_cabinet_id: cab.cabinet_id,
-        p_note: `Relance paiement envoyee - ${cab.days_overdue}j de retard - ${(cab.monthly_amount / 100).toFixed(2)}€`,
+        p_content: `Relance paiement envoyee - ${cab.days_overdue}j de retard - ${(cab.monthly_amount / 100).toFixed(2)}€`,
         p_type: "relance",
       });
     } catch {
@@ -289,7 +289,7 @@ export default function AdminUnpaid() {
                             {cabRelances.slice(0, 5).map((r, i) => (
                               <div key={i} className="text-[11px] text-slate-500">
                                 <Clock className="h-2.5 w-2.5 inline mr-1" />
-                                {new Date(r.created_at).toLocaleDateString("fr-FR")} — {r.note?.slice(0, 60)}
+                                {new Date(r.created_at).toLocaleDateString("fr-FR")} — {r.content?.slice(0, 60)}
                               </div>
                             ))}
                           </div>
