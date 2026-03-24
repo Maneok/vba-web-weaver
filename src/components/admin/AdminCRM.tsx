@@ -203,7 +203,7 @@ export default function AdminCRM() {
       if (pRes.data) setProspects(pRes.data as unknown as Prospect[]);
       if (sRes.data) setStats(sRes.data as unknown as PipelineStats);
     } catch (err) {
-      console.error("[CRM] load error:", err);
+      logger.error("[CRM]", "load error:", err);
     } finally {
       setLoading(false);
     }
@@ -214,7 +214,7 @@ export default function AdminCRM() {
       const { data } = await supabase.from("v_admin_onboarding").select("*");
       if (data) setOnboarding(data as unknown as OnboardingCab[]);
     } catch (err) {
-      console.error("[CRM] onboarding error:", err);
+      logger.error("[CRM]", "onboarding error:", err);
     }
   }, []);
 

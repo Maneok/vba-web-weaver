@@ -462,7 +462,7 @@ export default function AdminMonitoring({ onAlertCount }: { onAlertCount?: (n: n
       await fetchAll();
     } catch (err) {
       toast.error("Erreur lors du test");
-      console.error(err);
+      logger.error("[Monitoring]", "test live error:", err);
     } finally {
       setTesting(false);
     }
