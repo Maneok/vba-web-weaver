@@ -5,7 +5,7 @@ import { logger } from "@/lib/logger";
 import { useAppState } from "@/lib/AppContext";
 import { supabase } from "@/integrations/supabase/client";
 import { clientsService } from "@/lib/supabaseService";
-import { calculateRiskScore, calculateNextReviewDate, calculateDateButoir, getPilotageStatus, APE_SCORES, MISSION_SCORES, PAYS_RISQUE, PAYS_RISQUE_SET, APE_CASH, APE_CASH_SET, MISSION_FREQUENCE, normalizeAddress, isRiskCountry, computeScreeningMalus } from "@/lib/riskEngine";
+import { calculateRiskScore, calculateNextReviewDate, calculateDateButoir, getPilotageStatus, APE_SCORES, MISSION_SCORES, PAYS_RISQUE, PAYS_RISQUE_SET, APE_CASH, APE_CASH_SET, normalizeAddress, isRiskCountry, computeScreeningMalus } from "@/lib/riskEngine";
 import { useScoringData } from "@/hooks/useScoringData";
 import { searchPappers, checkGelAvoirs, type PappersResult } from "@/lib/pappersService";
 import {
@@ -46,7 +46,7 @@ import {
 import {
   Search, Hash, Building2, User, Loader2, CheckCircle2, ChevronLeft, ChevronRight,
   Upload, FileText, AlertTriangle, Plus, Trash2, FileDown, Check, X, ArrowRight, Info,
-  Map as MapIcon, ExternalLink, Eye, Clock, DollarSign, Calendar, ChevronDown, Lock, Sparkles,
+  Map as MapIcon, ExternalLink, Eye, Clock, Calendar, ChevronDown, Lock, Sparkles,
   GripVertical, Flag, Shield, Briefcase, MapPin, Save, Wifi, WifiOff, Printer, Scale, GitBranch,
   ChevronUp, HelpCircle, BarChart3, History, RefreshCw, BookOpen, Download, Users, FileSignature,
   ZoomIn, ZoomOut, Maximize, Mail, QrCode, Filter, SortAsc, SortDesc, CheckSquare, Square,
@@ -54,9 +54,7 @@ import {
 } from "lucide-react";
 
 import DocumentAnalysis from "@/components/client/DocumentAnalysis";
-import { FORMES_JURIDIQUES as FORMES, MISSIONS, FREQUENCES, DEFAULT_COMPTABLES as COMPTABLES, DEFAULT_ASSOCIES as ASSOCIES, DEFAULT_SUPERVISEURS as SUPERVISEURS, AUTOSAVE_DELAY_MS } from "@/lib/constants";
-// OPT-36: Import IBAN validator for proper modulo-97 validation
-import { validateIBAN } from "@/lib/ibanValidator";
+import { FORMES_JURIDIQUES as FORMES, MISSIONS, DEFAULT_COMPTABLES as COMPTABLES, DEFAULT_ASSOCIES as ASSOCIES, DEFAULT_SUPERVISEURS as SUPERVISEURS, AUTOSAVE_DELAY_MS } from "@/lib/constants";
 
 const STEP_LABELS = ["Recherche", "Informations", "Personnes", "Questionnaire", "Scoring", "Documents"];
 
@@ -429,6 +427,9 @@ export default function NouveauClientPage() {
   const screeningTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // OPT: Dedup guard to prevent duplicate screening launches on rapid clicks
   const lastScreenedSirenRef = useRef<string | null>(null);
+  // Ref to track documents for stale-closure-safe file upload
+  const documentsRef = useRef(documents);
+  documentsRef.current = documents;
 
   // #11: Collapsible sections state for step 1
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
@@ -650,8 +651,8 @@ export default function NouveauClientPage() {
               apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
             },
             body: JSON.stringify({
-              siren: form.siren?.replace(/\s/g, "") || screening?.enterprise?.data?.siren || "",
-              raison_sociale: form.raisonSociale || screening?.enterprise?.data?.denomination || "",
+              siren: form.siren?.replace(/\s/g, "") || screening?.enterprise?.data?.[0]?.siren || "",
+              raison_sociale: form.raisonSociale || screening?.enterprise?.data?.[0]?.denomination || "",
               documents: storedDocs.map((d: any) => ({
                 type: d.type,
                 label: d.label,
@@ -700,15 +701,6 @@ export default function NouveauClientPage() {
     }
   }, [sanctionsCritical]);
 
-  // P6-25: Auto-suggest frequency based on mission type — only on mission change (not frequence)
-  const prevMissionRef = useRef(form.mission);
-  useEffect(() => {
-    const suggested = MISSION_FREQUENCE[form.mission];
-    if (suggested && form.mission !== prevMissionRef.current) {
-      set("frequence", suggested);
-    }
-    prevMissionRef.current = form.mission;
-  }, [form.mission, set]);
 
   // #24: Auto-detect domiciliataire → mission DOMICILIATION
   const inpiDomiciliataire = screening.inpi.data?.companyData?.domiciliataire;
@@ -1005,7 +997,8 @@ export default function NouveauClientPage() {
   useEffect(() => {
     if (kycCompleteness === 100 && prevKycRef.current < 100 && step === 5) {
       setShowConfetti(true);
-      setTimeout(() => setShowConfetti(false), 2000);
+      const confettiTimer = setTimeout(() => setShowConfetti(false), 2000);
+      return () => clearTimeout(confettiTimer);
     }
     prevKycRef.current = kycCompleteness;
   }, [kycCompleteness, step]);
@@ -1044,8 +1037,6 @@ export default function NouveauClientPage() {
       { label: "Ville", filled: !!form.ville },
       { label: "Capital social", filled: form.capital > 0 },
       { label: "Date de creation", filled: !!form.dateCreation },
-      { label: "Type de mission", filled: !!form.mission },
-      { label: "Associe signataire", filled: !!form.associe },
       { label: "Beneficiaires effectifs", filled: beneficiaires.length > 0 },
       { label: "Decision d'acceptation", filled: decision !== "" },
     ];
@@ -1371,11 +1362,12 @@ export default function NouveauClientPage() {
   }, []);
 
   // Step 1: Search
-  const handleSearch = async () => {
-    if (!searchQuery.trim()) return;
+  const handleSearch = async (overrideQuery?: string) => {
+    const effectiveQuery = overrideQuery ?? searchQuery;
+    if (!effectiveQuery.trim()) return;
     // #2: Save to search history
     setSearchHistory(prev => {
-      const updated = [searchQuery.trim(), ...prev.filter(h => h !== searchQuery.trim())].slice(0, 5);
+      const updated = [effectiveQuery.trim(), ...prev.filter(h => h !== effectiveQuery.trim())].slice(0, 5);
       try { localStorage.setItem("search_history_lcb", JSON.stringify(updated)); } catch { /* storage full */ }
       return updated;
     });
@@ -1410,10 +1402,11 @@ export default function NouveauClientPage() {
     setDecision("");
     setMotifRefus("");
     setDataSource("");
+    lastScreenedSirenRef.current = null;
     setQuestions(QUESTIONS_LCB.map(q => ({ ...q, value: "NON" as const, commentaire: "" })));
 
     // FIX 2: Auto-load draft if SIREN matches
-    const cleanSearch = searchQuery.trim().replace(/\s/g, "");
+    const cleanSearch = effectiveQuery.trim().replace(/\s/g, "");
     if (searchMode === "siren" && /^\d{9,14}$/.test(cleanSearch)) {
       const sirenKey = cleanSearch.slice(0, 9);
       const existingDraft = sessionStorage.getItem(`draft_nc_${sirenKey}`);
@@ -1435,7 +1428,7 @@ export default function NouveauClientPage() {
     // Primary: new enterprise-lookup (Annuaire Entreprises)
     setScreening(prev => ({ ...prev, enterprise: { loading: true, data: null, error: null } }));
 
-    const entRes = await searchEnterprise(effectiveMode, searchQuery.trim());
+    const entRes = await searchEnterprise(effectiveMode, effectiveQuery.trim());
 
     if (entRes.results && entRes.results.length > 0) {
       setDataSource("annuaire_entreprises");
@@ -1474,7 +1467,7 @@ export default function NouveauClientPage() {
     } else {
       // Fallback to old Pappers service
       setScreening(prev => ({ ...prev, enterprise: { loading: false, data: null, error: entRes.error ?? "Aucun resultat" } }));
-      const res = await searchPappers(effectiveMode, searchQuery.trim());
+      const res = await searchPappers(effectiveMode, effectiveQuery.trim());
       setSearchLoading(false);
 
       if (res.error && (!res.results || res.results.length === 0)) {
@@ -1763,7 +1756,7 @@ export default function NouveauClientPage() {
   const handleFileUpload = useCallback((files: FileList | null) => {
     if (!files) return;
     // OPT: Check aggregate upload size limit
-    const currentTotal = documents.reduce((sum, d) => sum + (d.file?.size ?? 0), 0);
+    const currentTotal = documentsRef.current.reduce((sum, d) => sum + (d.file?.size ?? 0), 0);
     const newTotal = currentTotal + Array.from(files).reduce((sum, f) => sum + f.size, 0);
     if (newTotal > MAX_TOTAL_SIZE) {
       toast.error(`Taille totale des fichiers trop elevee (${Math.round(newTotal / 1024 / 1024)} Mo / max 50 Mo)`);
@@ -1806,7 +1799,7 @@ export default function NouveauClientPage() {
           const ctx = canvas.getContext("2d");
           if (ctx) {
             ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-            const blob = await new Promise<Blob>((res) => canvas.toBlob(b => res(b!), "image/jpeg", 0.85));
+            const blob = await new Promise<Blob>((res, rej) => canvas.toBlob(b => b ? res(b) : rej(new Error("toBlob failed")), "image/jpeg", 0.85));
             toast.info(`Image compressée : ${(f.size / 1024 / 1024).toFixed(1)} Mo → ${(blob.size / 1024 / 1024).toFixed(1)} Mo`);
             return new File([blob], f.name.replace(/\.\w+$/, ".jpg"), { type: "image/jpeg" });
           }
@@ -1960,13 +1953,15 @@ export default function NouveauClientPage() {
       tel: form.tel,
       mail: form.mail,
       dateCreation: form.dateCreation,
-      dateReprise: form.dateReprise || form.dateCreation,
-      honoraires: form.honoraires,
-      reprise: form.reprise,
-      juridique: form.juridique,
-      frequence: form.frequence,
-      iban: form.iban,
-      bic: form.bic,
+      // Champs mission — valeurs par défaut (détails saisis dans la Lettre de Mission)
+      honoraires: 0,
+      reprise: 0,
+      juridique: 0,
+      frequence: "MENSUEL",
+      iban: "",
+      bic: "",
+      dateReprise: form.dateCreation || "",
+      dateFin: "",
       associe: form.associe,
       superviseur: form.superviseur,
       ppe: riskFlags.ppe ? "OUI" : "NON" as OuiNon,
@@ -1984,7 +1979,6 @@ export default function NouveauClientPage() {
       dateExpCni: "",
       statut: "ACTIF",
       be: beStr,
-      dateFin: form.dateFin || undefined,
       lienKbis: resolvedLienKbis || undefined,
       lienStatuts: resolvedLienStatuts || undefined,
       lienCni: resolvedLienCni || undefined,
@@ -2064,7 +2058,11 @@ export default function NouveauClientPage() {
     const manualDocs = documents.filter(d => d.file);
     const docLinkUpdates: Record<string, string> = {};
     // FIX: Retrieve cabinet_id from profiles table (not user_metadata which is null)
-    const { data: profileData } = await supabase.from("profiles").select("cabinet_id").eq("id", session!.user.id).single();
+    if (!session?.user?.id) {
+      toast.error("Session expirée. Veuillez vous reconnecter.");
+      return;
+    }
+    const { data: profileData } = await supabase.from("profiles").select("cabinet_id").eq("id", session.user.id).single();
     const cabinetId = profileData?.cabinet_id;
     if (manualDocs.length > 0) {
       const cleanSirenForStorage = form.siren?.replace(/\s/g, "") || ref;
@@ -2118,7 +2116,7 @@ export default function NouveauClientPage() {
               // ★ Mirror dans documents (GED) — auto-renommage DATE_SOCIETE_TYPE.ext
               const gedCategory = mapDocTypeToCategory(doc.type);
               const mirrorDateStr = new Date().toISOString().split('T')[0];
-              const mirrorSociete = (form.raison_sociale || screening?.enterprise?.data?.denomination || '')
+              const mirrorSociete = (form.raisonSociale || screening?.enterprise?.data?.[0]?.denomination || '')
                 .toUpperCase().replace(/\s*\([^)]*\)/g, '')
                 .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
                 .replace(/[^A-Z0-9]/g, '_').replace(/_+/g, '_')
@@ -2182,7 +2180,7 @@ export default function NouveauClientPage() {
         // ★ Mirror dans documents (GED) — auto-renommage DATE_SOCIETE_TYPE.ext
         const autoGedCat = mapDocTypeToCategory(doc.type || "AUTRE");
         const autoDateStr = ((doc as any).dateDepot || (doc as any).dateCloture || new Date().toISOString()).split('T')[0];
-        const autoSociete = (form.raison_sociale || screening?.enterprise?.data?.denomination || '')
+        const autoSociete = (form.raisonSociale || screening?.enterprise?.data?.[0]?.denomination || '')
           .toUpperCase().replace(/\s*\([^)]*\)/g, '')
           .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
           .replace(/[^A-Z0-9]/g, '_').replace(/_+/g, '_')
@@ -2326,24 +2324,10 @@ export default function NouveauClientPage() {
         if (!/^(0\d{9}|\+\d{10,14})$/.test(cleanTel)) errors.tel = "Format: 0XXXXXXXXX ou +33XXXXXXXXX";
       }
       if (form.mail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.mail)) errors.mail = "Email invalide";
-      // OPT-36: Use full IBAN validator with modulo-97 check
-      if (form.iban) {
-        const ibanResult = validateIBAN(form.iban);
-        if (!ibanResult.valid) {
-          errors.iban = ibanResult.error || "IBAN invalide (ex: FR76 XXXX ...)";
-        }
-      }
     }
     return errors;
   }, [step, form]);
 
-  // Idée 6: Average honoraires for same mission type
-  const avgHonoraires = useMemo(() => {
-    const sameMission = clients.filter(c => c.mission === form.mission && c.honoraires > 0);
-    if (sameMission.length === 0) return null;
-    const avg = Math.round(sameMission.reduce((sum, c) => sum + c.honoraires, 0) / sameMission.length);
-    return avg;
-  }, [clients, form.mission]);
 
   // Idée 13: Alert société récente (< 12 mois)
   const societeRecenteAlert = useMemo(() => {
@@ -2432,6 +2416,9 @@ export default function NouveauClientPage() {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
+        // Don't go back if a dialog/popover/dropdown is open
+        const overlay = document.querySelector("[data-radix-popper-content-wrapper], [role='dialog'], [data-state='open']");
+        if (overlay) return;
         if (step > 0) setStep(s => s - 1);
       }
       if (e.key === "Enter" && !e.shiftKey) {
@@ -2923,7 +2910,7 @@ export default function NouveauClientPage() {
                     height={350}
                     onNodeDoubleClick={(n) => {
                       if (n.type === "company" && n.siren && !n.isSource) {
-                        setQuery(n.siren);
+                        setSearchQuery(n.siren);
                         handleSearch(n.siren);
                       }
                     }}
@@ -3388,29 +3375,14 @@ export default function NouveauClientPage() {
                   <div className="flex items-center gap-2">
                     {/* #28: Section header with icon */}
                     <Briefcase className="w-4 h-4 text-amber-400" />
-                    <h3 className="text-sm font-semibold text-amber-400">Mission et equipe</h3>
+                    <h3 className="text-sm font-semibold text-amber-400">Type de mission</h3>
                   </div>
                   <ChevronDown className={`w-4 h-4 text-amber-400 transition-transform duration-200 ${collapsedSections["mission"] ? "-rotate-90" : ""}`} />
                 </CollapsibleTrigger>
                 <CollapsibleContent>
                   <div className="px-5 pb-5 pt-2">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <FormField label="Type de mission *" type="select" value={form.mission} options={MISSIONS} onChange={v => set("mission", v)} />
-                      <FormField label="Frequence" type="select" value={form.frequence} options={FREQUENCES} onChange={v => set("frequence", v)} />
-                      <div>
-                        <FormField label="Honoraires HT" value={form.honoraires} onChange={v => set("honoraires", Number(v))} type="number" />
-                        {avgHonoraires && (
-                          <p className="text-[10px] text-blue-400 mt-0.5 flex items-center gap-1">
-                            <DollarSign className="w-3 h-3" /> Moyenne cabinet pour {form.mission} : {avgHonoraires.toLocaleString("fr-FR")} EUR HT/an
-                          </p>
-                        )}
-                      </div>
-                      <FormField label="Frais constitution" value={form.reprise} onChange={v => set("reprise", Number(v))} type="number" />
-                      <FormField label="Honoraires juridique" value={form.juridique} onChange={v => set("juridique", Number(v))} type="number" />
-                      <FormField label="IBAN" value={form.iban} onChange={v => set("iban", v)} error={validationErrors.iban} placeholder="FR76..." autoComplete="off" />
-                      <FormField label="BIC" value={form.bic} onChange={v => set("bic", v)} placeholder="BNPAFRPP" autoComplete="off" />
-                      <FormField label="Date de reprise" value={form.dateReprise} onChange={v => set("dateReprise", v)} type="date" />
-                      <FormField label="Date de fin (optionnel)" value={form.dateFin} onChange={v => set("dateFin", v)} type="date" />
                     </div>
                   </div>
                 </CollapsibleContent>
@@ -3428,10 +3400,12 @@ export default function NouveauClientPage() {
                   <ChevronDown className={`w-4 h-4 text-violet-400 transition-transform duration-200 ${collapsedSections["equipe"] ? "-rotate-90" : ""}`} />
                 </CollapsibleTrigger>
                 <CollapsibleContent>
-                  <div className="px-3 sm:px-5 pb-5 pt-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <FormField label="Comptable assigne *" type="select" value={form.comptable} options={COMPTABLES} onChange={v => set("comptable", v)} />
-                    <FormField label="Associe signataire *" type="select" value={form.associe} options={ASSOCIES} onChange={v => set("associe", v)} />
-                    <FormField label="Superviseur" type="select" value={form.superviseur} options={SUPERVISEURS} onChange={v => set("superviseur", v)} />
+                  <div className="px-3 sm:px-5 pb-5 pt-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <FormField label="Expert-comptable signataire *" type="select" value={form.associe} options={ASSOCIES} onChange={v => set("associe", v)} />
+                      <FormField label="Collaborateur principal *" type="select" value={form.comptable} options={COMPTABLES} onChange={v => set("comptable", v)} />
+                      <FormField label="Superviseur" type="select" value={form.superviseur} options={SUPERVISEURS} onChange={v => set("superviseur", v)} />
+                    </div>
                   </div>
                 </CollapsibleContent>
               </div>
@@ -4427,7 +4401,7 @@ export default function NouveauClientPage() {
                   </svg>
                   <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-slate-700 dark:text-slate-200">{adjustedScore}</span>
                 </div>
-                <VigilanceBadge niveau={risk.nivVigilance} />
+                <VigilanceBadge level={risk.nivVigilance} />
                 {decision && (
                   <Badge className={`text-[10px] border-0 ${decision === "ACCEPTER" ? "bg-emerald-500/15 text-emerald-400" : decision === "ACCEPTER_RESERVE" ? "bg-amber-500/15 text-amber-400" : "bg-red-500/15 text-red-400"}`}>
                     {decision === "ACCEPTER" ? "Accepte" : decision === "ACCEPTER_RESERVE" ? "Accepte avec reserve" : "Refuse"}
@@ -5652,8 +5626,8 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
 
             {/* Analyse documentaire IA — results from background fetch (P2) */}
             <DocumentAnalysis
-              siren={form.siren?.replace(/\s/g, "") || screening?.enterprise?.data?.siren || ""}
-              raisonSociale={form.raisonSociale || screening?.enterprise?.data?.denomination || ""}
+              siren={form.siren?.replace(/\s/g, "") || screening?.enterprise?.data?.[0]?.siren || ""}
+              raisonSociale={form.raisonSociale || screening?.enterprise?.data?.[0]?.denomination || ""}
               autoAnalyze
               analysis={docAnalysis}
               analysisLoading={docAnalysisLoading}
@@ -5992,8 +5966,9 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
       cp: form.cp, ville: form.ville, siren: form.siren, capital: form.capital,
       ape: form.ape, dirigeant: form.dirigeant, domaine: form.domaine, effectif: form.effectif,
       tel: form.tel, mail: form.mail, dateCreation: form.dateCreation,
-      dateReprise: form.dateReprise || form.dateCreation, honoraires: form.honoraires,
-      reprise: form.reprise, juridique: form.juridique, frequence: form.frequence, iban: form.iban, bic: form.bic,
+      dateReprise: form.dateCreation || "", honoraires: 0,
+      reprise: 0, juridique: 0, frequence: "MENSUEL", iban: "", bic: "",
+      dateFin: "",
       associe: form.associe, superviseur: form.superviseur,
       ppe: riskFlags.ppe ? "OUI" : "NON", paysRisque: riskFlags.paysRisque ? "OUI" : "NON",
       atypique: riskFlags.atypique ? "OUI" : "NON", distanciel: riskFlags.distanciel ? "OUI" : "NON",
