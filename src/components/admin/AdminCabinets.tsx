@@ -302,7 +302,7 @@ export default function AdminCabinets() {
 
   async function handleExtendTrial(cabinetId: string, days: number) {
     try {
-      const { error } = await supabase.rpc("admin_extend_trial", { p_cabinet_id: cabinetId, p_days: days });
+      const { error } = await supabase.rpc("admin_extend_trial", { p_cabinet_id: cabinetId, p_extra_days: days });
       if (error) throw error;
       toast.success(`Trial prolonge de ${days} jours`);
       setExtendTrialDialog(null);
@@ -318,7 +318,7 @@ export default function AdminCabinets() {
         p_cabinet_id: cabinetId,
         p_code: couponCode,
         p_percent: couponPercent,
-        p_duration_months: couponDuration,
+        p_months: couponDuration,
       });
       if (error) throw error;
       toast.success("Coupon applique avec succes");

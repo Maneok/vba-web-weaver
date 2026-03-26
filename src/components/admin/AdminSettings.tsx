@@ -118,7 +118,7 @@ export default function AdminSettings() {
     try {
       const changed = configs.filter((c) => originalConfigs[c.key] !== c.value);
       for (const item of changed) {
-        const { error } = await supabase.rpc("admin_set_config", { p_key: item.key, p_value: item.value });
+        const { error } = await supabase.rpc("admin_set_config", { p_key: item.key, p_value: JSON.stringify(item.value) });
         if (error) throw error;
       }
       toast.success(`${changed.length} parametre(s) sauvegarde(s)`);
@@ -135,7 +135,7 @@ export default function AdminSettings() {
   async function handleAddSuperAdmin() {
     if (!newAdminEmail.trim()) return;
     try {
-      const { error } = await supabase.rpc("admin_set_super_admin", { p_email: newAdminEmail, p_is_super: true });
+      const { error } = await supabase.rpc("admin_set_super_admin", { p_email: newAdminEmail, p_grant: true });
       if (error) throw error;
       toast.success("Super-admin ajoute");
       setAddAdminDialog(false);
@@ -151,7 +151,7 @@ export default function AdminSettings() {
     try {
       const admin = superAdmins.find((a) => a.id === adminId);
       if (!admin) return;
-      const { error } = await supabase.rpc("admin_set_super_admin", { p_email: admin.email, p_is_super: false });
+      const { error } = await supabase.rpc("admin_set_super_admin", { p_email: admin.email, p_grant: false });
       if (error) throw error;
       toast.success("Super-admin retire");
       setRemoveAdminDialog(null);
@@ -195,7 +195,7 @@ export default function AdminSettings() {
     try {
       const { error } = await supabase.rpc("admin_set_config", {
         p_key: "maintenance_mode",
-        p_value: newVal ? "true" : "false",
+        p_value: JSON.stringify(newVal ? "true" : "false"),
       });
       if (error) throw error;
       setMaintenanceMode(newVal);
@@ -215,7 +215,7 @@ export default function AdminSettings() {
     if (!newCabinetName.trim()) return;
     try {
       const { error } = await supabase.rpc("admin_create_cabinet", {
-        p_name: newCabinetName,
+        p_nom: newCabinetName,
         p_siren: newCabinetSiren || null,
         p_plan: newCabinetPlan,
       });
