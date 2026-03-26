@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
   FileDown, Send, CheckCircle2, Upload, ChevronDown,
-  Loader2, Trash2, Paperclip, FileText, Save, AlertCircle,
+  Loader2, Trash2, Paperclip, FileText, Save, AlertCircle, RotateCcw,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
