@@ -3368,43 +3368,151 @@ export default function NouveauClientPage() {
               </div>
             </div>
 
-            {/* ===== SECTION 3: Mission & Equipe (collapsible #11) ===== */}
+            {/* ===== SECTION 3: Type de mission ===== */}
             <Collapsible open={!collapsedSections["mission"]} onOpenChange={open => setCollapsedSections(prev => ({ ...prev, mission: !open }))}>
               <div className="rounded-lg border border-amber-500/20 bg-amber-500/[0.02] overflow-hidden">
                 <CollapsibleTrigger className="w-full px-5 py-3 flex items-center justify-between hover:bg-amber-500/[0.05] transition-colors">
                   <div className="flex items-center gap-2">
-                    {/* #28: Section header with icon */}
                     <Briefcase className="w-4 h-4 text-amber-400" />
                     <h3 className="text-sm font-semibold text-amber-400">Type de mission</h3>
+                    {form.mission && (
+                      <span className="text-[10px] bg-amber-500/15 text-amber-400 px-2 py-0.5 rounded-full font-medium">{form.mission}</span>
+                    )}
                   </div>
                   <ChevronDown className={`w-4 h-4 text-amber-400 transition-transform duration-200 ${collapsedSections["mission"] ? "-rotate-90" : ""}`} />
                 </CollapsibleTrigger>
                 <CollapsibleContent>
                   <div className="px-5 pb-5 pt-2">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <FormField label="Type de mission *" type="select" value={form.mission} options={MISSIONS} onChange={v => set("mission", v)} />
+                    <p className="text-xs text-slate-400 dark:text-slate-500 mb-3">
+                      Selectionnez le type de mission principal pour ce client. Ce choix impacte le scoring de risque LCB-FT.
+                    </p>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                      {MISSIONS.map(m => {
+                        const isActive = form.mission === m;
+                        const icons: Record<string, string> = {
+                          "TENUE COMPTABLE": "\u{1F4D2}",
+                          "REVISION": "\u{1F50D}",
+                          "SURVEILLANCE": "\u{1F441}",
+                          "CONSOLIDATION": "\u{1F3D7}",
+                          "AUDIT LEGAL": "\u2696\uFE0F",
+                          "AUDIT CONTRACTUEL": "\u{1F4CB}",
+                          "CONSEIL": "\u{1F4A1}",
+                          "SOCIAL": "\u{1F465}",
+                          "JURIDIQUE": "\u{1F4DC}",
+                          "FISCAL": "\u{1F9FE}",
+                          "DOMICILIATION": "\u{1F3E2}",
+                          "CREATION": "\u{1F680}",
+                        };
+                        return (
+                          <button
+                            key={m}
+                            type="button"
+                            onClick={() => set("mission", m)}
+                            className={`text-left p-3 rounded-lg border transition-all duration-200 hover:scale-[1.02] ${
+                              isActive
+                                ? "border-amber-500/50 bg-amber-500/10 shadow-sm shadow-amber-500/5"
+                                : "border-gray-200 dark:border-white/[0.06] bg-white/[0.02] hover:bg-amber-500/[0.03] hover:border-amber-500/30"
+                            }`}
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="text-base">{icons[m] || "\u{1F4CC}"}</span>
+                              <span className={`text-xs font-medium ${isActive ? "text-amber-300" : "text-slate-300 dark:text-slate-400"}`}>
+                                {m}
+                              </span>
+                            </div>
+                            {isActive && (
+                              <div className="mt-1.5 flex items-center gap-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                                <span className="text-[9px] text-amber-400/80">Selectionne</span>
+                              </div>
+                            )}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                 </CollapsibleContent>
               </div>
             </Collapsible>
 
-            {/* ===== SECTION 4: Equipe (collapsible #11) ===== */}
+            {/* ===== SECTION 4: Equipe assignee ===== */}
             <Collapsible open={!collapsedSections["equipe"]} onOpenChange={open => setCollapsedSections(prev => ({ ...prev, equipe: !open }))}>
               <div className="rounded-lg border border-violet-500/20 bg-violet-500/[0.02] overflow-hidden">
                 <CollapsibleTrigger className="w-full px-5 py-3 flex items-center justify-between hover:bg-violet-500/[0.05] transition-colors">
                   <div className="flex items-center gap-2">
-                    <User className="w-4 h-4 text-violet-400" />
+                    <Users className="w-4 h-4 text-violet-400" />
                     <h3 className="text-sm font-semibold text-violet-400">Equipe assignee</h3>
+                    <span className="text-[10px] bg-violet-500/15 text-violet-400 px-2 py-0.5 rounded-full font-medium">
+                      {[form.associe, form.comptable, form.superviseur].filter(Boolean).length}/3
+                    </span>
                   </div>
                   <ChevronDown className={`w-4 h-4 text-violet-400 transition-transform duration-200 ${collapsedSections["equipe"] ? "-rotate-90" : ""}`} />
                 </CollapsibleTrigger>
                 <CollapsibleContent>
-                  <div className="px-3 sm:px-5 pb-5 pt-2">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                      <FormField label="Expert-comptable signataire *" type="select" value={form.associe} options={ASSOCIES} onChange={v => set("associe", v)} />
-                      <FormField label="Collaborateur principal *" type="select" value={form.comptable} options={COMPTABLES} onChange={v => set("comptable", v)} />
-                      <FormField label="Superviseur" type="select" value={form.superviseur} options={SUPERVISEURS} onChange={v => set("superviseur", v)} />
+                  <div className="px-5 pb-5 pt-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      {/* Expert-comptable signataire */}
+                      <div className="p-3 rounded-lg border border-violet-500/20 bg-violet-500/[0.03]">
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="w-8 h-8 rounded-full bg-violet-500/20 flex items-center justify-center text-xs font-bold text-violet-400">
+                            {form.associe ? form.associe.charAt(0) : "?"}
+                          </div>
+                          <div>
+                            <p className="text-[10px] text-violet-400/70 uppercase tracking-wide">Expert-comptable signataire</p>
+                            <p className="text-xs font-medium text-slate-200">{form.associe || "Non assigne"}</p>
+                          </div>
+                        </div>
+                        <Select value={form.associe} onValueChange={v => set("associe", v)}>
+                          <SelectTrigger className="h-8 text-xs bg-white/[0.03] border-violet-500/20 focus:border-violet-500/50">
+                            <SelectValue placeholder="Choisir..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {ASSOCIES.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Collaborateur principal */}
+                      <div className="p-3 rounded-lg border border-blue-500/20 bg-blue-500/[0.03]">
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center text-xs font-bold text-blue-400">
+                            {form.comptable ? form.comptable.charAt(0) : "?"}
+                          </div>
+                          <div>
+                            <p className="text-[10px] text-blue-400/70 uppercase tracking-wide">Collaborateur principal</p>
+                            <p className="text-xs font-medium text-slate-200">{form.comptable || "Non assigne"}</p>
+                          </div>
+                        </div>
+                        <Select value={form.comptable} onValueChange={v => set("comptable", v)}>
+                          <SelectTrigger className="h-8 text-xs bg-white/[0.03] border-blue-500/20 focus:border-blue-500/50">
+                            <SelectValue placeholder="Choisir..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {COMPTABLES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Superviseur */}
+                      <div className="p-3 rounded-lg border border-emerald-500/20 bg-emerald-500/[0.03]">
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-xs font-bold text-emerald-400">
+                            {form.superviseur ? form.superviseur.charAt(0) : "?"}
+                          </div>
+                          <div>
+                            <p className="text-[10px] text-emerald-400/70 uppercase tracking-wide">Superviseur</p>
+                            <p className="text-xs font-medium text-slate-200">{form.superviseur || "Non assigne"}</p>
+                          </div>
+                        </div>
+                        <Select value={form.superviseur} onValueChange={v => set("superviseur", v)}>
+                          <SelectTrigger className="h-8 text-xs bg-white/[0.03] border-emerald-500/20 focus:border-emerald-500/50">
+                            <SelectValue placeholder="Choisir..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {SUPERVISEURS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
                   </div>
                 </CollapsibleContent>
