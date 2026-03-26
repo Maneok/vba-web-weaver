@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { Shield, LayoutDashboard, Building2, AlertTriangle, CreditCard, Megaphone, Settings, Activity, Target } from "lucide-react";
+import { Shield, LayoutDashboard, Building2, AlertTriangle, CreditCard, Megaphone, Settings, Activity, Target, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { logger } from "@/lib/logger";
 import AdminOverview from "@/components/admin/AdminOverview";
@@ -12,8 +12,9 @@ import AdminBroadcasts from "@/components/admin/AdminBroadcasts";
 import AdminSettings from "@/components/admin/AdminSettings";
 import AdminMonitoring from "@/components/admin/AdminMonitoring";
 import AdminCRM from "@/components/admin/AdminCRM";
+import AdminTemplates from "@/components/admin/AdminTemplates";
 
-type TabId = "overview" | "cabinets" | "unpaid" | "payments" | "broadcasts" | "settings" | "monitoring" | "crm";
+type TabId = "overview" | "cabinets" | "unpaid" | "payments" | "broadcasts" | "settings" | "templates" | "monitoring" | "crm";
 
 interface TabDef {
   id: TabId;
@@ -28,6 +29,7 @@ const TABS: TabDef[] = [
   { id: "payments", label: "Paiements", icon: CreditCard },
   { id: "broadcasts", label: "Communications", icon: Megaphone },
   { id: "settings", label: "Parametres", icon: Settings },
+  { id: "templates", label: "Templates", icon: FileText },
   { id: "monitoring", label: "Monitoring", icon: Activity },
   { id: "crm", label: "CRM", icon: Target },
 ];
@@ -118,6 +120,7 @@ export default function SuperAdminPage() {
         {activeTab === "payments" && <AdminPayments />}
         {activeTab === "broadcasts" && <AdminBroadcasts />}
         {activeTab === "settings" && <AdminSettings />}
+        {activeTab === "templates" && <AdminTemplates />}
         {activeTab === "monitoring" && <AdminMonitoring onAlertCount={setMonitoringAlertCount} />}
         {activeTab === "crm" && <AdminCRM />}
       </div>
