@@ -1,19 +1,13 @@
-import { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import type { LMWizardData } from "@/lib/lmWizardTypes";
 import { LM_STATUTS, computeAnnexes, ANNEXE_LABELS } from "@/lib/lmWizardTypes";
-import { buildClientFromWizardData } from "@/lib/lmUtils";
-import { useAuth } from "@/lib/auth/AuthContext";
-import { sanitizeWizardData } from "@/lib/lmValidation";
-import { DEFAULT_TEMPLATE } from "@/lib/lettreMissionTemplate";
-import { buildVariablesMap, resolveModeleSections } from "@/lib/lettreMissionEngine";
-import { formatDateFr } from "@/lib/dateUtils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
-  FileDown, FileText, Send, CheckCircle2, Upload, RotateCcw, ChevronDown,
-  Loader2, Trash2, Paperclip, CloudDownload,
+  FileDown, Send, CheckCircle2, Upload, ChevronDown,
+  Loader2, Trash2, Paperclip, FileText, Save, AlertCircle,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -142,50 +136,11 @@ function SignatureCanvas({ value, onSave }: { value: string; onSave: (dataUrl: s
 }
 
 export default function LMStep6Export({ data, onChange, onSave, onReset, saving }: Props) {
-  const { profile } = useAuth();
   const [showSignature, setShowSignature] = useState(false);
   const [emailTo, setEmailTo] = useState(data.email || "");
   const [showEmail, setShowEmail] = useState(false);
   const lockRef = useRef(false);
   const [generating, setGenerating] = useState<string | null>(null);
-
-  // Cabinet info loaded from Supabase parametres
-  const [cabinetInfo, setCabinetInfo] = useState<Record<string, string>>({
-    nom: profile?.full_name ? `Cabinet ${profile.full_name}` : "Cabinet Expertise Comptable",
-    adresse: "", cp: "", ville: "", siret: "", numeroOEC: "", email: profile?.email || "", telephone: "",
-  });
-  useEffect(() => {
-    if (!profile?.cabinet_id) return;
-    supabase
-      .from("parametres")
-      .select("valeur")
-      .eq("cabinet_id", profile.cabinet_id)
-      .eq("cle", "cabinet_info")
-      .maybeSingle()
-      .then(({ data: row }) => {
-        if (row?.valeur) {
-          try {
-            const info = typeof row.valeur === "string" ? JSON.parse(row.valeur) : row.valeur;
-            setCabinetInfo((prev) => ({
-              ...prev,
-              nom: info.nom || prev.nom,
-              adresse: info.adresse || "",
-              cp: info.code_postal || "",
-              ville: info.ville || "",
-              siret: info.siret || "",
-              numeroOEC: info.numero_oec || "",
-              email: info.email || prev.email,
-              telephone: info.telephone || "",
-              logo: info.logo || "",
-              croec: info.croec || "",
-              tvaIntracommunautaire: info.tva_intracommunautaire || "",
-              assureurNom: info.assureur_nom || "",
-              assureurAdresse: info.assureur_adresse || "",
-            }));
-          } catch { /* ignore */ }
-        }
-      });
-  }, [profile?.cabinet_id]);
 
   // E) Compute annexes
   const prevAnnexesRef = useRef<string>("");
@@ -216,170 +171,15 @@ export default function LMStep6Export({ data, onChange, onSave, onReset, saving 
     }
   }, []);
 
-  const handlePDF = () => withLock("pdf", async () => {
-    const sanitized = sanitizeWizardData(data);
-
-    // If a modele is selected, use modele-based generation
-    if (data.modele_id) {
-      try {
-        const { getModeleById } = await import("@/lib/lettreMissionModeles");
-        const { generatePdfFromInstance } = await import("@/lib/lettreMissionPdf");
-        const modele = await getModeleById(data.modele_id);
-        const varsMap = buildVariablesMap(sanitized as unknown as Record<string, unknown>);
-        const missionsSelected = sanitized.missions_selected?.map((m) => ({ section_id: m.section_id, selected: m.selected })) ?? [];
-        const resolved = resolveModeleSections(modele.sections, varsMap, missionsSelected);
-        const clientForPdf = buildClientFromWizardData(sanitized);
-        // Parse honoraires_detail from wizard (string values → numbers)
-        const honDetail: Record<string, number> = {};
-        if (data.honoraires_detail) {
-          for (const [k, v] of Object.entries(data.honoraires_detail)) {
-            const n = parseFloat(String(v));
-            if (Number.isFinite(n) && n > 0) honDetail[k] = n;
-          }
-        }
-        await generatePdfFromInstance({
-          sections_snapshot: resolved,
-          cgv_snapshot: modele.cgv_content,
-          repartition_snapshot: modele.repartition_taches,
-          numero: data.numero_lettre || `LM-${new Date().getFullYear()}-001`,
-          status: data.statut,
-          mission_type: data.mission_type_id || modele.mission_type || "presentation",
-        }, cabinetInfo, {
-          signatureExpert: data.signature_expert,
-          signatureClient: data.signature_client,
-          client: clientForPdf,
-          honoraires: {
-            honorairesComptable: data.honoraires_ht,
-            periodicite: data.frequence_facturation,
-          },
-          iban: data.iban || "",
-          bic: data.bic || "",
-          mode_paiement: data.mode_paiement || "prelevement",
-          honoraires_detail: Object.keys(honDetail).length > 0 ? honDetail : undefined,
-        });
-        toast.success("PDF genere depuis le modele");
-        return;
-      } catch (err: any) {
-        console.error("[PDF] Modele generation failed:", err?.message, err?.stack);
-        toast.error(`Erreur PDF: ${err?.message || "Erreur inconnue"}`);
-        return;
-      }
-    }
-
-    // Legacy generation
-    const { renderLettreMissionPdf } = await import("@/lib/lettreMissionPdf");
-    const client = buildClientFromWizardData(sanitized);
-    const lm = {
-      numero: data.numero_lettre || `LM-${new Date().getFullYear()}-001`,
-      date: formatDateFr(new Date(), "short"),
-      client,
-      cabinet: cabinetInfo,
-      options: {
-        genre: (data.genre || "M") as const,
-        missionSociale: data.missions_selected.some((m) => m.section_id === "social" && m.selected),
-        missionJuridique: data.missions_selected.some((m) => m.section_id === "juridique" && m.selected),
-        missionControleFiscal: data.missions_selected.some((m) => m.section_id === "fiscal" && m.selected),
-        regimeFiscal: "", exerciceDebut: "", exerciceFin: "",
-        tvaRegime: "", volumeComptable: "", cac: false, outilComptable: "",
-        periodicite: data.frequence_facturation,
-        missionTypeId: data.mission_type_id || "presentation",
-      },
-    };
-    await renderLettreMissionPdf(lm);
-    toast.success("PDF genere avec succes");
-  });
-
-  const handleDOCX = () => withLock("docx", async () => {
-    const sanitized = sanitizeWizardData(data);
-
-    // If a modele is selected, use modele-based generation
-    if (data.modele_id) {
-      try {
-        const { getModeleById } = await import("@/lib/lettreMissionModeles");
-        const { generateDocxFromInstance } = await import("@/lib/lettreMissionDocx");
-        const modele = await getModeleById(data.modele_id);
-        const varsMap = buildVariablesMap(sanitized as unknown as Record<string, unknown>);
-        const missionsSelected = sanitized.missions_selected?.map((m) => ({ section_id: m.section_id, selected: m.selected })) ?? [];
-        const resolved = resolveModeleSections(modele.sections, varsMap, missionsSelected);
-        const clientForDocx = buildClientFromWizardData(sanitized);
-        await generateDocxFromInstance({
-          sections_snapshot: resolved,
-          cgv_snapshot: modele.cgv_content,
-          repartition_snapshot: modele.repartition_taches,
-          numero: data.numero_lettre || `LM-${new Date().getFullYear()}-001`,
-          status: data.statut,
-          mission_type: data.mission_type_id || modele.mission_type || "presentation",
-        }, cabinetInfo, {
-          raison_sociale: clientForDocx.raisonSociale,
-          forme_juridique: clientForDocx.forme,
-          nom_dirigeant: clientForDocx.dirigeant,
-          adresse: clientForDocx.adresse,
-          code_postal: clientForDocx.cp,
-          ville: clientForDocx.ville,
-          siren: clientForDocx.siren,
-          code_ape: clientForDocx.ape,
-          capital_social: clientForDocx.capital ? String(clientForDocx.capital) : "",
-        }, {
-          forfait_annuel_ht: data.honoraires_ht,
-          frequence_facturation: data.frequence_facturation || "MENSUEL",
-          iban: data.iban || "",
-          bic: data.bic || "",
-          mode_paiement: data.mode_paiement || "prelevement",
-          honoraires_detail: (() => {
-            const d: Record<string, number> = {};
-            if (data.honoraires_detail) {
-              for (const [k, v] of Object.entries(data.honoraires_detail)) {
-                const n = parseFloat(String(v));
-                if (Number.isFinite(n) && n > 0) d[k] = n;
-              }
-            }
-            return Object.keys(d).length > 0 ? d : undefined;
-          })(),
-        });
-        toast.success("DOCX genere depuis le modele");
-        return;
-      } catch (err) {
-        console.warn("Modele DOCX failed, falling back to legacy:", err);
-      }
-    }
-
-    // Legacy generation
-    const { renderNewLettreMissionDocx } = await import("@/lib/lettreMissionDocx");
-    const client = buildClientFromWizardData(sanitized);
-    await renderNewLettreMissionDocx({
-      sections: DEFAULT_TEMPLATE,
-      client,
-      genre: "M",
-      missions: {
-        sociale: data.missions_selected.some((m) => m.section_id === "social" && m.selected),
-        juridique: data.missions_selected.some((m) => m.section_id === "juridique" && m.selected),
-        fiscal: data.missions_selected.some((m) => m.section_id === "fiscal" && m.selected),
-      },
-      honoraires: {
-        comptable: data.honoraires_ht,
-        constitution: 0,
-        juridique: 0,
-        frequence: (data.frequence_facturation || "MENSUEL") as "MENSUEL" | "TRIMESTRIEL" | "ANNUEL",
-      },
-      cabinet: cabinetInfo,
-      variables: {},
-      status: data.statut,
-      signatureExpert: data.signature_expert,
-      signatureClient: data.signature_client,
-      missionTypeId: data.mission_type_id || "presentation",
-    });
-    toast.success("DOCX genere avec succes");
-  });
-
   // ── Generate via Edge Function (generate-lm) ──
-  const handleGenerateLM = () => withLock("generate", async () => {
+  const handleGenerate = () => withLock("docx", async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.access_token) {
-      toast.error("Session expirée. Reconnectez-vous.");
+      toast.error("Session expirée, veuillez vous reconnecter");
       return;
     }
 
-    // Build missions list
+    // Build complementary missions list
     const missionsComp: string[] = [];
     if (data.missions_selected?.some((m) => m.section_id === "social" && m.selected)) missionsComp.push("sociale");
     if (data.missions_selected?.some((m) => m.section_id === "juridique" && m.selected)) missionsComp.push("juridique");
@@ -395,23 +195,23 @@ export default function LMStep6Export({ data, onChange, onSave, onReset, saving 
         },
         body: JSON.stringify({
           client_id: data.client_id,
-          lettre_mission_id: undefined, // will use saved LM id if available
+          lettre_mission_id: null,
           volume_comptable: data.volume_comptable,
-          outil_transmission: data.specific_variables?.outil_transmission || "",
+          outil_transmission: data.outil_transmission || "",
           missions_complementaires: missionsComp,
+          option_controle_fiscal: data.option_controle_fiscal || "none",
           honoraires: {
-            annuel: data.honoraires_detail?.comptabilite || "",
-            setup: data.honoraires_detail?.constitution || "",
-            juridique: data.honoraires_detail?.juridique || "",
-            bulletin: data.honoraires_detail?.social || "",
+            annuel: `${data.honoraires_ht} €`,
+            setup: data.forfait_constitution ? `${data.forfait_constitution} €` : "",
+            juridique: data.honoraires_juridique ? `${data.honoraires_juridique} €` : "",
           },
         }),
       }
     );
 
     if (!response.ok) {
-      const err = await response.json().catch(() => ({ error: "Erreur serveur" }));
-      throw new Error(err.error || "Erreur de génération");
+      const errText = await response.text();
+      throw new Error(errText || "Erreur lors de la génération");
     }
 
     const blob = await response.blob();
@@ -424,7 +224,7 @@ export default function LMStep6Export({ data, onChange, onSave, onReset, saving 
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 
-    toast.success("Lettre de mission générée avec succès");
+    toast.success("Lettre de mission générée avec succès !");
   });
 
   // TODO C9: Remplacer mailto par envoi email via Supabase Edge Function (avec PDF en pièce jointe)
@@ -473,47 +273,51 @@ export default function LMStep6Export({ data, onChange, onSave, onReset, saving 
         </p>
       </div>
 
-      {/* ── Export buttons ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      {/* ── Export: principal + secondaire ── */}
+      <div className="space-y-4">
+        {/* Bouton principal */}
         <button
-          onClick={handlePDF}
-          disabled={!!generating}
-          aria-label="Telecharger en PDF"
-          className="flex flex-col items-center gap-3 p-5 rounded-xl wizard-select-card hover:border-blue-300 dark:hover:border-blue-500/30 hover:bg-blue-50/50 dark:hover:bg-blue-500/5 disabled:opacity-45 hover:shadow-md hover:shadow-blue-100/50 dark:hover:shadow-blue-500/10"
+          onClick={handleGenerate}
+          disabled={!!generating || !data.volume_comptable}
+          className="w-full flex items-center justify-center gap-3 p-6 rounded-xl border-2 border-blue-500/30 bg-blue-50/50 dark:bg-blue-500/10 hover:bg-blue-100/60 dark:hover:bg-blue-500/15 transition-all duration-200 disabled:opacity-50"
         >
-          {generating === "pdf" ? <Loader2 className="w-6 h-6 text-blue-400 animate-spin" /> : <FileDown className="w-6 h-6 text-blue-400" />}
-          <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Telecharger PDF</span>
+          {generating === "docx" ? (
+            <Loader2 className="w-6 h-6 text-blue-500 dark:text-blue-400 animate-spin" />
+          ) : (
+            <FileDown className="w-6 h-6 text-blue-500 dark:text-blue-400" />
+          )}
+          <div className="text-left">
+            <span className="text-base font-medium text-slate-900 dark:text-white">Générer la lettre de mission</span>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Document Word conforme à votre modèle</p>
+          </div>
         </button>
 
-        <button
-          onClick={handleDOCX}
-          disabled={!!generating}
-          aria-label="Telecharger en DOCX"
-          className="flex flex-col items-center gap-3 p-5 rounded-xl wizard-select-card hover:border-purple-300 dark:hover:border-purple-500/30 hover:bg-purple-50/50 dark:hover:bg-purple-500/5 disabled:opacity-45 hover:shadow-md hover:shadow-purple-100/50 dark:hover:shadow-purple-500/10"
-        >
-          {generating === "docx" ? <Loader2 className="w-6 h-6 text-purple-400 animate-spin" /> : <FileText className="w-6 h-6 text-purple-400" />}
-          <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Telecharger DOCX</span>
-        </button>
+        {/* Validation message si volume_comptable manquant */}
+        {!data.volume_comptable && (
+          <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
+            <AlertCircle className="w-3.5 h-3.5" />
+            Veuillez renseigner le volume comptable à l'étape précédente
+          </p>
+        )}
 
-        <button
-          onClick={() => setShowEmail(!showEmail)}
-          disabled={!!generating}
-          aria-label="Envoyer par email"
-          className="flex flex-col items-center gap-3 p-5 rounded-xl wizard-select-card hover:border-emerald-300 dark:hover:border-emerald-500/30 hover:bg-emerald-50/50 dark:hover:bg-emerald-500/5 disabled:opacity-45 hover:shadow-md hover:shadow-emerald-100/50 dark:hover:shadow-emerald-500/10"
-        >
-          <Send className="w-6 h-6 text-emerald-400" />
-          <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Envoyer par email</span>
-        </button>
-
-        <button
-          onClick={handleGenerateLM}
-          disabled={!!generating || !data.client_id}
-          aria-label="Générer via modèle serveur"
-          className="flex flex-col items-center gap-3 p-5 rounded-xl wizard-select-card hover:border-orange-300 dark:hover:border-orange-500/30 hover:bg-orange-50/50 dark:hover:bg-orange-500/5 disabled:opacity-45 hover:shadow-md hover:shadow-orange-100/50 dark:hover:shadow-orange-500/10"
-        >
-          {generating === "generate" ? <Loader2 className="w-6 h-6 text-orange-400 animate-spin" /> : <CloudDownload className="w-6 h-6 text-orange-400" />}
-          <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Générer DOCX (serveur)</span>
-        </button>
+        {/* Actions secondaires */}
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            onClick={() => setShowEmail(!showEmail)}
+            className="flex flex-col items-center gap-2 p-4 rounded-xl border border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] hover:border-gray-300 dark:hover:border-white/[0.12] transition-all"
+          >
+            <Send className="w-5 h-5 text-slate-500 dark:text-slate-400" />
+            <span className="text-xs text-slate-500 dark:text-slate-400">Envoyer par email</span>
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="flex flex-col items-center gap-2 p-4 rounded-xl border border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] hover:border-gray-300 dark:hover:border-white/[0.12] transition-all disabled:opacity-50"
+          >
+            <Save className="w-5 h-5 text-slate-500 dark:text-slate-400" />
+            <span className="text-xs text-slate-500 dark:text-slate-400">Sauvegarder</span>
+          </button>
+        </div>
       </div>
 
       {/* Email field */}

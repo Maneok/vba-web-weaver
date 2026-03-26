@@ -784,6 +784,9 @@ export default function LettreMissionPage() {
   // Cabinet logo
   const [cabinetLogo, setCabinetLogo] = useState<string | undefined>(undefined);
 
+  // Cabinet data (for LM defaults)
+  const [cabinetData, setCabinetData] = useState<Record<string, any> | null>(null);
+
   // Avenants
   const [avenantsByLetter, setAvenantsByLetter] = useState<Record<string, LMAvenant[]>>({});
   const [avenantDialogOpen, setAvenantDialogOpen] = useState(false);
@@ -823,6 +826,47 @@ export default function LettreMissionPage() {
         }
       });
   }, [profile?.cabinet_id]);
+
+  // ── Load cabinet data for LM defaults ──
+  useEffect(() => {
+    if (!profile?.cabinet_id) return;
+    supabase
+      .from("cabinets")
+      .select("outil_transmission_defaut, taux_ec, taux_collaborateur, id_sepa, assureur_rc, numero_contrat_rc, adresse_assureur, ville_tribunal, date_cgv")
+      .eq("id", profile.cabinet_id)
+      .single()
+      .then(({ data: cab }) => {
+        if (cab) setCabinetData(cab);
+      });
+  }, [profile?.cabinet_id]);
+
+  // ── Pre-fill LM fields when client is selected ──
+  useEffect(() => {
+    if (!data.client_id) return;
+    const loadClientDetails = async () => {
+      const { data: fc } = await supabase
+        .from("clients")
+        .select("regime_fiscal, date_cloture_exercice, assujetti_tva, cac, volume_comptable, outil_transmission")
+        .eq("ref", data.client_id)
+        .maybeSingle();
+      if (!fc) return;
+      const updates: Partial<LMWizardData> = {};
+      if (fc.regime_fiscal) updates.regime_fiscal = fc.regime_fiscal;
+      if (fc.date_cloture_exercice) updates.date_cloture = fc.date_cloture_exercice;
+      if (fc.assujetti_tva !== null && fc.assujetti_tva !== undefined) updates.tva_assujetti = fc.assujetti_tva;
+      if (fc.cac !== null && fc.cac !== undefined) updates.cac = fc.cac;
+      if (fc.volume_comptable) updates.volume_comptable = fc.volume_comptable;
+      if (fc.outil_transmission) {
+        updates.outil_transmission = fc.outil_transmission;
+      } else if (cabinetData?.outil_transmission_defaut) {
+        updates.outil_transmission = cabinetData.outil_transmission_defaut;
+      }
+      if (Object.keys(updates).length > 0) {
+        setData((prev) => ({ ...prev, ...updates }));
+      }
+    };
+    loadClientDetails();
+  }, [data.client_id, cabinetData]);
 
   // ── H) Time tracking ──
   useEffect(() => {

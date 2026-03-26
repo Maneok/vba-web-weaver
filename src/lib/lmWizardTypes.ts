@@ -143,6 +143,14 @@ export interface LMWizardData {
   started_at: string; // ISO timestamp when wizard opened
   duration_seconds: number; // computed on final export
 
+  // Champs dropdown (pré-remplis depuis fiche client)
+  civilite: string;           // "M" | "Mme"
+  outil_transmission: string; // "Idépôt" | "Inqom" | "Pennylane" | "Dext" | "Email" | "Autre"
+  // Honoraires complémentaires
+  honoraires_juridique: number;
+  forfait_constitution: number;
+  option_controle_fiscal: string; // "A" | "B" | "none"
+
   // Modele integration
   modele_id: string; // selected LM modele ID (empty = GRIMY default)
 
@@ -264,6 +272,11 @@ export const INITIAL_LM_WIZARD_DATA: LMWizardData = {
   annexes: [],
   started_at: "",
   duration_seconds: 0,
+  civilite: "",
+  outil_transmission: "",
+  honoraires_juridique: 0,
+  forfait_constitution: 0,
+  option_controle_fiscal: "none",
   modele_id: "",
   cabinet_id: "",
   created_by: "",

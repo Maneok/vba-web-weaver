@@ -9,9 +9,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { CheckCircle2, ChevronDown, FileText, XCircle, Info, AlertTriangle } from "lucide-react";
+import { CheckCircle2, ChevronDown, FileText, XCircle, Info, AlertTriangle, Pencil } from "lucide-react";
 
 interface Props {
   data: LMWizardData;
@@ -24,6 +26,7 @@ export default function LMStep3Details({ data, onChange }: Props) {
   const [showClientInfo, setShowClientInfo] = useState(false);
   const [showClauses, setShowClauses] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [editFiscal, setEditFiscal] = useState(false);
 
   const referentLcb = collaborateurs.find((c) => c.referentLcb);
 
@@ -159,6 +162,98 @@ export default function LMStep3Details({ data, onChange }: Props) {
                 {fieldErrors.telephone && <p className="text-xs text-red-400" role="alert">{fieldErrors.telephone}</p>}
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Section 1b: Informations fiscales et comptables ── */}
+      {(() => {
+        const autoFieldsComplete = data.regime_fiscal && data.date_cloture && data.tva_assujetti !== undefined && data.cac !== undefined;
+        return autoFieldsComplete && !editFiscal ? (
+          <Card className="border-emerald-500/20 bg-emerald-50/30 dark:bg-emerald-500/5">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-2">
+                <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-[10px] gap-1">
+                  <CheckCircle2 className="w-3 h-3" /> Données client complètes
+                </Badge>
+                <Button variant="ghost" size="sm" onClick={() => setEditFiscal(true)} className="gap-1 text-xs h-7">
+                  <Pencil className="w-3 h-3" /> Modifier
+                </Button>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-sm text-slate-500 dark:text-slate-400">
+                <span>Régime fiscal : <span className="text-slate-900 dark:text-white">{data.regime_fiscal}</span></span>
+                <span>Clôture : <span className="text-slate-900 dark:text-white">{data.date_cloture}</span></span>
+                <span>TVA : <span className="text-slate-900 dark:text-white">{data.tva_assujetti ? "Oui" : "Non"}</span></span>
+                <span>CAC : <span className="text-slate-900 dark:text-white">{data.cac ? "Oui" : "Non"}</span></span>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-3">
+            <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Informations fiscales</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-slate-400 dark:text-slate-500 text-xs">Régime fiscal</Label>
+                <Select value={data.regime_fiscal} onValueChange={(v) => onChange({ regime_fiscal: v })}>
+                  <SelectTrigger className={inputCls}><SelectValue placeholder="Sélectionnez" /></SelectTrigger>
+                  <SelectContent>
+                    {["IS Réel Simplifié", "IS Réel Normal", "IR BIC Réel Simplifié", "IR BIC Réel Normal", "IR BNC Déclaration Contrôlée", "Micro-BIC", "Micro-BNC"].map((r) => (
+                      <SelectItem key={r} value={r}>{r}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-slate-400 dark:text-slate-500 text-xs">Date de clôture d'exercice</Label>
+                <Input
+                  value={data.date_cloture}
+                  onChange={(e) => onChange({ date_cloture: e.target.value })}
+                  placeholder="31/12/2026"
+                  className={inputCls}
+                />
+              </div>
+              <div className="flex items-center justify-between p-3 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06]">
+                <span className="text-sm text-slate-700 dark:text-slate-300">Assujetti TVA</span>
+                <Switch checked={data.tva_assujetti} onCheckedChange={(v) => onChange({ tva_assujetti: v })} />
+              </div>
+              <div className="flex items-center justify-between p-3 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06]">
+                <span className="text-sm text-slate-700 dark:text-slate-300">CAC</span>
+                <Switch checked={data.cac} onCheckedChange={(v) => onChange({ cac: v })} />
+              </div>
+            </div>
+            {editFiscal && (
+              <Button variant="ghost" size="sm" onClick={() => setEditFiscal(false)} className="text-xs">Fermer</Button>
+            )}
+          </div>
+        );
+      })()}
+
+      {/* ── Section 1c: Volume comptable & outil de transmission ── */}
+      <div className="space-y-3">
+        <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Volume et transmission</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label className="text-slate-400 dark:text-slate-500 text-xs">Volume comptable *</Label>
+            <Select value={data.volume_comptable} onValueChange={(v) => onChange({ volume_comptable: v })}>
+              <SelectTrigger className={inputCls}><SelectValue placeholder="Sélectionnez le volume" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Volume faible (< 20 pièces/mois)">Volume faible (&lt; 20 pièces/mois)</SelectItem>
+                <SelectItem value="50 factures d'achats et de ventes par mois">50 factures/mois</SelectItem>
+                <SelectItem value="100 factures par mois">100 factures/mois</SelectItem>
+                <SelectItem value="Volume important (> 300 pièces/mois)">Volume important (&gt; 300 pièces/mois)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-slate-400 dark:text-slate-500 text-xs">Outil de transmission</Label>
+            <Select value={data.outil_transmission} onValueChange={(v) => onChange({ outil_transmission: v })}>
+              <SelectTrigger className={inputCls}><SelectValue placeholder="Sélectionnez l'outil" /></SelectTrigger>
+              <SelectContent>
+                {["Idépôt", "Inqom", "Pennylane", "Dext", "Email", "Autre"].map((o) => (
+                  <SelectItem key={o} value={o}>{o}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
       </div>
