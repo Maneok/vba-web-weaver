@@ -2,7 +2,7 @@ import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useStat
 import { useSearchParams } from "react-router-dom";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { toast } from "sonner";
-import { Building2, Target, ShieldCheck, CreditCard, Save, Loader2, RotateCcw, Info, Check, Globe, Scale, HelpCircle, BookOpen, Users, Key, Plug, Settings2, MapPin, Palette, Hash, Building, Fingerprint, Award, Mail, Phone, User, Clock, ChevronDown, ChevronUp, AlertTriangle, RefreshCw, Layers, Undo2, RotateCw, BarChart3 } from "lucide-react";
+import { Building2, Target, ShieldCheck, CreditCard, Save, Loader2, RotateCcw, Info, Check, Globe, Scale, HelpCircle, BookOpen, Users, Key, Plug, Settings2, MapPin, Palette, Hash, Building, Fingerprint, Award, Mail, Phone, User, Clock, ChevronDown, ChevronUp, AlertTriangle, RefreshCw, Layers, Undo2, RotateCw, BarChart3, FileText } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -34,6 +34,7 @@ const RolesMatrix = lazy(() => import("@/components/cabinet/RolesMatrix"));
 const ReglagesPanel = lazy(() => import("@/components/cabinet/ReglagesPanel"));
 const ConnecteursPanel = lazy(() => import("@/components/cabinet/ConnecteursPanel"));
 const ApiKeysPanel = lazy(() => import("@/components/cabinet/ApiKeysPanel"));
+const LettreMissionSettings = lazy(() => import("@/components/cabinet/LettreMissionSettings"));
 
 /* ---------- types ---------- */
 
@@ -271,6 +272,7 @@ const CABINET_SUB_TABS = [
   { value: "reglages", label: "Reglages", icon: Settings2 },
   { value: "connecteurs", label: "Connecteurs", icon: Plug },
   { value: "cles-api", label: "Cles API", icon: Key },
+  { value: "lettre-mission", label: "Lettre de Mission", icon: FileText },
 ] as const;
 
 function CabinetSubTabs() {
@@ -310,6 +312,7 @@ function CabinetSubTabs() {
               {value === "reglages" && <ReglagesPanel />}
               {value === "connecteurs" && <ConnecteursPanel />}
               {value === "cles-api" && <ApiKeysPanel />}
+              {value === "lettre-mission" && <LettreMissionSettings />}
             </Suspense>
           </TabsContent>
         ))}
