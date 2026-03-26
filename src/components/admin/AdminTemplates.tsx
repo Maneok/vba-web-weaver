@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/lib/auth/AuthContext";
 import { logger } from "@/lib/logger";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -11,7 +10,6 @@ import {
   FileText,
   Upload,
   Download,
-  Image,
   Loader2,
   CheckCircle2,
   XCircle,
@@ -42,17 +40,10 @@ interface CabinetAssetInfo {
 // ---------------------------------------------------------------------------
 
 export default function AdminTemplates() {
-  const { cabinetId } = useAuth();
-
   // Default template
   const [defaultTemplate, setDefaultTemplate] = useState<TemplateInfo>({ exists: false });
   const [uploadingTemplate, setUploadingTemplate] = useState(false);
   const templateInputRef = useRef<HTMLInputElement>(null);
-
-  // Logo
-  const [logoUrl, setLogoUrl] = useState<string | null>(null);
-  const [uploadingLogo, setUploadingLogo] = useState(false);
-  const logoInputRef = useRef<HTMLInputElement>(null);
 
   // Cabinets overview
   const [cabinets, setCabinets] = useState<CabinetAssetInfo[]>([]);
@@ -79,23 +70,7 @@ export default function AdminTemplates() {
         setDefaultTemplate({ exists: false });
       }
 
-      // 2. Check logo for current cabinet
-      if (cabinetId) {
-        const { data: logoList } = await supabase.storage
-          .from("cabinet-assets")
-          .list(`${cabinetId}`, { search: "logo" });
-        if (logoList && logoList.length > 0) {
-          const { data: signedData } = await supabase.storage
-            .from("cabinet-assets")
-            .createSignedUrl(`${cabinetId}/${logoList[0].name}`, 3600);
-          if (signedData?.signedUrl) setLogoUrl(signedData.signedUrl);
-          else setLogoUrl(null);
-        } else {
-          setLogoUrl(null);
-        }
-      }
-
-      // 3. Load cabinets list with asset info
+      // 2. Load cabinets list with asset info
       const { data: allCabinets } = await supabase
         .from("cabinets")
         .select("id, nom")
@@ -126,7 +101,7 @@ export default function AdminTemplates() {
     } finally {
       setLoading(false);
     }
-  }, [cabinetId]);
+  }, []);
 
   useEffect(() => {
     loadData();
@@ -185,41 +160,6 @@ export default function AdminTemplates() {
     }
   }, []);
 
-  // ---- Upload logo ----
-  const handleLogoUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !cabinetId) return;
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error("Le logo ne doit pas dépasser 2 Mo");
-      return;
-    }
-    if (!file.type.startsWith("image/")) {
-      toast.error("Fichier image requis (PNG, JPG)");
-      return;
-    }
-    setUploadingLogo(true);
-    try {
-      const { error } = await supabase.storage
-        .from("cabinet-assets")
-        .upload(`${cabinetId}/logo.png`, file, {
-          upsert: true,
-          contentType: file.type,
-        });
-      if (error) throw error;
-      const { data: signedData } = await supabase.storage
-        .from("cabinet-assets")
-        .createSignedUrl(`${cabinetId}/logo.png`, 3600);
-      if (signedData?.signedUrl) setLogoUrl(signedData.signedUrl);
-      toast.success("Logo uploadé avec succès");
-    } catch (err: any) {
-      logger.error("Logo upload failed", err);
-      toast.error("Erreur upload : " + (err.message || "Erreur inconnue"));
-    } finally {
-      setUploadingLogo(false);
-      if (logoInputRef.current) logoInputRef.current.value = "";
-    }
-  }, [cabinetId]);
-
   // ---- Helpers ----
   const formatSize = (bytes?: number) => {
     if (!bytes) return "—";
@@ -243,7 +183,6 @@ export default function AdminTemplates() {
     return (
       <div className="space-y-4">
         <Skeleton className="h-8 w-64" />
-        <Skeleton className="h-48 w-full" />
         <Skeleton className="h-48 w-full" />
         <Skeleton className="h-64 w-full" />
       </div>
@@ -318,59 +257,7 @@ export default function AdminTemplates() {
         </CardContent>
       </Card>
 
-      {/* SECTION 2 — Logo cabinet */}
-      <Card className="border-gray-200 dark:border-white/10">
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Image className="w-4 h-4" />
-            Logo cabinet par défaut
-          </CardTitle>
-          <CardDescription>
-            Ce logo apparaîtra dans l'en-tête de toutes les lettres de mission générées.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center gap-4">
-            {logoUrl ? (
-              <img
-                src={logoUrl}
-                alt="Logo cabinet"
-                className="w-[120px] max-h-[80px] object-contain rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 p-2"
-              />
-            ) : (
-              <div className="w-[120px] h-[80px] rounded-lg border-2 border-dashed border-gray-300 dark:border-white/20 flex items-center justify-center text-gray-400">
-                <Image className="w-8 h-8" />
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <input
-                ref={logoInputRef}
-                type="file"
-                accept="image/png,image/jpeg,image/jpg"
-                onChange={handleLogoUpload}
-                className="hidden"
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => logoInputRef.current?.click()}
-                disabled={uploadingLogo}
-              >
-                {uploadingLogo ? (
-                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                ) : (
-                  <Upload className="w-4 h-4 mr-2" />
-                )}
-                {logoUrl ? "Changer le logo" : "Uploader un logo"}
-              </Button>
-              <p className="text-xs text-muted-foreground">PNG ou JPG, max 2 Mo</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* SECTION 3 — Templates par cabinet */}
+      {/* SECTION 2 — Templates par cabinet */}
       <Card className="border-gray-200 dark:border-white/10">
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
