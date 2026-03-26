@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
   FileDown, FileText, Send, CheckCircle2, Upload, RotateCcw, ChevronDown,
-  Loader2, Trash2, Paperclip,
+  Loader2, Trash2, Paperclip, CloudDownload,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -207,7 +207,9 @@ export default function LMStep6Export({ data, onChange, onSave, onReset, saving 
     try {
       await fn();
     } catch (e: any) {
-      toast.error(e?.message || "Erreur lors de la generation");
+      console.error(`[${key.toUpperCase()}] Generation error:`, e);
+      const msg = e?.message || "Erreur inconnue";
+      toast.error(`Erreur ${key.toUpperCase()} : ${msg}`, { duration: 8000 });
     } finally {
       setGenerating(null);
       lockRef.current = false;
@@ -369,6 +371,62 @@ export default function LMStep6Export({ data, onChange, onSave, onReset, saving 
     toast.success("DOCX genere avec succes");
   });
 
+  // ── Generate via Edge Function (generate-lm) ──
+  const handleGenerateLM = () => withLock("generate", async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      toast.error("Session expirée. Reconnectez-vous.");
+      return;
+    }
+
+    // Build missions list
+    const missionsComp: string[] = [];
+    if (data.missions_selected?.some((m) => m.section_id === "social" && m.selected)) missionsComp.push("sociale");
+    if (data.missions_selected?.some((m) => m.section_id === "juridique" && m.selected)) missionsComp.push("juridique");
+    if (data.missions_selected?.some((m) => m.section_id === "fiscal" && m.selected)) missionsComp.push("controle_fiscal");
+
+    const response = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-lm`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          client_id: data.client_id,
+          lettre_mission_id: undefined, // will use saved LM id if available
+          volume_comptable: data.volume_comptable,
+          outil_transmission: data.specific_variables?.outil_transmission || "",
+          missions_complementaires: missionsComp,
+          honoraires: {
+            annuel: data.honoraires_detail?.comptabilite || "",
+            setup: data.honoraires_detail?.constitution || "",
+            juridique: data.honoraires_detail?.juridique || "",
+            bulletin: data.honoraires_detail?.social || "",
+          },
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ error: "Erreur serveur" }));
+      throw new Error(err.error || "Erreur de génération");
+    }
+
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `LDM_${data.numero_lettre || "DRAFT"}_${new Date().toISOString().slice(0, 10)}.docx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    toast.success("Lettre de mission générée avec succès");
+  });
+
   // TODO C9: Remplacer mailto par envoi email via Supabase Edge Function (avec PDF en pièce jointe)
   const handleEmail = () => {
     if (!emailTo) {
@@ -416,7 +474,7 @@ export default function LMStep6Export({ data, onChange, onSave, onReset, saving 
       </div>
 
       {/* ── Export buttons ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <button
           onClick={handlePDF}
           disabled={!!generating}
@@ -445,6 +503,16 @@ export default function LMStep6Export({ data, onChange, onSave, onReset, saving 
         >
           <Send className="w-6 h-6 text-emerald-400" />
           <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Envoyer par email</span>
+        </button>
+
+        <button
+          onClick={handleGenerateLM}
+          disabled={!!generating || !data.client_id}
+          aria-label="Générer via modèle serveur"
+          className="flex flex-col items-center gap-3 p-5 rounded-xl wizard-select-card hover:border-orange-300 dark:hover:border-orange-500/30 hover:bg-orange-50/50 dark:hover:bg-orange-500/5 disabled:opacity-45 hover:shadow-md hover:shadow-orange-100/50 dark:hover:shadow-orange-500/10"
+        >
+          {generating === "generate" ? <Loader2 className="w-6 h-6 text-orange-400 animate-spin" /> : <CloudDownload className="w-6 h-6 text-orange-400" />}
+          <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Générer DOCX (serveur)</span>
         </button>
       </div>
 

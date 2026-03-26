@@ -23,6 +23,7 @@ import { incrementCounter } from "@/lib/lettreMissionEngine";
 import type { Client } from "@/lib/types";
 
 import LMStep1Client from "@/components/lettre-mission/LMStep1Client";
+import LMStepConfiguration from "@/components/lettre-mission/LMStepConfiguration";
 import LMStep4Honoraires from "@/components/lettre-mission/LMStep4Honoraires";
 import LMStep6Export from "@/components/lettre-mission/LMStep6Export";
 import LMProgressBar from "@/components/lettre-mission/LMProgressBar";
@@ -1415,8 +1416,9 @@ export default function LettreMissionPage() {
   const renderStep = () => {
     switch (step) {
       case 0: return <LMStep1Client data={data} onChange={handleChange} />;
-      case 1: return <LMStep4Honoraires data={data} onChange={handleChange} />;
-      case 2: return <LMStep6Export data={data} onChange={handleChange} onSave={handleSave} onReset={handleReset} saving={saving} />;
+      case 1: return <LMStepConfiguration data={data} onChange={handleChange} />;
+      case 2: return <LMStep4Honoraires data={data} onChange={handleChange} />;
+      case 3: return <LMStep6Export data={data} onChange={handleChange} onSave={handleSave} onReset={handleReset} saving={saving} />;
       default: return null;
     }
   };

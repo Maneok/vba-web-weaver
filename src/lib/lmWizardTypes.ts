@@ -152,22 +152,24 @@ export interface LMWizardData {
   wizard_step: number;
 }
 
-export const LM_TOTAL_STEPS = 3;
+export const LM_TOTAL_STEPS = 4;
 
 export const LM_STEP_LABELS = [
   "Client & Modele",
+  "Configuration",
   "Honoraires",
   "Apercu & Export",
 ] as const;
 
 export const LM_STEP_TITLES = [
   "Client & Modele",
+  "Configuration",
   "Honoraires",
   "Apercu & Export",
 ] as const;
 
 /** Estimated seconds per step */
-export const LM_STEP_DURATIONS = [30, 30, 30] as const;
+export const LM_STEP_DURATIONS = [30, 30, 30, 30] as const;
 
 /** C) Statuts workflow */
 export const LM_STATUTS = [

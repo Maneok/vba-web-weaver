@@ -107,11 +107,19 @@ export function validateStep7(_data?: Record<string, unknown>): ValidationError[
   return [];
 }
 
-/** Map step index (0-based) → validator (3-step wizard) */
+/** Step 1b — Configuration (volume comptable obligatoire) */
+export function validateStepConfig(data: Record<string, unknown>): ValidationError[] {
+  const errors: ValidationError[] = [];
+  if (!data.volume_comptable) errors.push({ field: "volume_comptable", message: "Le volume comptable est obligatoire" });
+  return errors;
+}
+
+/** Map step index (0-based) → validator (4-step wizard) */
 export const VALIDATORS: Record<number, (data: Record<string, unknown>) => ValidationError[]> = {
-  0: validateStep0,   // Client & Modele
-  1: validateStep4,   // Honoraires (reuses old step 4 validator)
-  2: validateStep7,   // Apercu & Export (always valid)
+  0: validateStep0,        // Client & Modele
+  1: validateStepConfig,   // Configuration
+  2: validateStep4,        // Honoraires
+  3: validateStep7,        // Apercu & Export (always valid)
 };
 
 /** Sanitize HTML/XSS dans les champs texte */
