@@ -1171,10 +1171,13 @@ export default function NouveauClientPage() {
     const t0inpi = Date.now();
     setScreening(prev => ({ ...prev, inpi: { loading: true, data: null, error: null } }));
     fetchInpiDocuments(siren.replace(/\s/g, "")).then(data => {
+      // ALWAYS save INPI documents first — enrichment crash must NOT lose docs
       setScreening(prev => ({ ...prev, inpi: { loading: false, data, error: data.error || null, timeMs: Date.now() - t0inpi } }));
       if (data.totalDocuments > 0) toast.success(`${data.totalDocuments} document(s) INPI recupere(s)`);
       else if (data.error) toast.warning(`INPI: ${data.error}`);
 
+      // Enrichment in separate try/catch — a crash here must NOT lose the docs above
+      try {
       // Phase 1: Enrich form with INPI data (highest priority)
       if (data.companyData) {
         const inpi = data.companyData;
@@ -1324,6 +1327,9 @@ export default function NouveauClientPage() {
         }
         if (inpi.domiciliataire) toast.info(`Domiciliataire detecte : ${inpi.domiciliataire}`);
         if (inpi.associeUnique) toast.warning("Associe unique detecte (INPI)");
+      }
+      } catch (enrichErr) {
+        console.error("INPI enrichissement error (documents preserved):", enrichErr);
       }
     }).catch(() => setScreening(prev => ({ ...prev, inpi: { loading: false, data: null, error: "Service indisponible", timeMs: Date.now() - t0inpi } })));
   };
@@ -1556,8 +1562,9 @@ export default function NouveauClientPage() {
       }
     };
 
-    // Fields that may already be set by INPI (higher priority) — only overwrite if form still has default/empty value
+    // Fields that may already be set by INPI (higher priority) — only overwrite if not already set by INPI
     const autoSetIfEmpty = (key: string, val: string | number | undefined) => {
+      if (autoFields.has(key)) return; // INPI already set this field — do not overwrite
       const current = (form as any)[key];
       const hasValue = current && current !== "" && current !== 0;
       if (!hasValue) autoSet(key, val);
