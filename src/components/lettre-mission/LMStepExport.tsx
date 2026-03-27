@@ -96,7 +96,9 @@ export default function LMStepExport({ data, onChange, onSave, onReset, saving }
     try {
       await fn();
     } catch (e: any) {
-      toast.error(e?.message || "Erreur lors de la generation");
+      console.error(`[${key.toUpperCase()}] Generation error:`, e);
+      const msg = e?.message || "Erreur inconnue";
+      toast.error(`Erreur ${key.toUpperCase()} : ${msg}`, { duration: 8000 });
     } finally {
       setGenerating(null);
       lockRef.current = false;

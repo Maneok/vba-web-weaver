@@ -240,7 +240,8 @@ async function searchDataGouvBySiren(siren: string): Promise<CompanyData | null>
   const clean = siren.replace(/\s/g, "");
   try {
     const res = await fetch(
-      `https://entreprise.data.gouv.fr/api/sirene/v3/unites_legales/${clean}`
+      `https://entreprise.data.gouv.fr/api/sirene/v3/unites_legales/${clean}`,
+      { signal: AbortSignal.timeout(8000) }
     );
     if (!res.ok) return null;
     const data: DataGouvResponse = await res.json();
@@ -284,7 +285,8 @@ async function searchDataGouvBySiren(siren: string): Promise<CompanyData | null>
 async function searchDataGouvByName(nom: string): Promise<CompanyData[]> {
   try {
     const res = await fetch(
-      `https://entreprise.data.gouv.fr/api/sirene/v1/full_text/${encodeURIComponent(nom)}?per_page=5`
+      `https://entreprise.data.gouv.fr/api/sirene/v1/full_text/${encodeURIComponent(nom)}?per_page=5`,
+      { signal: AbortSignal.timeout(8000) }
     );
     if (!res.ok) return [];
     const data = await res.json();
@@ -328,7 +330,7 @@ async function downloadDocument(
 ): Promise<string | null> {
   try {
     const downloadUrl = `${url}?api_token=${PAPPERS_API_KEY}`;
-    const res = await fetch(downloadUrl);
+    const res = await fetch(downloadUrl, { signal: AbortSignal.timeout(25000) });
     if (!res.ok) return null;
     const blob = await res.blob();
     const arrayBuffer = await blob.arrayBuffer();

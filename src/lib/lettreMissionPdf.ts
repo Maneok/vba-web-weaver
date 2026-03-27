@@ -22,13 +22,85 @@ import { normalizeSiren } from "@/components/lettre-mission/pdf/pdfStyles";
 // and "unsupported number" crashes during module evaluation).
 // ══════════════════════════════════════════════
 
+/** Timeout helper — rejects after ms milliseconds */
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`${label} : délai dépassé (${ms / 1000}s)`)), ms);
+    promise.then(
+      (val) => { clearTimeout(timer); resolve(val); },
+      (err) => { clearTimeout(timer); reject(err); },
+    );
+  });
+}
+
 async function renderToBlob(data: LettreMissionPdfData): Promise<Blob> {
-  const React = await import("react");
-  const { pdf } = await import("@react-pdf/renderer");
-  const { default: LettreMissionPdfDocument } = await import(
-    "@/components/lettre-mission/pdf/LettreMissionPdfDocument"
-  );
-  return pdf(React.createElement(LettreMissionPdfDocument, { data })).toBlob();
+  // Step 1: dynamic imports with individual error handling
+  let React: typeof import("react");
+  let pdfFn: (typeof import("@react-pdf/renderer"))["pdf"];
+  let LettreMissionPdfDocument: React.FC<{ data: LettreMissionPdfData }>;
+
+  try {
+    React = await withTimeout(import("react"), 10_000, "Import React");
+  } catch (err) {
+    throw new Error("Impossible de charger React : " + (err instanceof Error ? err.message : String(err)));
+  }
+
+  try {
+    const mod = await withTimeout(import("@react-pdf/renderer"), 30_000, "Import @react-pdf/renderer");
+    pdfFn = mod.pdf;
+  } catch (err) {
+    throw new Error("Impossible de charger le moteur PDF (react-pdf) : " + (err instanceof Error ? err.message : String(err)));
+  }
+
+  try {
+    const mod = await withTimeout(
+      import("@/components/lettre-mission/pdf/LettreMissionPdfDocument"),
+      10_000,
+      "Import LettreMissionPdfDocument",
+    );
+    LettreMissionPdfDocument = mod.default;
+  } catch (err) {
+    throw new Error("Impossible de charger le template PDF : " + (err instanceof Error ? err.message : String(err)));
+  }
+
+  // Step 2: create React element and render to blob
+  try {
+    const element = React.createElement(LettreMissionPdfDocument, { data });
+    const pdfInstance = pdfFn(element);
+    const blob = await withTimeout(pdfInstance.toBlob(), 60_000, "Génération du PDF (toBlob)");
+    if (!blob || blob.size === 0) {
+      throw new Error("Le PDF généré est vide (0 octets)");
+    }
+    return blob;
+  } catch (err) {
+    if (err instanceof Error && err.message.includes("délai dépassé")) throw err;
+    if (err instanceof Error && err.message.includes("vide")) throw err;
+    throw new Error("Erreur lors du rendu PDF : " + (err instanceof Error ? err.message : String(err)));
+  }
+}
+
+/**
+ * Download a blob as a file using a temporary <a> element.
+ * More reliable than file-saver across browsers (no popup blocker issues).
+ */
+function downloadBlob(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  try {
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.style.display = "none";
+    document.body.appendChild(a);
+    a.click();
+    // Small delay before cleanup to ensure the download starts
+    setTimeout(() => {
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 250);
+  } catch {
+    // Fallback: open in new tab so user can save manually
+    window.open(url, "_blank");
+  }
 }
 
 export async function generateLettreMissionPdf(data: LettreMissionPdfData): Promise<void> {
@@ -36,13 +108,15 @@ export async function generateLettreMissionPdf(data: LettreMissionPdfData): Prom
   try {
     // A15 — validate & sanitize data before rendering
     const validatedData = validatePdfData(data);
-    const { saveAs } = await import("file-saver");
     const blob = await renderToBlob(validatedData);
     // E3 — sanitize filename: strip special chars, limit length
     const safeNumero = (validatedData.numero_lm || "LM").replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 30);
     const safeDate = (validatedData.date_generation || "").replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 20);
     const filename = `LDM_${safeNumero}_${safeDate}.pdf`;
-    saveAs(blob, filename);
+    downloadBlob(blob, filename);
+  } catch (err) {
+    logger.error("PDF", "generateLettreMissionPdf error", err);
+    throw err;
   } finally {
     console.timeEnd("[PDF] generateLettreMissionPdf");
   }
@@ -103,6 +177,37 @@ function validatePdfData(data: LettreMissionPdfData): LettreMissionPdfData {
       tva: Boolean(data.client?.tva),
       cac: Boolean(data.client?.cac),
     },
+    honoraires: {
+      ...data.honoraires,
+      forfait_annuel_ht: safeNum(data.honoraires?.forfait_annuel_ht, 0),
+      constitution_dossier_ht: safeNum(data.honoraires?.constitution_dossier_ht, 0),
+      honoraires_ec_heure: safeNum(data.honoraires?.honoraires_ec_heure, 200),
+      honoraires_collab_heure: safeNum(data.honoraires?.honoraires_collab_heure, 100),
+      juridique_annuel_ht: safeNum(data.honoraires?.juridique_annuel_ht, 0),
+      frequence_facturation: data.honoraires?.frequence_facturation || "MENSUEL",
+      social_bulletin_unite: safeNum(data.honoraires?.social_bulletin_unite, 32),
+      social_fin_contrat: safeNum(data.honoraires?.social_fin_contrat, 30),
+      social_contrat_simple: safeNum(data.honoraires?.social_contrat_simple, 100),
+      social_entree_sans_contrat: safeNum(data.honoraires?.social_entree_sans_contrat, 30),
+      social_attestation_maladie: safeNum(data.honoraires?.social_attestation_maladie, 30),
+      mode_paiement: safeStr(data.honoraires?.mode_paiement, "prélèvement automatique"),
+    },
+    lcbft: {
+      ...data.lcbft,
+      score_risque: safeNum(data.lcbft?.score_risque, 0),
+      niveau_vigilance: data.lcbft?.niveau_vigilance || "STANDARD",
+      statut_ppe: Boolean(data.lcbft?.statut_ppe),
+      derniere_diligence_kyc: safeStr(data.lcbft?.derniere_diligence_kyc),
+      prochaine_maj_kyc: safeStr(data.lcbft?.prochaine_maj_kyc),
+    },
+    mission: {
+      ...data.mission,
+      type_principal: safeStr(data.mission?.type_principal, "Présentation des comptes"),
+      norme_applicable: safeStr(data.mission?.norme_applicable, "NP 2300"),
+      mission_sociale: Boolean(data.mission?.mission_sociale),
+      mission_juridique: Boolean(data.mission?.mission_juridique),
+      controle_fiscal: Boolean(data.mission?.controle_fiscal),
+    },
     expert_responsable: safeStr(data.expert_responsable),
     periodicite_transmission: safeStr(data.periodicite_transmission, "Mensuelle"),
     outil_transmission: safeStr(data.outil_transmission, "GRIMY"),
@@ -111,6 +216,8 @@ function validatePdfData(data: LettreMissionPdfData): LettreMissionPdfData {
     repartition: Array.isArray(data.repartition) && data.repartition.length > 0 ? data.repartition : DEFAULT_REPARTITION,
     // B15 — filter out empty snapshot sections
     sections_snapshot: data.sections_snapshot?.filter(sec => sec && sec.id),
+    iban: safeStr(data.iban),
+    bic: safeStr(data.bic),
   };
 }
 

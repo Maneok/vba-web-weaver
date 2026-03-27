@@ -27,15 +27,23 @@ function translateError(msg: string): string {
     "Unable to validate email address: invalid format": "Format d'email invalide.",
     "Email rate limit exceeded": "Trop de tentatives. Reessayez dans quelques minutes.",
     "For security purposes, you can only request this after 60 seconds.": "Pour des raisons de securite, veuillez patienter 60 secondes.",
+    "rate limit": "Trop de tentatives. Reessayez dans quelques minutes.",
+    "User not found": "Email ou mot de passe incorrect.",
+    "Invalid Refresh Token": "Session expiree, veuillez vous reconnecter.",
+    "Refresh Token Not Found": "Session expiree, veuillez vous reconnecter.",
+    "New password should be different from the old password": "Le nouveau mot de passe doit etre different de l'ancien.",
+    "Auth session missing": "Session expiree, veuillez vous reconnecter.",
+    "over_email_send_rate_limit": "Trop d'emails envoyes. Veuillez patienter quelques minutes.",
+    "over_request_rate_limit": "Trop de requetes. Veuillez patienter quelques minutes.",
   };
   for (const [en, fr] of Object.entries(map)) {
-    if (msg.includes(en)) return fr;
+    if (msg.toLowerCase().includes(en.toLowerCase())) return fr;
   }
   return msg;
 }
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const NAME_RE = /^[^\d]{2,}$/;
+const EMAIL_RE = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
+const NAME_RE = /^[\p{L}\s'-]{2,}$/u;
 
 function getPasswordStrength(pw: string) {
   const rules = [
@@ -223,7 +231,7 @@ export default function AuthPage() {
   useEffect(() => { setError(null); setTouched({}); }, [tab]);
 
   // ── Validation ──
-  const loginValid = EMAIL_RE.test(loginEmail) && loginPassword.length >= 1;
+  const loginValid = EMAIL_RE.test(loginEmail) && loginPassword.length >= 6;
 
   const pwStrength = useMemo(() => getPasswordStrength(regPassword), [regPassword]);
   const regPrenomValid = NAME_RE.test(regPrenom.trim());
@@ -287,12 +295,22 @@ export default function AuthPage() {
     setForgotLoading(true);
     setError(null);
     try {
-      await supabase.auth.resetPasswordForEmail(forgotEmail, {
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
         redirectTo: `${window.location.origin}/auth`,
       });
+      if (resetError) {
+        // Log the actual error for debugging but don't reveal it to the user (prevents email enumeration)
+        console.warn("[Auth] Password reset error:", resetError.message);
+        // Rate limit errors should be shown to the user
+        if (resetError.message.includes("rate limit") || resetError.message.includes("60 seconds")) {
+          setError(translateError(resetError.message));
+          return;
+        }
+      }
       toast.success("Si cet email existe, un lien de reinitialisation a ete envoye.");
       setShowForgot(false);
     } catch {
+      // Network error — still show generic success to prevent enumeration
       toast.success("Si cet email existe, un lien de reinitialisation a ete envoye.");
       setShowForgot(false);
     } finally {

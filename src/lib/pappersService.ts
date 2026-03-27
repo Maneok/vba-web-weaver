@@ -67,7 +67,7 @@ export async function searchPappers(
   try {
     // OPT-15: Unified AbortController with proper cleanup
     const timeoutController = new AbortController();
-    const timeoutId = setTimeout(() => timeoutController.abort(), 10000);
+    const timeoutId = setTimeout(() => timeoutController.abort(), 20000);
     if (signal) {
       if (signal.aborted) { clearTimeout(timeoutId); return { results: [], error: "Requete annulee" }; }
       signal.addEventListener("abort", () => timeoutController.abort(), { once: true });

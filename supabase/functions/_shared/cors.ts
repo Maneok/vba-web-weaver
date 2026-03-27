@@ -8,10 +8,15 @@ const ALLOWED_ORIGINS = new Set([
   // Vercel deployments
   "https://projet-lcb.vercel.app",
   "https://grimy.vercel.app",
-  // Local dev
+  // Local dev (cover common port ranges in case of auto-increment)
   "http://localhost:8080",
+  "http://localhost:8081",
+  "http://localhost:8082",
   "http://localhost:5173",
+  "http://localhost:5174",
   "http://localhost:3000",
+  "http://localhost:3001",
+  "http://localhost:4173",
 ]);
 
 export function getCorsHeaders(req: Request): Record<string, string> {
@@ -21,13 +26,17 @@ export function getCorsHeaders(req: Request): Record<string, string> {
     || origin.endsWith("vba-web-weaver.vercel.app")
     || origin.endsWith("projet-lcb.vercel.app")
     || origin.endsWith("grimy.vercel.app");
-  return {
-    "Access-Control-Allow-Origin": isAllowed ? (origin || "*") : "",
+  const headers: Record<string, string> = {
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Max-Age": "86400",
     "Vary": "Origin",
     "X-Content-Type-Options": "nosniff",
   };
+  if (isAllowed) {
+    headers["Access-Control-Allow-Origin"] = origin || "*";
+  }
+  return headers;
 }
 
 export function handleCorsOptions(req: Request): Response | null {

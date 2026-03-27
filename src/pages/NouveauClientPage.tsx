@@ -3472,27 +3472,6 @@ export default function NouveauClientPage() {
                         </Select>
                       </div>
 
-                      {/* Collaborateur principal */}
-                      <div className="p-3 rounded-lg border border-blue-500/20 bg-blue-500/[0.03]">
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center text-xs font-bold text-blue-400">
-                            {form.comptable ? form.comptable.charAt(0) : "?"}
-                          </div>
-                          <div>
-                            <p className="text-[10px] text-blue-400/70 uppercase tracking-wide">Collaborateur principal</p>
-                            <p className="text-xs font-medium text-slate-200">{form.comptable || "Non assigne"}</p>
-                          </div>
-                        </div>
-                        <Select value={form.comptable} onValueChange={v => set("comptable", v)}>
-                          <SelectTrigger className="h-8 text-xs bg-white/[0.03] border-blue-500/20 focus:border-blue-500/50">
-                            <SelectValue placeholder="Choisir..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {COMPTABLES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
                       {/* Superviseur */}
                       <div className="p-3 rounded-lg border border-emerald-500/20 bg-emerald-500/[0.03]">
                         <div className="flex items-center gap-2 mb-2">
@@ -3510,6 +3489,27 @@ export default function NouveauClientPage() {
                           </SelectTrigger>
                           <SelectContent>
                             {SUPERVISEURS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Collaborateur principal */}
+                      <div className="p-3 rounded-lg border border-blue-500/20 bg-blue-500/[0.03]">
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center text-xs font-bold text-blue-400">
+                            {form.comptable ? form.comptable.charAt(0) : "?"}
+                          </div>
+                          <div>
+                            <p className="text-[10px] text-blue-400/70 uppercase tracking-wide">Collaborateur principal</p>
+                            <p className="text-xs font-medium text-slate-200">{form.comptable || "Non assigne"}</p>
+                          </div>
+                        </div>
+                        <Select value={form.comptable} onValueChange={v => set("comptable", v)}>
+                          <SelectTrigger className="h-8 text-xs bg-white/[0.03] border-blue-500/20 focus:border-blue-500/50">
+                            <SelectValue placeholder="Choisir..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {COMPTABLES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                           </SelectContent>
                         </Select>
                       </div>

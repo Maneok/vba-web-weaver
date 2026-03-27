@@ -384,7 +384,9 @@ async function geocodeAddress(adresse: string, codePostal: string, ville: string
 async function fetchWithRetry(url: string, options: RequestInit, retries = 1): Promise<Response> {
   for (let i = 0; i <= retries; i++) {
     try {
-      const res = await fetch(url, { ...options, signal: AbortSignal.timeout(10000) });
+      // Use caller-provided signal if present, otherwise default to 10s timeout
+      const signal = options.signal ?? AbortSignal.timeout(10000);
+      const res = await fetch(url, { ...options, signal });
       if (res.ok || res.status < 500) return res;
       if (i < retries) await new Promise(r => setTimeout(r, 1000 * (i + 1)));
     } catch (err) {
@@ -412,7 +414,7 @@ Deno.serve(async (req) => {
     const looksLikeSiren = /^\d{9,14}$/.test(clean);
     const isSirenMode = (mode === "siren" || looksLikeSiren) && looksLikeSiren;
     const siren9 = isSirenMode ? clean.slice(0, 9) : "";
-    const pappersKey = Deno.env.get("PAPPERS");
+    const pappersKey = Deno.env.get("PAPPERS_API_KEY") ?? Deno.env.get("PAPPERS");
     const sources: string[] = [];
 
     // ====== PARALLEL FETCH: INPI + Pappers + Annuaire ======

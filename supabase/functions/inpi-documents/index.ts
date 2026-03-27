@@ -16,10 +16,12 @@ async function getINPIToken(): Promise<{ token: string | null; error: string | n
     console.log("[INPI] Using cached token");
     return { token: cachedToken, error: null };
   }
-  // Prevent thundering herd: reuse in-flight refresh
+  // Prevent thundering herd: reuse in-flight refresh (with 20s timeout)
   if (tokenRefreshing) {
     console.log("[INPI] Reusing in-flight token refresh");
-    return tokenRefreshing;
+    const timeout = new Promise<{ token: null; error: string }>((r) =>
+      setTimeout(() => r({ token: null, error: "Token refresh timeout" }), 20000));
+    return Promise.race([tokenRefreshing, timeout]);
   }
   tokenRefreshing = _refreshINPIToken();
   try { return await tokenRefreshing; } finally { tokenRefreshing = null; }
@@ -157,8 +159,8 @@ async function downloadAndStore(
           "Accept": "application/pdf, application/octet-stream, */*",
         },
         redirect: "follow",
-        // FIX P4-38: Increase download timeout to 90s for large PDFs
-        signal: AbortSignal.timeout(90000),
+        // Download timeout — capped at 25s to stay under Supabase edge function limit
+        signal: AbortSignal.timeout(25000),
       });
 
       dlLogs.push(`[DL] HTTP ${res.status} | CT=${res.headers.get("content-type")} | CL=${res.headers.get("content-length")} | CD=${res.headers.get("content-disposition")}`);

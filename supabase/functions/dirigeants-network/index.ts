@@ -205,7 +205,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const pappersKey = Deno.env.get("PAPPERS");
+    const pappersKey = Deno.env.get("PAPPERS_API_KEY") ?? Deno.env.get("PAPPERS");
     const nodes: any[] = [];
     const edges: any[] = [];
     const alertes: any[] = [];
@@ -435,7 +435,7 @@ Deno.serve(async (req) => {
 
             const normNom = normalize(dir.nom ?? "");
             const normPrenom = normalize(dir.prenom ?? "");
-            const personId = `person-${fullName.replace(/\s/g, "-").toLowerCase()}`;
+            const personId = `person-${normalizeUpper(fullName).replace(/\s+/g, "-").toLowerCase()}`;
 
             if (!nodes.some(n => n.id === personId)) {
               nodes.push({ id: personId, label: fullName, type: "person" });

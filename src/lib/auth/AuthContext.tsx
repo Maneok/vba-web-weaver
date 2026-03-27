@@ -76,7 +76,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     userRef.current = null;
   }, []);
 
-  // Session timeout after 15 minutes of inactivity (conformité LCB-FT)
+  // Session timeout after 30 minutes of inactivity (conformité LCB-FT)
   useSessionTimeout(
     useCallback(() => {
       toast.warning("Session expiree apres 30 minutes d'inactivite");
@@ -96,7 +96,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         // Gestion gracieuse des erreurs de rafraichissement de session
         if (event === "TOKEN_REFRESHED" && !s) {
-          logger.warn("[Auth] Echec du rafraichissement du token — session potentiellement expiree");
+          logger.warn("[Auth] Echec du rafraichissement du token — deconnexion forcee");
+          setUser(null);
+          setSession(null);
+          setProfile(null);
+          userRef.current = null;
+          setLoading(false);
           return;
         }
 
