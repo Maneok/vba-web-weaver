@@ -1556,19 +1556,26 @@ export default function NouveauClientPage() {
       }
     };
 
+    // Fields that may already be set by INPI (higher priority) — only overwrite if form still has default/empty value
+    const autoSetIfEmpty = (key: string, val: string | number | undefined) => {
+      const current = (form as any)[key];
+      const hasValue = current && current !== "" && current !== 0;
+      if (!hasValue) autoSet(key, val);
+    };
+
     autoSet("siren", result.siren);
     autoSet("siret", entData?.siret);
-    autoSet("raisonSociale", result.raison_sociale);
-    autoSet("forme", formeMatch || entData?.forme_juridique || result.forme_juridique);
-    autoSet("adresse", entData?.adresse || result.adresse);
-    autoSet("cp", entData?.code_postal || result.code_postal);
-    autoSet("ville", entData?.ville || result.ville);
+    autoSetIfEmpty("raisonSociale", result.raison_sociale);
+    autoSetIfEmpty("forme", formeMatch || entData?.forme_juridique || result.forme_juridique);
+    autoSetIfEmpty("adresse", entData?.adresse || result.adresse);
+    autoSetIfEmpty("cp", entData?.code_postal || result.code_postal);
+    autoSetIfEmpty("ville", entData?.ville || result.ville);
     autoSet("ape", result.ape);
     autoSet("domaine", entData?.libelle_ape || result.libelle_ape);
-    autoSet("capital", entData?.capital || result.capital);
+    autoSetIfEmpty("capital", entData?.capital ?? result.capital);
     autoSet("dateCreation", result.date_creation);
     autoSet("effectif", result.effectif);
-    autoSet("dirigeant", entData?.dirigeants ? pickPrincipalDirigeant(entData.dirigeants) : result.dirigeant);
+    autoSetIfEmpty("dirigeant", entData?.dirigeants ? pickPrincipalDirigeant(entData.dirigeants) : result.dirigeant);
     // Enriched Pappers fields
     autoSet("tel", entData?.telephone);
     autoSet("mail", entData?.email);
