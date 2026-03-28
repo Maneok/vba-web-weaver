@@ -15,7 +15,7 @@ export interface RefMission {
   type_mission: string;
   description: string;
   niveau_risque: string;
-  score: number;          // mapped from DB score_risque
+  score: number;          // DB column: score (0-100)
   parametres_pilotes: boolean;
   is_default: boolean;
   created_at: string;
@@ -30,7 +30,7 @@ export interface RefTypeJuridique {
   type_client: string;
   description: string;
   niveau_risque: string;
-  score: number;          // mapped from DB score_risque
+  score: number;          // DB column: score (0-100)
   parametres_pilotes: boolean;
   is_default: boolean;
   created_at: string;
@@ -45,7 +45,7 @@ export interface RefPays {
   libelle_nationalite: string;
   description: string;
   niveau_risque: string;
-  score: number;          // mapped from DB score_risque
+  score: number;          // DB column: score (0-100)
   gafi_noir: boolean;
   gafi_gris: boolean;
   offshore: boolean;
@@ -64,7 +64,7 @@ export interface RefActivite {
   libelle: string;
   description: string;
   niveau_risque: string;
-  score: number;          // mapped from DB score_risque
+  score: number;          // DB column: score (0-100)
   parametres_pilotes: boolean;
   is_default: boolean;
   created_at: string;

@@ -92,54 +92,21 @@ export default function DocumentRow({
         </td>
       )}
 
-      {/* Name + label + description */}
-      <td className="py-2.5 px-3">
+      {/* Name */}
+      <td className="py-2 px-3">
         <div className="flex items-center gap-2 min-w-0">
           <Icon className="h-4 w-4 text-muted-foreground shrink-0" />
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1.5">
-              {editable ? (
-                <EditableText
-                  value={doc.name}
-                  onSave={(v) => onUpdateField(doc.id, "name", v)}
-                  placeholder="Nom du document"
-                />
-              ) : (
-                <span className="text-sm truncate max-w-[200px]" title={displayName}>
-                  {displayName}
-                </span>
-              )}
-              {docIsNew && (
-                <span className="shrink-0 px-1.5 py-0.5 rounded-full bg-blue-500 text-[9px] text-white font-bold leading-none">
-                  NEW
-                </span>
-              )}
-              {/* #4/#5 — IA badge with tooltip */}
-              {hasIaAnalysis && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className="shrink-0 px-1.5 py-0.5 rounded-full bg-violet-500/15 text-[9px] text-violet-500 font-bold leading-none flex items-center gap-0.5 cursor-default">
-                      <Sparkles className="w-2.5 h-2.5" />
-                      IA
-                    </span>
-                  </TooltipTrigger>
-                  {iaTooltipText && (
-                    <TooltipContent className="whitespace-pre-line text-xs max-w-xs">{iaTooltipText}</TooltipContent>
-                  )}
-                </Tooltip>
-              )}
-              {/* Label edit icon */}
-              {editable && (
-                <EditableText
-                  value={doc.label || ""}
-                  onSave={(v) => onUpdateField(doc.id, "label", v || null)}
-                  placeholder="Libellé personnalisé"
-                  iconTrigger
-                />
-              )}
-            </div>
-            {description && (
-              <p className="text-[11px] text-muted-foreground truncate max-w-[200px]">{description}</p>
+            {editable ? (
+              <EditableText
+                value={doc.name}
+                onSave={(v) => onUpdateField(doc.id, "name", v)}
+                placeholder="Nom du document"
+              />
+            ) : (
+              <span className="text-sm truncate block max-w-[250px]" title={displayName}>
+                {displayName}
+              </span>
             )}
           </div>
         </div>
@@ -156,67 +123,35 @@ export default function DocumentRow({
       </td>
 
       {/* Size */}
-      <td className="py-2.5 px-3 text-sm text-muted-foreground">{formatSize(doc.size)}</td>
-
-      {/* Version */}
-      <td className="py-2.5 px-3">
-        <span className="border border-border rounded text-xs px-1.5 py-0.5 text-muted-foreground">
-          v{doc.version}
-        </span>
-      </td>
+      <td className="py-2 px-3 text-xs text-muted-foreground">{formatSize(doc.size)}</td>
 
       {/* Expiration */}
-      <td className="py-2.5 px-3">
+      <td className="py-2 px-3">
         <EditableDate
           value={doc.expiration}
           onSave={(v) => onUpdateField?.(doc.id, "expiration", v)}
           readOnly={!editable}
           badgeProps={expBadge}
           renderBadge={({ text, className }) => (
-            <span className={`rounded-full text-xs px-2 py-0.5 font-medium ${className}`}>
+            <span className={`rounded-full text-[11px] px-2 py-0.5 font-medium ${className}`}>
               {text}
             </span>
           )}
         />
       </td>
 
-      {/* Validation status */}
-      <td className="py-2.5 px-3">
-        <DocumentStatusBadge status={validationStatus as "pending" | "validated" | "rejected"} />
-      </td>
-
-      {/* Actions */}
-      <td className="py-2.5 px-3">
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onPreview(doc)}>
-                <Eye className="h-3.5 w-3.5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Aperçu</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onDownload(doc)}>
-                <Download className="h-3.5 w-3.5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Télécharger</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 text-destructive hover:text-destructive"
-                onClick={() => onDelete(doc)}
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Supprimer</TooltipContent>
-          </Tooltip>
+      {/* Actions — 2 icons on hover */}
+      <td className="py-2 px-3">
+        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onPreview(doc)}>
+            <Eye className="h-3.5 w-3.5" />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onDownload(doc)}>
+            <Download className="h-3.5 w-3.5" />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => onDelete(doc)}>
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
         </div>
       </td>
     </tr>

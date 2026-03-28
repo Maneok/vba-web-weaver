@@ -92,44 +92,13 @@ export default function DocumentPreviewPanel({
           </SheetDescription>
         </SheetHeader>
 
-        {/* Metadata — shown INSTANTLY */}
-        <div className="space-y-2 text-sm border-b border-border pb-4 mt-4">
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Categorie</span>
-            <span>{doc.category}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Type</span>
-            <Badge variant="outline" className="text-xs">{getFileType(doc.name)}</Badge>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Taille</span>
-            <span>{formatSize(doc.size)}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Uploade le</span>
-            <span>{formatDate(doc.created_at)}</span>
-          </div>
-          {doc.expiration && (
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Expiration</span>
-              <span>{formatDate(doc.expiration)}</span>
-            </div>
-          )}
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Version</span>
-            <span>v{doc.version}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Statut</span>
-            <Badge className={`text-xs ${validationCls}`}>{validationLabel}</Badge>
-          </div>
-          {doc.uploaded_by && (
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Uploade par</span>
-              <span>{doc.uploaded_by}</span>
-            </div>
-          )}
+        {/* Metadata — compact */}
+        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground border-b border-border pb-3 mt-3">
+          <span>{formatSize(doc.size)}</span>
+          <span>{getFileType(doc.name)}</span>
+          <span>{formatDate(doc.created_at)}</span>
+          {doc.expiration && <span>Exp. {formatDate(doc.expiration)}</span>}
+          <Badge className={`text-[10px] ${validationCls}`}>{validationLabel}</Badge>
         </div>
 
         {/* Preview area — lazy loaded */}
@@ -188,17 +157,13 @@ export default function DocumentPreviewPanel({
         {/* Extra content (validation, tags, notes) */}
         {children}
 
-        {/* Actions */}
+        {/* Actions — 2 boutons */}
         <SheetFooter className="mt-4 flex-row gap-2">
           <Button className="flex-1" onClick={() => onDownload?.(doc)}>
             <Download className="h-4 w-4 mr-2" />
             Telecharger
           </Button>
-          <Button variant="outline" className="flex-1" onClick={() => onReplace?.(doc)}>
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Remplacer
-          </Button>
-          <Button variant="destructive" className="flex-1" onClick={() => onDelete?.(doc)}>
+          <Button variant="outline" className="flex-1 text-destructive hover:text-destructive" onClick={() => onDelete?.(doc)}>
             <Trash2 className="h-4 w-4 mr-2" />
             Supprimer
           </Button>

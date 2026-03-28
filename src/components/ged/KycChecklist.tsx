@@ -77,34 +77,24 @@ function DocLine({
   onRequest: () => void;
 }) {
   return (
-    <div className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-muted/50 transition-colors">
-      <div className="flex items-center gap-2.5 min-w-0">
+    <div className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-muted/50 transition-colors">
+      <div className="flex items-center gap-2 min-w-0">
         {isPresent ? (
-          <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
+          <CheckCircle className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
         ) : (
-          <XCircle className="w-4 h-4 text-red-400 shrink-0" />
+          <XCircle className="w-3.5 h-3.5 text-red-400 shrink-0" />
         )}
-        {DOC_EMOJIS[cat] && (
-          <span className="text-base shrink-0" role="img">{DOC_EMOJIS[cat]}</span>
-        )}
-        <span
-          className={`text-sm truncate ${
-            isPresent ? "text-foreground" : "text-muted-foreground"
-          }`}
-        >
+        <span className={`text-xs truncate ${isPresent ? "text-foreground" : "text-muted-foreground"}`}>
           {DOC_LABELS[cat] ?? cat}
         </span>
       </div>
       {!isPresent && (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-7 px-2 text-xs text-primary hover:text-primary shrink-0"
+        <button
           onClick={onRequest}
+          className="text-[10px] text-primary hover:underline shrink-0"
         >
-          <Send className="w-3 h-3 mr-1" />
           Demander
-        </Button>
+        </button>
       )}
     </div>
   );
@@ -127,20 +117,15 @@ export default function KycChecklist({
   const optionalPresent = optionalDocs.filter((cat) => existingLower.includes(cat)).length;
 
   return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-foreground">Checklist KYC</h3>
-        <Badge variant="outline" className={badgeConfig.className}>
-          Vigilance {badgeConfig.label}
-        </Badge>
+    <div className="space-y-3">
+      {/* Progress + docs */}
+      <div className="flex items-center gap-2">
+        <Progress value={progressValue} className="h-1.5 flex-1" />
+        <span className="text-[11px] text-muted-foreground whitespace-nowrap">{requiredPresent}/{REQUIRED_DOCS_BASE.length}</span>
       </div>
 
       {/* Documents obligatoires */}
-      <div className="space-y-1 animate-stagger-in">
-        <p className="text-xs font-medium text-muted-foreground px-3 pb-1">
-          Documents obligatoires ({requiredPresent}/{REQUIRED_DOCS_BASE.length})
-        </p>
+      <div className="space-y-0.5">
         {REQUIRED_DOCS_BASE.map((cat) => (
           <DocLine
             key={cat}
@@ -150,25 +135,6 @@ export default function KycChecklist({
           />
         ))}
       </div>
-
-      {/* Progress bar (obligatoires uniquement) */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span>{requiredPresent}/{REQUIRED_DOCS_BASE.length} documents obligatoires</span>
-          <span>{progressValue}%</span>
-        </div>
-        <Progress value={progressValue} className="h-2" />
-      </div>
-
-      {/* Complete banner */}
-      {isComplete && (
-        <div className="flex items-center gap-2 px-4 py-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-          <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
-          <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400">
-            Dossier KYC complet
-          </span>
-        </div>
-      )}
 
       {/* Documents complémentaires (collapsible) */}
       {optionalDocs.length > 0 && (
