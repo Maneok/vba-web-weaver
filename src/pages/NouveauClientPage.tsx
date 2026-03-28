@@ -648,28 +648,46 @@ export default function NouveauClientPage() {
 
   // P2: Launch IA analysis in background as soon as documents arrive
   useEffect(() => {
+    // Guard: already launched or in progress
+    if (docAnalysisLaunched.current || docAnalysisLoading) return;
+
     const allDocs = [
       ...(screening.documents.data?.documents ?? []),
       ...(screening.inpi.data?.documents ?? []),
     ];
-    const storedDocs = allDocs.filter((d: any) => d.storedInSupabase);
-    if (storedDocs.length === 0 || docAnalysis || docAnalysisLoading || docAnalysisLaunched.current) return;
+    // FIX #1: Accept docs with storedInSupabase OR with a valid URL (lien_direct / auto)
+    const eligibleDocs = allDocs.filter((d: any) =>
+      d.storedInSupabase || d.url || d.storageUrl
+    );
+    if (eligibleDocs.length === 0) return;
+
+    // FIX #2: Lock immediately to prevent double-launch race condition
     docAnalysisLaunched.current = true;
     setDocAnalysisLoading(true);
 
     const extractPath = (url: string) => {
-      const match = url?.match(/kyc-documents\/(.+?)(?:\?|$)/);
+      if (!url) return "";
+      const match = url.match(/kyc-documents\/(.+?)(?:\?|$)/);
       return match ? match[1] : url;
     };
+
+    const controller = new AbortController();
+    // FIX #3: 30s timeout to avoid infinite hang
+    const timer = setTimeout(() => controller.abort(), 30_000);
 
     (async () => {
       try {
         const { data: sessionData } = await supabase.auth.getSession();
         const token = sessionData?.session?.access_token;
+        if (!token) {
+          logger.warn("P2", "No session token — skipping background analysis");
+          return;
+        }
         const res = await fetch(
           `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyse-docs`,
           {
             method: "POST",
+            signal: controller.signal,
             headers: {
               "Content-Type": "application/json",
               Authorization: `Bearer ${token}`,
@@ -678,10 +696,10 @@ export default function NouveauClientPage() {
             body: JSON.stringify({
               siren: form.siren?.replace(/\s/g, "") || screening?.enterprise?.data?.[0]?.siren || "",
               raison_sociale: form.raisonSociale || screening?.enterprise?.data?.[0]?.denomination || "",
-              documents: storedDocs.map((d: any) => ({
-                type: d.type,
-                label: d.label,
-                source: d.source,
+              documents: eligibleDocs.map((d: any) => ({
+                type: d.type || "AUTRE",
+                label: d.label || d.type || "Document",
+                source: d.source || "auto",
                 storagePath: extractPath(d.storageUrl || d.url || ""),
               })),
             }),
@@ -690,13 +708,22 @@ export default function NouveauClientPage() {
         if (res.ok) {
           const json = await res.json();
           setDocAnalysis(json);
+          logger.debug("P2", `Background analysis complete: ${json?.documents?.length ?? 0} docs`);
+        } else {
+          // FIX #4: Log non-200 responses instead of silently swallowing
+          logger.warn("P2", `analyse-docs returned ${res.status}`);
         }
-      } catch {
-        // Non-blocking — analysis will be available via manual trigger at step 6
+      } catch (err: any) {
+        if (err?.name !== "AbortError") {
+          logger.warn("P2", "Background analysis failed:", err?.message);
+        }
       } finally {
+        clearTimeout(timer);
         setDocAnalysisLoading(false);
       }
     })();
+
+    return () => { controller.abort(); clearTimeout(timer); };
   }, [screening.documents.data?.documents, screening.inpi.data?.documents]);
 
   // Auto-flag PPE if sanctions screening detects it
@@ -2104,18 +2131,40 @@ export default function NouveauClientPage() {
     }
 
     // Helper: map doc type to GED category
+    // FIX #5: Extended mapping to cover more document types from INPI/Pappers
     function mapDocTypeToCategory(type: string): string {
       const t = (type || "").toUpperCase();
-      if (t.includes("EXTRAIT") && (t.includes("KBIS") || t.includes("RNE"))) return "extrait_kbis";
-      if (t.includes("KBIS") || t.includes("RNE")) return "kbis";
-      if (t.includes("CNI") || t.includes("IDENTITE") || t.includes("PASSEPORT")) return "cni_dirigeant";
-      if (t.includes("RIB") || t.includes("IBAN") || t.includes("BANCAIRE")) return "rib";
-      if (t.includes("STATUT")) return "statuts";
-      if (t.includes("ATTESTATION")) return "attestation_vigilance";
-      if (t.includes("BENEFICIAIRE")) return "liste_beneficiaires_effectifs";
-      if (t.includes("COMPTE") || t.includes("BILAN")) return "bilan";
-      if (t.includes("ACTE") || t.includes("PV")) return "pv_assemblee";
+      if (t.includes("EXTRAIT") && (t.includes("KBIS") || t.includes("RNE") || t.includes("RCS") || t.includes("IMMAT"))) return "extrait_kbis";
+      if (t.includes("KBIS") || t === "RNE") return "kbis";
+      if (t.includes("RBE") || t.includes("BENEFICIAIRE")) return "liste_beneficiaires_effectifs";
+      if (t.includes("CNI") || t.includes("IDENTITE") || t.includes("PASSEPORT") || t.includes("CARTE") || t.includes("PERMIS")) return "cni_dirigeant";
+      if (t.includes("RIB") || t.includes("IBAN") || t.includes("BANCAIRE") || t.includes("RELEVE")) return "rib";
+      if (t.includes("STATUT") || t.includes("CONSTITUTION")) return "statuts";
+      if (t.includes("ATTESTATION") || t.includes("VIGILANCE") || t.includes("URSSAF") || t.includes("FISCAL")) return "attestation_vigilance";
+      if (t.includes("COMPTE") || t.includes("BILAN") || t.includes("LIASSE") || t.includes("RESULTAT")) return "bilan";
+      if (t.includes("ACTE") || t.includes("PV") || t.includes("ASSEMBLEE") || t.includes("PROCES") || t.includes("DECISION")) return "pv_assemblee";
+      if (t.includes("MANDAT") || t.includes("SEPA") || t.includes("PRELEVEMENT")) return "mandat_sepa";
+      if (t.includes("JUSTIFICATIF") || t.includes("DOMICILE") || t.includes("ADRESSE")) return "justificatif_domicile";
       return "autre";
+    }
+
+    // FIX #6: Centralized name normalizer to avoid duplicated code
+    function normalizeGedName(societe: string, gedCategory: string, ext: string, dateStr?: string): string {
+      const d = dateStr || new Date().toISOString().split("T")[0];
+      const s = (societe || "")
+        .toUpperCase().replace(/\s*\([^)]*\)/g, "")
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^A-Z0-9]/g, "_").replace(/_+/g, "_")
+        .replace(/^_|_$/g, "").slice(0, 30) || "CLIENT";
+      const typeLabels: Record<string, string> = {
+        extrait_kbis: "EXTRAIT_KBIS", kbis: "KBIS", cni_dirigeant: "CNI_DIRIGEANT",
+        rib: "RIB", statuts: "STATUTS", pv_assemblee: "PV_ASSEMBLEE",
+        bilan: "BILAN", liste_beneficiaires_effectifs: "LISTE_BE",
+        attestation_vigilance: "ATTESTATION", mandat_sepa: "MANDAT_SEPA",
+        justificatif_domicile: "JUSTIFICATIF", autre: "DOCUMENT",
+      };
+      const safeExt = (ext || "pdf").toLowerCase().replace(/[^a-z0-9]/g, "") || "pdf";
+      return `${d}_${s}_${typeLabels[gedCategory] || "DOCUMENT"}.${safeExt}`;
     }
 
     // FIX 14: Upload manual documents to Supabase storage + persist in documents_kyc + documents (GED)
@@ -2179,32 +2228,33 @@ export default function NouveauClientPage() {
 
               // ★ Mirror dans documents (GED) — auto-renommage DATE_SOCIETE_TYPE.ext
               const gedCategory = mapDocTypeToCategory(doc.type);
-              const mirrorDateStr = new Date().toISOString().split('T')[0];
-              const mirrorSociete = (form.raisonSociale || screening?.enterprise?.data?.[0]?.denomination || '')
-                .toUpperCase().replace(/\s*\([^)]*\)/g, '')
-                .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-                .replace(/[^A-Z0-9]/g, '_').replace(/_+/g, '_')
-                .replace(/^_|_$/g, '').slice(0, 30);
-              const mirrorTypeLabel: Record<string, string> = {
-                extrait_kbis: 'EXTRAIT_KBIS', kbis: 'KBIS', cni_dirigeant: 'CNI_DIRIGEANT',
-                rib: 'RIB', statuts: 'STATUTS', pv_assemblee: 'PV_ASSEMBLEE',
-                bilan: 'BILAN', liste_beneficiaires_effectifs: 'LISTE_BE',
-                attestation_vigilance: 'ATTESTATION', autre: 'DOCUMENT',
-              };
-              const mirrorExt = (doc.file?.name || doc.name || '').split('.').pop() || 'pdf';
-              const normalizedName = `${mirrorDateStr}_${mirrorSociete}_${mirrorTypeLabel[gedCategory] || 'DOCUMENT'}.${mirrorExt}`;
-              await supabase.from("documents").insert({
-                user_id: session.user.id,
-                cabinet_id: cabinetId,
-                client_ref: ref,
-                siren: cleanSirenForStorage,
-                name: normalizedName,
-                file_path: storagePath,
-                file_size: doc.file.size,
-                mime_type: doc.file.type || "application/octet-stream",
-                category: gedCategory,
-                current_version: 1,
-              }).catch(err => logger.warn("[Submit] documents mirror insert failed:", err));
+              // FIX #7: Use centralized normalizer + safe extension extraction
+              const mirrorExt = (doc.file?.name || doc.name || "").split(".").pop() || "pdf";
+              const normalizedName = normalizeGedName(
+                form.raisonSociale || screening?.enterprise?.data?.[0]?.denomination || "",
+                gedCategory, mirrorExt
+              );
+              // FIX #8: Upsert-style — check existing before insert to avoid duplicates
+              const { data: existingDoc } = await supabase.from("documents")
+                .select("id")
+                .eq("client_ref", ref)
+                .eq("category", gedCategory)
+                .eq("file_path", storagePath)
+                .maybeSingle();
+              if (!existingDoc) {
+                await supabase.from("documents").insert({
+                  user_id: session.user.id,
+                  cabinet_id: cabinetId,
+                  client_ref: ref,
+                  siren: cleanSirenForStorage,
+                  name: normalizedName,
+                  file_path: storagePath,
+                  file_size: doc.file.size,
+                  mime_type: doc.file.type || "application/octet-stream",
+                  category: gedCategory,
+                  current_version: 1,
+                }).catch(err => logger.warn("[Submit] documents mirror insert failed:", err));
+              }
             }
           }
         } catch (err: unknown) {
@@ -2220,18 +2270,26 @@ export default function NouveauClientPage() {
     ].filter(d => d.url && (d.storedInSupabase || d.status === "auto" || d.status === "lien_direct"));
 
     if (autoDocsToPersist.length > 0 && cabinetId) {
-      const cleanSiren = form.siren?.replace(/\s/g, "") || "";
+      // FIX #9: Use same siren logic as manual docs for consistency
+      const cleanSiren = form.siren?.replace(/\s/g, "") || ref;
       const seenUrls = new Set<string>();
+      const societe = form.raisonSociale || screening?.enterprise?.data?.[0]?.denomination || "";
+
       for (const doc of autoDocsToPersist) {
         if (!doc.url || seenUrls.has(doc.url)) continue;
         seenUrls.add(doc.url);
+
+        const docType = (doc.type || "AUTRE").toUpperCase();
+        const docLabel = doc.label || doc.type || "Document auto";
+
         // documents_kyc (rétro-compatibilité)
+        // FIX #10: Log errors instead of swallowing silently
         await supabase.from("documents_kyc").insert({
           cabinet_id: cabinetId,
           client_ref: ref,
           siren: cleanSiren,
-          type: (doc.type || "AUTRE").toUpperCase(),
-          label: doc.label || doc.type || "Document auto",
+          type: docType,
+          label: docLabel,
           source: (doc as any).source === "inpi" ? "INPI" : "API_AUTO",
           storage_path: null,
           public_url: doc.url,
@@ -2239,35 +2297,34 @@ export default function NouveauClientPage() {
           mime_type: "application/pdf",
           status: "auto",
           date_document: (doc as any).dateDepot || (doc as any).dateCloture || null,
-        }).catch(() => {}); // Non-blocking
+        }).catch(err => logger.warn("[Submit] documents_kyc auto insert:", err?.message));
 
         // ★ Mirror dans documents (GED) — auto-renommage DATE_SOCIETE_TYPE.ext
         const autoGedCat = mapDocTypeToCategory(doc.type || "AUTRE");
-        const autoDateStr = ((doc as any).dateDepot || (doc as any).dateCloture || new Date().toISOString()).split('T')[0];
-        const autoSociete = (form.raisonSociale || screening?.enterprise?.data?.[0]?.denomination || '')
-          .toUpperCase().replace(/\s*\([^)]*\)/g, '')
-          .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-          .replace(/[^A-Z0-9]/g, '_').replace(/_+/g, '_')
-          .replace(/^_|_$/g, '').slice(0, 30);
-        const autoTypeMap: Record<string, string> = {
-          extrait_kbis: 'EXTRAIT_KBIS', kbis: 'KBIS', cni_dirigeant: 'CNI_DIRIGEANT',
-          rib: 'RIB', statuts: 'STATUTS', pv_assemblee: 'PV_ASSEMBLEE',
-          bilan: 'BILAN', liste_beneficiaires_effectifs: 'LISTE_BE',
-          attestation_vigilance: 'ATTESTATION', autre: 'DOCUMENT',
-        };
-        const autoNormName = `${autoDateStr}_${autoSociete}_${autoTypeMap[autoGedCat] || 'DOCUMENT'}.pdf`;
-        await supabase.from("documents").insert({
-          user_id: session.user.id,
-          cabinet_id: cabinetId,
-          client_ref: ref,
-          siren: cleanSiren,
-          name: autoNormName,
-          file_path: doc.url,
-          file_size: 0,
-          mime_type: "application/pdf",
-          category: autoGedCat,
-          current_version: 1,
-        }).catch(() => {}); // Non-blocking
+        const autoDateStr = ((doc as any).dateDepot || (doc as any).dateCloture || new Date().toISOString()).split("T")[0];
+        // FIX #11: Use centralized normalizer
+        const autoNormName = normalizeGedName(societe, autoGedCat, "pdf", autoDateStr);
+
+        // FIX #12: Dedup check before insert
+        const { data: existingAuto } = await supabase.from("documents")
+          .select("id")
+          .eq("client_ref", ref)
+          .eq("file_path", doc.url)
+          .maybeSingle();
+        if (!existingAuto) {
+          await supabase.from("documents").insert({
+            user_id: session.user.id,
+            cabinet_id: cabinetId,
+            client_ref: ref,
+            siren: cleanSiren,
+            name: autoNormName,
+            file_path: doc.url,
+            file_size: 0,
+            mime_type: "application/pdf",
+            category: autoGedCat,
+            current_version: 1,
+          }).catch(err => logger.warn("[Submit] documents auto mirror:", err?.message));
+        }
       }
     }
 
