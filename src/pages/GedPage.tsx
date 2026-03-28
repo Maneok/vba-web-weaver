@@ -541,8 +541,6 @@ export default function GedPage() {
     { value: "all", label: "Tous" },
     { value: "complete", label: "Complets" },
     { value: "incomplete", label: "Incomplets" },
-    { value: "alert", label: "Alertes" },
-    { value: "recent", label: "Récents" },
   ];
 
   const renderSirenPanel = () => (
@@ -687,81 +685,57 @@ export default function GedPage() {
                   );
                 })()}
               </div>
-              <p className="text-sm text-muted-foreground font-mono mt-0.5">
+              <p className="text-xs text-muted-foreground font-mono mt-0.5">
                 {selectedFolder.siren}
               </p>
-              {/* Client links */}
-              <div className="mt-1.5">
-                <ClientLinks siren={selectedFolder.siren} clientRef={selectedFolder.client_ref} />
-              </div>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
-              {/* IA Analysis button (#1) */}
+            <div className="flex items-center gap-1.5 shrink-0">
+              <Button size="sm" onClick={handleImportClick}>
+                <Upload className="w-3.5 h-3.5 mr-1.5" />
+                Importer
+              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={handleExportZip}
+                    disabled={exporting || selectedFolder.total_docs === 0}
+                  >
+                    {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Package className="w-4 h-4" />}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Exporter en ZIP</TooltipContent>
+              </Tooltip>
               {selectedFolder.total_docs > 0 && (
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
-                      variant="outline"
-                      size="sm"
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
                       onClick={() => setAnalysisDialogOpen(true)}
                     >
-                      <Sparkles className="w-3.5 h-3.5 mr-1.5" />
-                      Analyser
+                      <Sparkles className="w-4 h-4 text-violet-400" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>Analyser les documents avec l'IA</TooltipContent>
-                </Tooltip>
-              )}
-              {/* #104 — Rename all to norm */}
-              {selectedFolder.total_docs > 0 && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        if (window.confirm(`Renommer les ${selectedFolder.total_docs} documents au format DATE_SOCIETE_TYPE ?`)) {
-                          handleRenameAllToNorm();
-                        }
-                      }}
-                    >
-                      <Wand2 className="w-3.5 h-3.5 mr-1.5" />
-                      Norme
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Renommer tous les documents selon la norme</TooltipContent>
+                  <TooltipContent>Analyser avec l'IA</TooltipContent>
                 </Tooltip>
               )}
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleExportZip}
-                    disabled={exporting || selectedFolder.total_docs === 0}
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => navigate(`/client/${selectedFolder.client_ref}`)}
                   >
-                    {exporting ? (
-                      <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-                    ) : (
-                      <Package className="w-3.5 h-3.5 mr-1.5" />
-                    )}
-                    ZIP
+                    <ExternalLink className="w-4 h-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Exporter le dossier complet en ZIP</TooltipContent>
+                <TooltipContent>Fiche client</TooltipContent>
               </Tooltip>
-              <Button variant="outline" size="sm" onClick={handleImportClick}>
-                <Upload className="w-3.5 h-3.5 mr-1.5" />
-                Importer
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigate(`/client/${selectedFolder.client_ref}`)}
-              >
-                <ExternalLink className="w-3.5 h-3.5 mr-1.5" />
-                Fiche
-              </Button>
             </div>
           </div>
         </div>
@@ -864,41 +838,6 @@ export default function GedPage() {
               onChange={setActiveCategory}
             />
           </div>
-          {/* #141 — Date filter pills */}
-          <div className="flex items-center gap-1">
-            {([
-              { value: "all", label: "Tout" },
-              { value: "week", label: "7j" },
-              { value: "month", label: "30j" },
-            ] as const).map(d => (
-              <button
-                key={d.value}
-                onClick={() => setDateFilter(d.value as any)}
-                className={`px-2 py-0.5 text-[10px] rounded-full transition-colors ${
-                  dateFilter === d.value
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted/50 text-muted-foreground hover:bg-muted"
-                }`}
-              >
-                {d.label}
-              </button>
-            ))}
-          </div>
-          {/* #121 — View mode toggle */}
-          <div className="flex border rounded-md overflow-hidden">
-            <button
-              onClick={() => setViewMode("list")}
-              className={`p-1 ${viewMode === "list" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}
-            >
-              <LayoutList className="h-3.5 w-3.5" />
-            </button>
-            <button
-              onClick={() => setViewMode("grid")}
-              className={`p-1 ${viewMode === "grid" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}
-            >
-              <LayoutGrid className="h-3.5 w-3.5" />
-            </button>
-          </div>
         </div>
 
         {/* Documents content — Accueil or category view */}
@@ -906,9 +845,9 @@ export default function GedPage() {
           {activeCategory === "accueil" ? (
             /* ── Accueil: Upload zone + summary + unclassified docs ── */
             <div className="space-y-6">
-              {/* Large drop zone */}
+              {/* Drop zone compact */}
               <div
-                className="border-2 border-dashed border-border/60 rounded-xl p-8 text-center hover:border-primary/40 transition-colors cursor-pointer"
+                className="border border-dashed border-border/50 rounded-lg p-5 text-center hover:border-primary/40 hover:bg-primary/[0.02] transition-all cursor-pointer"
                 onClick={handleImportClick}
                 onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
                 onDrop={(e) => {
@@ -918,12 +857,9 @@ export default function GedPage() {
                   if (files.length > 0) handleDropFiles(files);
                 }}
               >
-                <Upload className="w-10 h-10 mx-auto mb-3 text-muted-foreground/40" />
-                <p className="text-sm font-medium text-foreground">
-                  Glisser vos documents ici pour les ajouter a {selectedFolder.client_name}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  PDF, images, Word, Excel — max {reglages?.limite_taille_upload_mo || 10} Mo par fichier
+                <Upload className="w-6 h-6 mx-auto mb-2 text-muted-foreground/40" />
+                <p className="text-sm text-muted-foreground">
+                  Glisser ou <span className="text-primary font-medium">cliquer</span> pour ajouter des documents
                 </p>
               </div>
 
@@ -970,49 +906,32 @@ export default function GedPage() {
                 </div>
               )}
 
-              {/* Folder summary by category */}
-              <div>
-                <h3 className="text-sm font-semibold text-foreground mb-3">Resume du dossier</h3>
-                <div className="grid grid-cols-2 gap-2">
-                  {CATEGORY_TABS.filter(t => t.key !== "accueil" && t.key !== "autre").map(t => {
-                    const count = categoryCounts[t.key] || 0;
-                    const isRequired = ["kbis", "extrait_kbis", "cni_dirigeant", "rib"].includes(t.key);
-                    const isMissing = isRequired && count === 0;
-                    return (
-                      <button
-                        key={t.key}
-                        onClick={() => setActiveCategory(t.key)}
-                        className={`flex items-center justify-between p-2.5 rounded-lg border transition-colors text-left ${
-                          isMissing
-                            ? "border-red-500/30 bg-red-500/5 hover:bg-red-500/10"
-                            : "border-border/50 bg-card hover:bg-accent/30"
-                        }`}
-                      >
-                        <span className={`text-xs font-medium ${isMissing ? "text-red-500" : "text-foreground"}`}>
-                          {t.label}
-                        </span>
-                        <span className={`text-xs font-bold ${
-                          isMissing ? "text-red-500" : count > 0 ? "text-foreground" : "text-muted-foreground"
-                        }`}>
-                          {count} doc{count !== 1 ? "s" : ""}
-                          {isMissing && " ⚠"}
-                        </span>
-                      </button>
-                    );
-                  })}
+              {/* Documents récents — tous les docs du dossier */}
+              {documents.length > 0 && filteredDocuments.length === 0 && (
+                <div className="space-y-2">
+                  <h3 className="text-sm font-medium text-foreground">
+                    Tous les documents ({documents.length})
+                  </h3>
+                  {documents.slice(0, 10).map((doc) => (
+                    <button
+                      key={doc.id}
+                      onClick={() => handlePreview(doc)}
+                      className="w-full flex items-center gap-3 p-2.5 rounded-lg border border-border/50 bg-card hover:bg-accent/30 transition-colors text-left"
+                    >
+                      <FileText className="w-4 h-4 text-muted-foreground shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm truncate">{doc.name}</p>
+                        <p className="text-[10px] text-muted-foreground">{doc.category}</p>
+                      </div>
+                    </button>
+                  ))}
+                  {documents.length > 10 && (
+                    <p className="text-[11px] text-muted-foreground text-center">
+                      + {documents.length - 10} autres — utilisez les onglets pour filtrer
+                    </p>
+                  )}
                 </div>
-              </div>
-
-              {/* Total */}
-              <div className="text-xs text-muted-foreground text-center pt-2 border-t border-border/30">
-                Total : {documents.length} document{documents.length !== 1 ? "s" : ""}
-                {documents.length > 0 && (() => {
-                  const totalSize = documents.reduce((sum, d) => sum + (d.file_size || 0), 0);
-                  if (totalSize >= 1_000_000) return ` — ${(totalSize / 1_000_000).toFixed(1)} Mo`;
-                  if (totalSize >= 1_000) return ` — ${Math.round(totalSize / 1_000)} Ko`;
-                  return '';
-                })()}
-              </div>
+              )}
             </div>
           ) : filteredDocuments.length === 0 ? (
             /* ── Empty state per category ── */
@@ -1042,14 +961,12 @@ export default function GedPage() {
                       onCheckedChange={toggleSelectAll}
                     />
                   </th>
-                  {/* Sortable column headers */}
+                  {/* Sortable column headers — simplifié */}
                   {[
                     { key: "name", label: "Document" },
                     { key: "category", label: "Categorie" },
                     { key: "file_size", label: "Taille" },
-                    { key: "current_version", label: "Version" },
                     { key: "expiration_date", label: "Expiration" },
-                    { key: "validation_status", label: "Statut" },
                   ].map(col => (
                     <th
                       key={col.key}
@@ -1264,34 +1181,19 @@ export default function GedPage() {
         onSelectDocument={handlePreviewFromPalette}
       />
 
-      {/* Sticky Header */}
-      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border/50 px-6 py-4">
-        {/* Breadcrumb */}
-        <nav className="flex items-center gap-1.5 text-xs text-muted-foreground mb-2">
-          {breadcrumb.map((seg, i) => (
-            <span key={i} className="flex items-center gap-1.5">
-              {i > 0 && <span>/</span>}
-              {seg.onClick ? (
-                <button onClick={seg.onClick} className="hover:text-foreground transition-colors">
-                  {seg.label}
-                </button>
-              ) : (
-                <span className="text-foreground">{seg.label}</span>
-              )}
-            </span>
-          ))}
-        </nav>
-
+      {/* Sticky Header — simplifié */}
+      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border/50 px-6 py-3">
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Documents</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              {folders.length} dossier{folders.length > 1 ? "s" : ""} •{" "}
-              {stats?.total_documents || 0} doc{(stats?.total_documents || 0) > 1 ? "s" : ""}
-              {(stats?.expired || 0) > 0
-                ? ` • ${stats!.expired} alerte${stats!.expired > 1 ? "s" : ""}`
-                : ""}
-            </p>
+          <div className="flex items-center gap-3">
+            <h1 className="text-lg font-semibold text-foreground">Documents</h1>
+            {!showOnboarding && (
+              <span className="text-xs text-muted-foreground tabular-nums">
+                {folders.length} client{folders.length > 1 ? "s" : ""} · {stats?.total_documents || 0} doc{(stats?.total_documents || 0) > 1 ? "s" : ""}
+                {(stats?.expired || 0) > 0 && (
+                  <span className="text-red-400 ml-1">· {stats!.expired} expiré{stats!.expired > 1 ? "s" : ""}</span>
+                )}
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <ConformityReport
@@ -1299,7 +1201,7 @@ export default function GedPage() {
               cabinetName="Cabinet"
               generatedBy={userName}
             />
-            <Button onClick={handleImportClick}>
+            <Button size="sm" onClick={handleImportClick}>
               <Plus className="w-4 h-4 mr-1.5" />
               Importer
             </Button>
@@ -1313,22 +1215,6 @@ export default function GedPage() {
             onChange={handleFileSelect}
           />
         </div>
-
-        {/* KPI Cards */}
-        {!showOnboarding && (
-          <div className="mt-4">
-            {loading ? (
-              renderSkeletonKpi()
-            ) : stats ? (
-              <GEDKpiCards
-                totalDocs={stats.total_documents}
-                expiringCount={stats.expiring_soon}
-                expiredCount={stats.expired}
-                completionRate={stats.avg_completion}
-              />
-            ) : null}
-          </div>
-        )}
       </div>
 
       {/* Onboarding or Master-Detail Layout */}
