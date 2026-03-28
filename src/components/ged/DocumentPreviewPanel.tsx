@@ -101,55 +101,51 @@ export default function DocumentPreviewPanel({
           <Badge className={`text-[10px] ${validationCls}`}>{validationLabel}</Badge>
         </div>
 
-        {/* Preview area — lazy loaded */}
+        {/* Preview area */}
         <div className="flex-1 min-h-0 my-4 rounded-lg border border-border bg-muted/30 overflow-hidden">
-          {showPreview ? (
-            // Loaded preview
-            isPdf(doc.name) || isHtml(doc.name) ? (
-              <iframe
-                src={doc.url}
-                title={doc.name}
-                className="w-full h-full min-h-[400px]"
-              />
-            ) : isImage(doc.name) ? (
-              <img
-                src={doc.url}
-                alt={doc.name}
-                className="w-full h-full object-contain p-4"
-              />
-            ) : null
-          ) : (
-            // Placeholder — instant load
-            <div className="flex flex-col items-center justify-center h-full min-h-[200px] gap-3 text-muted-foreground">
-              {canPreview ? (
-                <>
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowPreview(true)}
-                    className="gap-2"
-                  >
-                    <Eye className="h-4 w-4" />
-                    Previsualiser
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => doc.url && window.open(doc.url, "_blank")}
-                    className="gap-2 text-xs"
-                  >
-                    <ExternalLink className="h-3.5 w-3.5" />
-                    Ouvrir dans un nouvel onglet
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <p className="text-sm">Apercu non disponible pour ce format</p>
-                  <Button variant="outline" size="sm" onClick={() => onDownload?.(doc)}>
-                    <Download className="h-4 w-4 mr-2" />
-                    Telecharger pour consulter
-                  </Button>
-                </>
+          {doc.url && canPreview ? (
+            <>
+              {(isPdf(doc.name) || isHtml(doc.name)) && (
+                <iframe
+                  src={doc.url}
+                  title={doc.name}
+                  className="w-full h-full min-h-[400px]"
+                  onError={() => setShowPreview(false)}
+                />
               )}
+              {isImage(doc.name) && (
+                <img
+                  src={doc.url}
+                  alt={doc.name}
+                  className="w-full h-full object-contain p-4"
+                  onError={() => setShowPreview(false)}
+                />
+              )}
+              <div className="flex justify-center py-2 border-t border-border/50">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => window.open(doc.url, "_blank")}
+                  className="gap-1.5 text-xs text-muted-foreground"
+                >
+                  <ExternalLink className="h-3 w-3" />
+                  Ouvrir dans un nouvel onglet
+                </Button>
+              </div>
+            </>
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full min-h-[200px] gap-3 text-muted-foreground">
+              <p className="text-sm">{doc.url ? "Apercu non disponible pour ce format" : "URL du document indisponible"}</p>
+              {doc.url && (
+                <Button variant="outline" size="sm" onClick={() => window.open(doc.url, "_blank")} className="gap-2">
+                  <ExternalLink className="h-4 w-4" />
+                  Ouvrir dans le navigateur
+                </Button>
+              )}
+              <Button variant="outline" size="sm" onClick={() => onDownload?.(doc)} className="gap-2">
+                <Download className="h-4 w-4" />
+                Telecharger
+              </Button>
             </div>
           )}
         </div>

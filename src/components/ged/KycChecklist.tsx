@@ -13,8 +13,8 @@ interface KycChecklistProps {
   onRequestDocument: (category: string) => void;
 }
 
-// 3 documents OBLIGATOIRES (kbis couvre aussi extrait_kbis/RNE)
-const REQUIRED_DOCS_BASE = ["kbis", "cni_dirigeant", "rib"];
+// 4 documents OBLIGATOIRES (kbis couvre aussi extrait_kbis/RNE)
+const REQUIRED_DOCS_BASE = ["kbis", "cni_dirigeant", "rib", "statuts"];
 
 // Documents complémentaires recommandés selon le niveau de vigilance
 const OPTIONAL_DOCS: Record<VigilanceLevel, string[]> = {

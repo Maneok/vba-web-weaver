@@ -220,11 +220,32 @@ export default function GedPage() {
 
   const handleDownload = useCallback(async (doc: GEDDocument) => {
     try {
+      // External URL (INPI/Pappers) — open in new tab
+      if (doc.file_path.startsWith("http://") || doc.file_path.startsWith("https://")) {
+        window.open(doc.file_path, "_blank");
+        fireAudit("download", doc.id, { document_name: doc.name });
+        return;
+      }
+      // Supabase storage — download blob
       const { data, error } = await supabase.storage
         .from("documents")
         .download(doc.file_path);
       if (error || !data) {
-        toast.error("Erreur téléchargement");
+        // Fallback: try kyc-documents bucket
+        const { data: d2, error: e2 } = await supabase.storage
+          .from("kyc-documents")
+          .download(doc.file_path);
+        if (e2 || !d2) {
+          toast.error("Erreur téléchargement");
+          return;
+        }
+        const url2 = URL.createObjectURL(d2);
+        const a2 = document.createElement("a");
+        a2.href = url2;
+        a2.download = doc.name;
+        a2.click();
+        setTimeout(() => URL.revokeObjectURL(url2), 10000);
+        fireAudit("download", doc.id, { document_name: doc.name });
         return;
       }
       const url = URL.createObjectURL(data);
@@ -670,17 +691,17 @@ export default function GedPage() {
                 </h2>
                 {(() => {
                   // kbis count already includes extrait_kbis (merged)
-                  const kycDone = ["kbis", "cni_dirigeant", "rib"].filter(
+                  const kycDone = ["kbis", "cni_dirigeant", "rib", "statuts"].filter(
                     k => (categoryCounts[k] || 0) > 0
                   ).length;
-                  return kycDone >= 3 ? (
+                  return kycDone >= 4 ? (
                     <Badge className="shrink-0 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-0">
                       <CheckCircle2 className="w-3 h-3 mr-1" />
                       Dossier KYC complet
                     </Badge>
                   ) : (
                     <Badge variant="secondary" className="shrink-0">
-                      KYC {kycDone}/3
+                      KYC {kycDone}/4
                     </Badge>
                   );
                 })()}

@@ -2112,6 +2112,13 @@ export default function NouveauClientPage() {
       }
     }
 
+    // Guard: check if client with same SIREN already exists (prevent duplicates)
+    const dupClient = clients.find(c => c.siren === newClient.siren);
+    if (dupClient) {
+      toast.error("Un client avec le SIREN " + newClient.siren + " existe deja (" + dupClient.raisonSociale + ")");
+      return;
+    }
+
     await addClient(newClient);
 
     // P5-3: Clear draft AFTER successful addClient (was before, losing data on failure)
