@@ -131,17 +131,11 @@ type ViewMode = "table" | "cards" | "compact";
 const eurFormatter = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 const formatEurCompact = (n: number) => eurFormatter.format(n);
 
+
 const LetterHistory = React.memo(function LetterHistory({
-  letters,
-  loading,
-  onEdit,
-  onDuplicate,
-  onArchive,
-  onDelete,
-  onDownloadPdf,
-  onCreateAvenant,
-  avenantsByLetter,
-  cabinetId,
+  letters, loading, onEdit, onDuplicate, onArchive, onDelete, onDownloadPdf, onCreateAvenant,
+  onBulkDelete, onBulkArchive, onBulkStatusChange, onBulkDuplicate,
+  avenantsByLetter, cabinetId,
 }: {
   letters: SavedLetter[];
   loading: boolean;
@@ -151,23 +145,65 @@ const LetterHistory = React.memo(function LetterHistory({
   onDelete: (letter: SavedLetter) => void;
   onDownloadPdf: (letter: SavedLetter) => void;
   onCreateAvenant: (letter: SavedLetter) => void;
+  onBulkDelete: (ids: string[]) => Promise<void>;
+  onBulkArchive: (ids: string[]) => Promise<void>;
+  onBulkStatusChange: (ids: string[], status: string) => Promise<void>;
+  onBulkDuplicate: (letters: SavedLetter[]) => Promise<void>;
   avenantsByLetter: Record<string, LMAvenant[]>;
   cabinetId?: string;
 }) {
+  // ── Core state ──
   const [searchQ, setSearchQ] = useState("");
   const [filterStatut, setFilterStatut] = useState("all");
   const [filterType, setFilterType] = useState("all");
-  const [sortBy, setSortBy] = useState<"date" | "client" | "status">("date");
+  const [sortBy, setSortBy] = useState<"date" | "client" | "status" | "honoraires" | "numero">("date");
   const [sortAsc, setSortAsc] = useState(false);
   const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
 
-  // Signature state
+  // ── Feature 1-10: Bulk selection ──
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkLoading, setBulkLoading] = useState(false);
+
+  // ── Feature 11-14: View modes ──
+  const [viewMode, setViewMode] = useState<ViewMode>("table");
+
+  // ── Feature 19-20: Advanced filters ──
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [honorairesMin, setHonoMin] = useState("");
+  const [honorairesMax, setHonoMax] = useState("");
+  const [filterResponsable, setFilterResponsable] = useState("all");
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+
+  // ── Feature 25: Quick filters ──
+  const [quickFilter, setQuickFilter] = useState<string | null>(null);
+
+  // ── Feature 39: Expandable rows ──
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+
+  // ── Feature 49: Favorites ──
+  const [favorites, setFavorites] = useState<Set<string>>(() => {
+    try { const stored = localStorage.getItem("lm_favorites"); return stored ? new Set(JSON.parse(stored)) : new Set(); } catch { return new Set(); }
+  });
+
+  // ── Signature state ──
   const [signTarget, setSignTarget] = useState<SavedLetter | null>(null);
   const [signEmail, setSignEmail] = useState("");
   const [signClientNom, setSignClientNom] = useState("");
   const [signLoading, setSignLoading] = useState(false);
   const [signUrl, setSignUrl] = useState("");
 
+  // ── Feature 49: Persist favorites ──
+  useEffect(() => {
+    localStorage.setItem("lm_favorites", JSON.stringify([...favorites]));
+  }, [favorites]);
+
+  const toggleFavorite = (id: string) => {
+    setFavorites(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  };
+
+  // ── Signature handlers ──
   const handleSendForSignature = async () => {
     if (!signTarget || !signEmail.trim()) return;
     setSignLoading(true);
@@ -177,9 +213,7 @@ const LetterHistory = React.memo(function LetterHistory({
       toast.success("Lien de signature genere");
     } catch (e: any) {
       toast.error(e?.message || "Erreur lors de la generation du lien");
-    } finally {
-      setSignLoading(false);
-    }
+    } finally { setSignLoading(false); }
   };
 
   const openSignDialog = (letter: SavedLetter) => {
@@ -190,98 +224,234 @@ const LetterHistory = React.memo(function LetterHistory({
     setSignLoading(false);
   };
 
-  // Status counts for pills
-  const statusCounts = useMemo(() => {
+  // ── Feature 32: KPI stats ──
+  const stats = useMemo(() => {
     const counts: Record<string, number> = { all: letters.length };
+    let totalActif = 0;
+    let totalAll = 0;
+    const clientSet = new Set<string>();
+    const thisMonth = new Date(); thisMonth.setDate(1); thisMonth.setHours(0, 0, 0, 0);
+    let thisMonthCount = 0;
+    let lastMonthCount = 0;
+    const lastMonth = new Date(thisMonth); lastMonth.setMonth(lastMonth.getMonth() - 1);
+
     for (const l of letters) {
       const s = l.status || "brouillon";
       counts[s] = (counts[s] || 0) + 1;
+      if (s === "signee" || s === "envoyee") totalActif += (l.honoraires_ht || 0);
+      totalAll += (l.honoraires_ht || 0);
+      clientSet.add(l.raison_sociale);
+      const d = new Date(l.created_at);
+      if (d >= thisMonth) thisMonthCount++;
+      else if (d >= lastMonth && d < thisMonth) lastMonthCount++;
     }
-    return counts;
+
+    const avgHono = letters.length > 0 ? Math.round(totalAll / letters.length) : 0;
+    const conversionRate = letters.length > 0 ? Math.round(((counts["signee"] || 0) / letters.length) * 100) : 0;
+    const trend = lastMonthCount > 0 ? Math.round(((thisMonthCount - lastMonthCount) / lastMonthCount) * 100) : thisMonthCount > 0 ? 100 : 0;
+
+    return { counts, totalActif, totalAll, avgHono, conversionRate, uniqueClients: clientSet.size, thisMonthCount, trend };
   }, [letters]);
 
-  // Total honoraires
-  const totalHonoraires = useMemo(() => {
-    return letters
-      .filter((l) => l.status === "signee" || l.status === "envoyee")
-      .reduce((sum, l) => sum + (l.honoraires_ht || 0), 0);
+  // ── Feature 21: Responsable options ──
+  const responsableOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const l of letters) {
+      const r = l.wizard_data?.collaborateur_principal_nom;
+      if (r) set.add(r as string);
+    }
+    return [...set].sort();
   }, [letters]);
 
+  // ── Active filter count (Feature 22) ──
+  const activeFilterCount = useMemo(() => {
+    let c = 0;
+    if (filterStatut !== "all") c++;
+    if (filterType !== "all") c++;
+    if (searchQ.length >= 2) c++;
+    if (dateFrom) c++;
+    if (dateTo) c++;
+    if (honorairesMin) c++;
+    if (honorairesMax) c++;
+    if (filterResponsable !== "all") c++;
+    if (quickFilter) c++;
+    return c;
+  }, [filterStatut, filterType, searchQ, dateFrom, dateTo, honorairesMin, honorairesMax, filterResponsable, quickFilter]);
+
+  // ── Filtering ──
   const filtered = useMemo(() => {
     let result = [...letters];
 
-    // Filter by statut
-    if (filterStatut !== "all") {
-      result = result.filter((l) => l.status === filterStatut);
+    if (quickFilter === "favorites") {
+      result = result.filter(l => favorites.has(l.id));
+    } else if (quickFilter === "this_week") {
+      const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
+      result = result.filter(l => new Date(l.updated_at) >= weekAgo);
+    } else if (quickFilter === "this_month") {
+      const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
+      result = result.filter(l => new Date(l.created_at) >= monthStart);
     }
 
-    // Filter by mission type
+    if (filterStatut !== "all") result = result.filter(l => l.status === filterStatut);
+
     if (filterType !== "all") {
-      result = result.filter((l) => {
-        const wd = l.wizard_data;
-        const missionTypeId = wd?.mission_type_id || l.type_mission || "";
+      result = result.filter(l => {
+        const missionTypeId = l.wizard_data?.mission_type_id || l.type_mission || "";
         return missionTypeId === filterType || (l.type_mission || "").toLowerCase() === filterType.toLowerCase();
       });
     }
 
-    // Search by client name or LM number
+    if (filterResponsable !== "all") {
+      result = result.filter(l => (l.wizard_data?.collaborateur_principal_nom || "") === filterResponsable);
+    }
+
+    if (dateFrom) result = result.filter(l => l.created_at >= dateFrom);
+    if (dateTo) result = result.filter(l => l.created_at.slice(0, 10) <= dateTo);
+    if (honorairesMin) result = result.filter(l => (l.honoraires_ht || 0) >= Number(honorairesMin));
+    if (honorairesMax) result = result.filter(l => (l.honoraires_ht || 0) <= Number(honorairesMax));
+
     if (searchQ.length >= 2) {
       const q = searchQ.toLowerCase();
-      result = result.filter(
-        (l) =>
-          l.raison_sociale.toLowerCase().includes(q) ||
-          l.numero.toLowerCase().includes(q) ||
-          l.client_ref.toLowerCase().includes(q)
+      result = result.filter(l =>
+        l.raison_sociale.toLowerCase().includes(q) ||
+        l.numero.toLowerCase().includes(q) ||
+        l.client_ref.toLowerCase().includes(q) ||
+        ((l.wizard_data?.collaborateur_principal_nom as string) || "").toLowerCase().includes(q)
       );
     }
 
-    // Sort
     result.sort((a, b) => {
+      const aFav = favorites.has(a.id) ? 0 : 1;
+      const bFav = favorites.has(b.id) ? 0 : 1;
+      if (aFav !== bFav) return aFav - bFav;
       let cmp = 0;
       if (sortBy === "date") cmp = new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime();
       else if (sortBy === "client") cmp = a.raison_sociale.localeCompare(b.raison_sociale);
       else if (sortBy === "status") cmp = (a.status || "").localeCompare(b.status || "");
+      else if (sortBy === "honoraires") cmp = (a.honoraires_ht || 0) - (b.honoraires_ht || 0);
+      else if (sortBy === "numero") cmp = a.numero.localeCompare(b.numero);
       return sortAsc ? cmp : -cmp;
     });
 
     return result;
-  }, [letters, filterStatut, filterType, searchQ, sortBy, sortAsc]);
+  }, [letters, filterStatut, filterType, searchQ, sortBy, sortAsc, dateFrom, dateTo, honorairesMin, honorairesMax, filterResponsable, quickFilter, favorites]);
 
-  // Pagination
-  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
-  const paged = useMemo(() => filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE), [filtered, page]);
+  // ── Pagination ──
+  const totalPages = Math.ceil(filtered.length / pageSize);
+  const paged = useMemo(() => filtered.slice(page * pageSize, (page + 1) * pageSize), [filtered, page, pageSize]);
 
-  // Reset page when filters change
-  useEffect(() => { setPage(0); }, [filterStatut, filterType, searchQ]);
+  useEffect(() => { setPage(0); }, [filterStatut, filterType, searchQ, dateFrom, dateTo, honorairesMin, honorairesMax, filterResponsable, quickFilter, pageSize]);
 
-  // Get mission shortLabel for a type_mission string
+  const filteredHonoraires = useMemo(() => filtered.reduce((s, l) => s + (l.honoraires_ht || 0), 0), [filtered]);
+
+  // ── Helpers ──
   const getMissionLabel = (letter: SavedLetter) => {
     const missionTypeId = letter.wizard_data?.mission_type_id || letter.type_mission || "";
-    const entry = Object.values(MISSION_TYPES).find(
-      (m) => m.id === missionTypeId || m.shortLabel === missionTypeId || m.label === missionTypeId
-    );
+    const entry = Object.values(MISSION_TYPES).find(m => m.id === missionTypeId || m.shortLabel === missionTypeId || m.label === missionTypeId);
     return entry ? entry.shortLabel : letter.type_mission;
   };
 
   const getLetterCategoryColors = (letter: SavedLetter) => {
     const missionTypeId = letter.wizard_data?.mission_type_id || letter.type_mission || "";
-    const entry = Object.values(MISSION_TYPES).find(
-      (m) => m.id === missionTypeId || m.shortLabel === missionTypeId || m.label === missionTypeId
-    );
+    const entry = Object.values(MISSION_TYPES).find(m => m.id === missionTypeId || m.shortLabel === missionTypeId || m.label === missionTypeId);
     const cat = entry ? getMissionCategory(entry.id) : null;
     return cat ? getCategoryColorClasses(cat) : null;
   };
 
-  const toggleSort = (col: "date" | "client" | "status") => {
+  const toggleSort = (col: typeof sortBy) => {
     if (sortBy === col) setSortAsc(!sortAsc);
     else { setSortBy(col); setSortAsc(false); }
   };
 
+  // ── Selection helpers ──
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  };
+
+  const selectAllOnPage = () => {
+    const allPageIds = paged.map(l => l.id);
+    const allSelected = allPageIds.every(id => selectedIds.has(id));
+    if (allSelected) {
+      setSelectedIds(prev => { const n = new Set(prev); allPageIds.forEach(id => n.delete(id)); return n; });
+    } else {
+      setSelectedIds(prev => { const n = new Set(prev); allPageIds.forEach(id => n.add(id)); return n; });
+    }
+  };
+
+  const selectAllFiltered = () => setSelectedIds(new Set(filtered.map(l => l.id)));
+  const clearSelection = () => setSelectedIds(new Set());
+  const selectedLetters = useMemo(() => letters.filter(l => selectedIds.has(l.id)), [letters, selectedIds]);
+  const allPageSelected = paged.length > 0 && paged.every(l => selectedIds.has(l.id));
+  const somePageSelected = paged.some(l => selectedIds.has(l.id));
+
+  const runBulkAction = async (action: () => Promise<void>) => {
+    setBulkLoading(true);
+    try { await action(); } finally { setBulkLoading(false); clearSelection(); }
+  };
+
+  const toggleExpand = (id: string) => {
+    setExpandedRows(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  };
+
+  // ── CSV Export ──
+  const exportCsv = () => {
+    const headers = ["Numero", "Client", "Ref Client", "Type Mission", "Responsable", "Honoraires HT", "Statut", "Date Creation", "Date MAJ"];
+    const rows = filtered.map(l => [
+      l.numero, l.raison_sociale, l.client_ref, getMissionLabel(l),
+      l.wizard_data?.collaborateur_principal_nom || "", String(l.honoraires_ht || 0),
+      l.status, l.created_at.slice(0, 10), l.updated_at.slice(0, 10),
+    ]);
+    const csv = [headers, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(";")).join("\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = `lettres_mission_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+    toast.success(`${filtered.length} lignes exportees en CSV`);
+  };
+
+  const handlePrint = () => window.print();
+
+  const copyDetails = (letter: SavedLetter) => {
+    const text = `${letter.numero} — ${letter.raison_sociale}\nType: ${getMissionLabel(letter)}\nStatut: ${letter.status}\nHonoraires: ${letter.honoraires_ht || 0} EUR HT\nDate: ${formatDateFr(letter.created_at, "short")}`;
+    navigator.clipboard.writeText(text).then(() => toast.success("Details copies")).catch(() => toast.error("Erreur copie"));
+  };
+
+  const clearAllFilters = () => {
+    setSearchQ(""); setFilterStatut("all"); setFilterType("all");
+    setDateFrom(""); setDateTo(""); setHonoMin(""); setHonoMax("");
+    setFilterResponsable("all"); setQuickFilter(null);
+  };
+
+  // ── Keyboard shortcuts ──
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if ((e.ctrlKey || e.metaKey) && e.key === "a") { e.preventDefault(); selectAllOnPage(); }
+      if (e.key === "Escape" && selectedIds.size > 0) clearSelection();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [paged, selectedIds]);
+
+  // ── Search highlight ──
+  const highlightMatch = (text: string) => {
+    if (searchQ.length < 2) return text;
+    const idx = text.toLowerCase().indexOf(searchQ.toLowerCase());
+    if (idx === -1) return text;
+    return <>{text.slice(0, idx)}<mark className="bg-amber-400/30 text-inherit rounded-sm px-0.5">{text.slice(idx, idx + searchQ.length)}</mark>{text.slice(idx + searchQ.length)}</>;
+  };
+
+  // ── Loading skeleton ──
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20" role="status" aria-label="Chargement des lettres de mission">
-        <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
-        <span className="ml-2 text-slate-400 dark:text-slate-400 text-sm">Chargement...</span>
+      <div className="space-y-3" role="status" aria-label="Chargement">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="h-16 rounded-xl bg-white/[0.02] border border-white/[0.06] animate-pulse flex items-center gap-4 px-4">
+            <div className="w-8 h-8 rounded-lg bg-white/[0.06]" />
+            <div className="flex-1 space-y-2"><div className="h-3 bg-white/[0.06] rounded w-1/3" /><div className="h-2 bg-white/[0.04] rounded w-1/5" /></div>
+            <div className="h-5 w-16 bg-white/[0.06] rounded-full" />
+          </div>
+        ))}
       </div>
     );
   }
@@ -289,364 +459,429 @@ const LetterHistory = React.memo(function LetterHistory({
   if (letters.length === 0) {
     return (
       <div className="text-center py-20 space-y-4">
-        <div className="w-16 h-16 rounded-2xl bg-blue-500/10 flex items-center justify-center mx-auto">
-          <FileText className="w-8 h-8 text-blue-400" />
-        </div>
+        <div className="w-16 h-16 rounded-2xl bg-blue-500/10 flex items-center justify-center mx-auto"><FileText className="w-8 h-8 text-blue-400" /></div>
         <div>
           <p className="text-slate-900 dark:text-white font-medium">Aucune lettre de mission</p>
           <p className="text-slate-400 dark:text-slate-500 text-sm mt-1">Commencez par creer votre premiere lettre dans l'onglet "Nouvelle lettre"</p>
         </div>
         <div className="flex items-center justify-center gap-3 text-[10px] text-slate-600">
           <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> ~5 min par lettre</span>
-          <span className="w-px h-3 bg-gray-100 dark:bg-white/[0.06]" />
+          <span className="w-px h-3 bg-white/[0.06]" />
           <span className="flex items-center gap-1"><FileText className="w-3 h-3" /> PDF + DOCX</span>
-          <span className="w-px h-3 bg-gray-100 dark:bg-white/[0.06]" />
+          <span className="w-px h-3 bg-white/[0.06]" />
           <span className="flex items-center gap-1"><Send className="w-3 h-3" /> Signature electronique</span>
         </div>
       </div>
     );
   }
 
-  return (
-    <div className="space-y-4">
-      {/* Compact alertes bandeau */}
-      {cabinetId && (
-        <LMAlertesList
-          cabinetId={cabinetId}
-          compact
-          onNavigateToLM={(instanceId) => {
-            const letter = letters.find((l) => l.id === instanceId);
-            if (letter) onEdit(letter);
-          }}
-        />
-      )}
+  // ── Table row renderer ──
+  const renderTableRow = (letter: SavedLetter) => {
+    const avenantCount = avenantsByLetter[letter.id]?.length || 0;
+    const rowCatColors = getLetterCategoryColors(letter);
+    const isSelected = selectedIds.has(letter.id);
+    const isExpanded = expandedRows.has(letter.id);
+    const isFav = favorites.has(letter.id);
+    const wizardStep = (letter.wizard_data?.wizard_step as number) ?? 0;
 
-      {/* Status filter pills */}
-      <div className="flex flex-wrap gap-1.5">
-        {STATUS_PILLS.map((pill) => {
-          const count = statusCounts[pill.value] || 0;
-          if (pill.value !== "all" && count === 0) return null;
-          const isActive = filterStatut === pill.value;
-          return (
-            <button
-              key={pill.value}
-              onClick={() => setFilterStatut(pill.value)}
-              aria-pressed={filterStatut === pill.value}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs border transition-all ${
-                isActive
-                  ? `${pill.color} ring-1 ring-white/10`
-                  : "bg-white dark:bg-white/[0.02] text-slate-400 dark:text-slate-500 border-gray-200 dark:border-white/[0.06] hover:bg-gray-100 dark:hover:bg-white/[0.04]"
-              }`}
-            >
-              {pill.label}
-              <span className={`text-[10px] ${isActive ? "opacity-80" : "text-slate-600"}`}>
-                {pill.value === "all" ? letters.length : count}
-              </span>
+    return (
+      <div key={letter.id}>
+        <div className={`group sm:grid sm:grid-cols-[32px_1fr_100px_130px_90px_80px_80px_80px_40px_140px] sm:items-center gap-2 p-3 sm:px-3 rounded-xl border transition-all duration-200 ${isSelected ? "bg-blue-500/[0.08] border-blue-500/30 shadow-sm shadow-blue-500/5" : "bg-white dark:bg-white/[0.02] border-gray-200 dark:border-white/[0.06] hover:bg-gray-50 dark:hover:bg-white/[0.04]"} ${rowCatColors ? `border-l-[3px] ${rowCatColors.border}` : ""}`}>
+          {/* Checkbox */}
+          <div className="hidden sm:flex items-center justify-center">
+            <Checkbox checked={isSelected} onCheckedChange={() => toggleSelect(letter.id)} aria-label={`Selectionner ${letter.raison_sociale}`} />
+          </div>
+          {/* Client */}
+          <button onClick={() => onEdit(letter)} className="flex items-center gap-2 text-left min-w-0">
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-xs font-bold ${avatarColor(letter.raison_sociale)}`}>
+              {letter.raison_sociale.slice(0, 2).toUpperCase()}
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                {isFav && <Star className="w-3 h-3 text-amber-400 fill-amber-400 shrink-0" />}
+                <p className="text-sm font-medium text-slate-900 dark:text-white truncate">{highlightMatch(letter.raison_sociale)}</p>
+              </div>
+              <p className="text-[10px] text-slate-400 dark:text-slate-500 sm:hidden">{letter.numero} · {relativeDate(letter.updated_at)}</p>
+            </div>
+          </button>
+          {/* Numero */}
+          <span className="hidden sm:block text-xs text-slate-400 font-mono truncate">{highlightMatch(letter.numero)}</span>
+          {/* Type */}
+          <div className="hidden sm:block">
+            <Badge className={`text-[9px] gap-1 ${rowCatColors ? rowCatColors.badge : "bg-white/[0.04] border-white/[0.08] text-slate-300"}`}>{getMissionLabel(letter)}</Badge>
+          </div>
+          {/* Responsable */}
+          <span className="hidden sm:block text-[10px] text-slate-400 truncate">{letter.wizard_data?.collaborateur_principal_nom as string || "—"}</span>
+          {/* Honoraires */}
+          <span className={`hidden sm:block text-[10px] font-mono ${honorairesColor(letter.honoraires_ht || 0)}`}>
+            {letter.honoraires_ht ? formatEurCompact(letter.honoraires_ht) : "—"}
+          </span>
+          {/* Date */}
+          <TooltipRoot>
+            <TooltipTrigger asChild>
+              <span className="hidden sm:block text-[10px] text-slate-500 cursor-default">{relativeDate(letter.updated_at)}</span>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="text-[10px]">{formatDateFr(letter.updated_at, "short")}</TooltipContent>
+          </TooltipRoot>
+          {/* Statut */}
+          <div className="hidden sm:block">
+            <LMStatusBadge status={letter.status} showTooltip />
+            {letter.status === "brouillon" && <div className="mt-0.5"><Progress value={((wizardStep + 1) / 3) * 100} className="h-1" /></div>}
+          </div>
+          {/* Avenants */}
+          <div className="hidden sm:block">
+            {avenantCount > 0 && <Badge variant="outline" className="text-[9px] bg-cyan-500/10 text-cyan-400 border-cyan-500/20">{avenantCount} av.</Badge>}
+          </div>
+          {/* Actions */}
+          <div className="hidden sm:flex items-center justify-end gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button onClick={() => toggleFavorite(letter.id)} className="p-1 rounded-md hover:bg-white/[0.06] text-slate-500 hover:text-amber-400 transition-colors" title={isFav ? "Retirer des favoris" : "Ajouter aux favoris"}>
+              {isFav ? <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" /> : <StarOff className="w-3.5 h-3.5" />}
             </button>
-          );
-        })}
-      </div>
-
-      {/* Type filter + Search */}
-      <div className="flex flex-col sm:flex-row gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
-          <Input
-            placeholder="Rechercher par client ou n° LM..."
-            value={searchQ}
-            onChange={(e) => setSearchQ(e.target.value)}
-            aria-label="Rechercher par client ou numero de lettre"
-            className="pl-9 h-9 bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08] text-slate-900 dark:text-white text-xs"
-          />
+            <button onClick={() => toggleExpand(letter.id)} className="p-1 rounded-md hover:bg-white/[0.06] text-slate-500 hover:text-blue-400 transition-colors" title="Details">
+              {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+            </button>
+            <button onClick={() => onEdit(letter)} className="p-1 rounded-md hover:bg-white/[0.06] text-slate-500 hover:text-blue-400 transition-colors" title={letter.status === "brouillon" ? "Modifier" : "Voir"}>
+              <Edit3 className="w-3.5 h-3.5" />
+            </button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="p-1 rounded-md hover:bg-white/[0.06] text-slate-500 hover:text-slate-300 transition-colors" title="Plus d'actions"><CircleDot className="w-3.5 h-3.5" /></button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                {(letter.status === "brouillon" || letter.status === "envoyee") && <DropdownMenuItem onClick={() => openSignDialog(letter)} className="gap-2 text-xs"><Send className="w-3 h-3" /> Envoyer pour signature</DropdownMenuItem>}
+                {letter.status === "signee" && <DropdownMenuItem onClick={() => onCreateAvenant(letter)} className="gap-2 text-xs"><FilePlus2 className="w-3 h-3" /> Creer un avenant</DropdownMenuItem>}
+                <DropdownMenuItem onClick={() => onDuplicate(letter)} className="gap-2 text-xs"><Copy className="w-3 h-3" /> Dupliquer</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onDownloadPdf(letter)} className="gap-2 text-xs"><FileDown className="w-3 h-3" /> Telecharger PDF</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => copyDetails(letter)} className="gap-2 text-xs"><Hash className="w-3 h-3" /> Copier les details</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => onArchive(letter)} className="gap-2 text-xs"><Archive className="w-3 h-3" /> Archiver</DropdownMenuItem>
+                {(letter.status === "brouillon" || letter.status === "archivee") && <DropdownMenuItem onClick={() => onDelete(letter)} className="gap-2 text-xs text-red-400 focus:text-red-400"><Trash2 className="w-3 h-3" /> Supprimer</DropdownMenuItem>}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+          {/* Mobile actions */}
+          <div className="flex sm:hidden items-center gap-1.5 mt-2 pt-2 border-t border-white/[0.04]">
+            <Checkbox checked={isSelected} onCheckedChange={() => toggleSelect(letter.id)} />
+            <LMStatusBadge status={letter.status} />
+            {avenantCount > 0 && <Badge variant="outline" className="text-[9px] bg-cyan-500/10 text-cyan-400 border-cyan-500/20">{avenantCount} av.</Badge>}
+            {(letter.honoraires_ht ?? 0) > 0 && <span className="text-[9px] text-slate-500 font-mono">{formatEurCompact(letter.honoraires_ht)}</span>}
+            <div className="flex-1" />
+            <button onClick={() => toggleFavorite(letter.id)} className="p-1.5 text-slate-500"><Star className={`w-3.5 h-3.5 ${isFav ? "fill-amber-400 text-amber-400" : ""}`} /></button>
+            <button onClick={() => onEdit(letter)} className="p-1.5 text-slate-500"><Edit3 className="w-3.5 h-3.5" /></button>
+            <button onClick={() => onDownloadPdf(letter)} className="p-1.5 text-slate-500"><FileDown className="w-3.5 h-3.5" /></button>
+            {(letter.status === "brouillon" || letter.status === "archivee") && <button onClick={() => onDelete(letter)} className="p-1.5 text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>}
+          </div>
         </div>
-        <Select value={filterType} onValueChange={setFilterType}>
-          <SelectTrigger className="w-full sm:w-[200px] h-9 bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08] text-xs text-slate-700 dark:text-slate-300">
-            <Filter className="w-3 h-3 mr-1.5 text-slate-400 dark:text-slate-500" />
-            <SelectValue placeholder="Type de mission" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Tous les types</SelectItem>
-            {MISSION_TYPE_OPTIONS.map((m) => (
-              <SelectItem key={m.id} value={m.id}>{m.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Results count + total honoraires */}
-      <div className="flex items-center justify-between">
-        <p className="text-[10px] text-slate-600">{filtered.length} lettre{filtered.length > 1 ? "s" : ""}</p>
-        {totalHonoraires > 0 && (
-          <p className="text-[10px] text-slate-400 dark:text-slate-500">
-            Total honoraires actifs : <span className="text-slate-900 dark:text-white font-medium">{formatEurCompact(totalHonoraires)}</span> HT
-          </p>
-        )}
-      </div>
-
-      {/* Table header (desktop) — sortable */}
-      <div className="hidden sm:grid grid-cols-[1fr_110px_140px_100px_80px_90px_90px_50px_120px] gap-2 px-4 text-[10px] text-slate-600 uppercase tracking-wider">
-        <button onClick={() => toggleSort("client")} className="text-left hover:text-slate-400 dark:text-slate-400 transition-colors">
-          Client {sortBy === "client" ? (sortAsc ? "↑" : "↓") : ""}
-        </button>
-        <span>Numero</span>
-        <span>Type de mission</span>
-        <span>Responsable</span>
-        <span>Honoraires</span>
-        <button onClick={() => toggleSort("date")} className="text-left hover:text-slate-400 dark:text-slate-400 transition-colors">
-          Date {sortBy === "date" ? (sortAsc ? "↑" : "↓") : ""}
-        </button>
-        <button onClick={() => toggleSort("status")} className="text-left hover:text-slate-400 dark:text-slate-400 transition-colors">
-          Statut {sortBy === "status" ? (sortAsc ? "↑" : "↓") : ""}
-        </button>
-        <span>Av.</span>
-        <span className="text-right">Actions</span>
-      </div>
-
-      {/* Rows */}
-      <div className="space-y-1.5">
-        {paged.map((letter) => {
-          const avenantCount = avenantsByLetter[letter.id]?.length || 0;
-          const rowCatColors = getLetterCategoryColors(letter);
-          return (
-          <div
-            key={letter.id}
-            className={`group sm:grid sm:grid-cols-[1fr_110px_140px_100px_80px_90px_90px_50px_120px] sm:items-center gap-2 p-3 sm:px-4 rounded-xl bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06] hover:bg-gray-100 dark:hover:bg-white/[0.04] transition-colors ${rowCatColors ? `border-l-[3px] ${rowCatColors.border}` : ''}`}
-          >
-            {/* Client */}
-            <button onClick={() => onEdit(letter)} className="flex items-center gap-2 text-left min-w-0">
-              <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
-                <FileText className="w-4 h-4 text-blue-400" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-slate-900 dark:text-white truncate">{letter.raison_sociale}</p>
-                <p className="text-[10px] text-slate-400 dark:text-slate-500 sm:hidden">
-                  {letter.numero} · {formatDateFr(letter.created_at, "short")}
-                </p>
-              </div>
-            </button>
-
-            {/* Numero */}
-            <span className="hidden sm:block text-xs text-slate-400 dark:text-slate-400 font-mono truncate">{letter.numero}</span>
-
-            {/* Type de mission */}
-            <div className="hidden sm:block">
-              <Badge className={`text-[9px] gap-1 ${rowCatColors ? rowCatColors.badge : 'bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08] text-slate-700 dark:text-slate-300'}`}>
-                {getMissionLabel(letter)}
-              </Badge>
+        {/* Expanded details */}
+        {isExpanded && (
+          <div className="ml-4 sm:ml-10 mt-1 mb-2 p-3 rounded-lg bg-white/[0.02] border border-white/[0.06] space-y-2 animate-in slide-in-from-top-1 duration-200">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+              <div><span className="text-slate-500 block text-[10px]">Reference client</span><span className="text-slate-300 font-mono">{letter.client_ref || "—"}</span></div>
+              <div><span className="text-slate-500 block text-[10px]">Date creation</span><span className="text-slate-300">{formatDateFr(letter.created_at, "short")}</span></div>
+              <div><span className="text-slate-500 block text-[10px]">Derniere MAJ</span><span className="text-slate-300">{formatDateFr(letter.updated_at, "short")}</span></div>
+              <div><span className="text-slate-500 block text-[10px]">Duree redaction</span><span className="text-slate-300">{letter.duration_seconds ? formatDuration(letter.duration_seconds) : "—"}</span></div>
+              <div><span className="text-slate-500 block text-[10px]">Nb missions</span><span className="text-slate-300">{letter.missions_count || "—"}</span></div>
+              <div><span className="text-slate-500 block text-[10px]">SIREN</span><span className="text-slate-300 font-mono">{letter.wizard_data?.siren as string || "—"}</span></div>
+              <div><span className="text-slate-500 block text-[10px]">Email</span><span className="text-slate-300">{letter.wizard_data?.email as string || "—"}</span></div>
+              <div><span className="text-slate-500 block text-[10px]">Forme juridique</span><span className="text-slate-300">{letter.wizard_data?.forme_juridique as string || "—"}</span></div>
             </div>
-
-            {/* Responsable */}
-            <span className="hidden sm:block text-[10px] text-slate-400 dark:text-slate-400 truncate">
-              {letter.wizard_data?.collaborateur_principal_nom || "—"}
-            </span>
-
-            {/* Honoraires HT */}
-            <span className="hidden sm:block text-[10px] text-slate-400 dark:text-slate-400 font-mono">
-              {letter.honoraires_ht ? formatEurCompact(letter.honoraires_ht) : "—"}
-            </span>
-
-            {/* Date */}
-            <span className="hidden sm:block text-[10px] text-slate-400 dark:text-slate-500">
-              {formatDateFr(letter.updated_at, "short")}
-            </span>
-
-            {/* Statut */}
-            <div className="hidden sm:block">
-              <LMStatusBadge status={letter.status} showTooltip />
-            </div>
-
-            {/* Avenants count */}
-            <div className="hidden sm:block">
-              {avenantCount > 0 && (
-                <Badge variant="outline" className="text-[9px] bg-cyan-500/10 text-cyan-400 border-cyan-500/20">
-                  {avenantCount} av.
-                </Badge>
-              )}
-            </div>
-
-            {/* Actions */}
-            <div className="hidden sm:flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-              <button
-                onClick={() => onEdit(letter)}
-                className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-white/[0.06] text-slate-400 dark:text-slate-500 hover:text-blue-400 transition-colors"
-                title={letter.status === "brouillon" ? "Modifier" : "Voir"}
-                aria-label={letter.status === "brouillon" ? "Modifier la lettre" : "Voir la lettre"}
-              >
-                <Edit3 className="w-3.5 h-3.5" />
-              </button>
-              {(letter.status === "brouillon" || letter.status === "envoyee") && (
-                <button
-                  onClick={() => openSignDialog(letter)}
-                  className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-white/[0.06] text-slate-400 dark:text-slate-500 hover:text-blue-400 transition-colors"
-                  title="Envoyer pour signature"
-                  aria-label="Envoyer pour signature"
-                >
-                  <Send className="w-3.5 h-3.5" />
-                </button>
-              )}
-              {letter.status === "signee" && (
-                <button
-                  onClick={() => onCreateAvenant(letter)}
-                  className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-white/[0.06] text-slate-400 dark:text-slate-500 hover:text-cyan-400 transition-colors"
-                  title="Creer un avenant"
-                  aria-label="Creer un avenant"
-                >
-                  <FilePlus2 className="w-3.5 h-3.5" />
-                </button>
-              )}
-              <button
-                onClick={() => onDuplicate(letter)}
-                className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-white/[0.06] text-slate-400 dark:text-slate-500 hover:text-emerald-400 transition-colors"
-                title="Dupliquer"
-                aria-label="Dupliquer la lettre"
-              >
-                <Copy className="w-3.5 h-3.5" />
-              </button>
-              <button
-                onClick={() => onDownloadPdf(letter)}
-                className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-white/[0.06] text-slate-400 dark:text-slate-500 hover:text-purple-400 transition-colors"
-                title="Telecharger en PDF"
-                aria-label="Telecharger en PDF"
-              >
-                <FileDown className="w-3.5 h-3.5" />
-              </button>
-              <button
-                onClick={() => onArchive(letter)}
-                className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-white/[0.06] text-slate-400 dark:text-slate-500 hover:text-amber-400 transition-colors"
-                title="Archiver"
-                aria-label="Archiver la lettre"
-              >
-                <Archive className="w-3.5 h-3.5" />
-              </button>
-              {(letter.status === "brouillon" || letter.status === "archivee") && (
-                <button
-                  onClick={() => onDelete(letter)}
-                  className="p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-500/10 text-slate-400 dark:text-slate-500 hover:text-red-500 transition-colors"
-                  title="Supprimer definitivement"
-                  aria-label="Supprimer la lettre"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </div>
-
-            {/* Mobile actions */}
-            <div className="flex sm:hidden items-center gap-1.5 mt-2 pt-2 border-t border-gray-100 dark:border-white/[0.04]">
-              <LMStatusBadge status={letter.status} />
-              {avenantCount > 0 && (
-                <Badge variant="outline" className="text-[9px] bg-cyan-500/10 text-cyan-400 border-cyan-500/20">
-                  {avenantCount} av.
-                </Badge>
-              )}
-              {(letter.honoraires_ht ?? 0) > 0 && (
-                <span className="text-[9px] text-slate-400 dark:text-slate-500 font-mono">{formatEurCompact(letter.honoraires_ht)}</span>
-              )}
-              <div className="flex-1" />
-              {(letter.status === "brouillon" || letter.status === "envoyee") && (
-                <button onClick={() => openSignDialog(letter)} className="p-1.5 text-slate-400 dark:text-slate-500" aria-label="Envoyer pour signature"><Send className="w-3.5 h-3.5" /></button>
-              )}
-              {letter.status === "signee" && (
-                <button onClick={() => onCreateAvenant(letter)} className="p-1.5 text-slate-400 dark:text-slate-500" aria-label="Creer un avenant"><FilePlus2 className="w-3.5 h-3.5" /></button>
-              )}
-              <button onClick={() => onDuplicate(letter)} className="p-1.5 text-slate-400 dark:text-slate-500" aria-label="Dupliquer la lettre"><Copy className="w-3.5 h-3.5" /></button>
-              <button onClick={() => onDownloadPdf(letter)} className="p-1.5 text-slate-400 dark:text-slate-500" aria-label="Telecharger en PDF"><FileDown className="w-3.5 h-3.5" /></button>
-              <button onClick={() => onArchive(letter)} className="p-1.5 text-slate-400 dark:text-slate-500" aria-label="Archiver la lettre"><Archive className="w-3.5 h-3.5" /></button>
-              {(letter.status === "brouillon" || letter.status === "archivee") && (
-                <button onClick={() => onDelete(letter)} className="p-1.5 text-red-400 dark:text-red-500" aria-label="Supprimer la lettre"><Trash2 className="w-3.5 h-3.5" /></button>
-              )}
-            </div>
-
-            {/* Avenants list */}
-            {avenantsByLetter[letter.id] && avenantsByLetter[letter.id].length > 0 && (
-              <div className="col-span-full mt-2 pt-2 border-t border-gray-100 dark:border-white/[0.04] space-y-1">
-                <p className="text-[10px] text-slate-600 uppercase tracking-wider mb-1">
-                  {avenantsByLetter[letter.id].length} avenant{avenantsByLetter[letter.id].length > 1 ? "s" : ""}
-                </p>
-                {avenantsByLetter[letter.id].map((av) => (
-                  <div
-                    key={av.id}
-                    className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-white/[0.01] border border-gray-100 dark:border-white/[0.04]"
-                  >
+            {avenantsByLetter[letter.id]?.length > 0 && (
+              <div className="pt-2 border-t border-white/[0.04] space-y-1">
+                <p className="text-[10px] text-slate-600 uppercase tracking-wider">{avenantsByLetter[letter.id].length} avenant{avenantsByLetter[letter.id].length > 1 ? "s" : ""}</p>
+                {avenantsByLetter[letter.id].map(av => (
+                  <div key={av.id} className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-white/[0.01] border border-white/[0.04]">
                     <FilePlus2 className="w-3 h-3 text-cyan-400/60 shrink-0" />
                     <span className="text-xs font-mono text-cyan-400/80">{av.numero}</span>
-                    <span className="text-xs text-slate-400 dark:text-slate-400 truncate flex-1">{av.objet}</span>
-                    <Badge variant="outline" className={`text-[9px] ${
-                      av.status === "signee" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" :
-                      av.status === "envoyee" ? "bg-blue-500/10 text-blue-400 border-blue-500/20" :
-                      av.status === "archivee" ? "bg-purple-500/10 text-purple-400 border-purple-500/20" :
-                      "bg-slate-500/10 text-slate-400 dark:text-slate-400 border-slate-500/20"
-                    }`}>
-                      {av.status}
-                    </Badge>
-                    <span className="text-[10px] text-slate-600">
-                      {formatDateFr(av.created_at, "short")}
-                    </span>
+                    <span className="text-xs text-slate-400 truncate flex-1">{av.objet}</span>
+                    <Badge variant="outline" className={`text-[9px] ${av.status === "signee" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : av.status === "envoyee" ? "bg-blue-500/10 text-blue-400 border-blue-500/20" : "bg-slate-500/10 text-slate-400 border-slate-500/20"}`}>{av.status}</Badge>
+                    <span className="text-[10px] text-slate-600">{formatDateFr(av.created_at, "short")}</span>
                   </div>
                 ))}
               </div>
             )}
+            <div className="flex items-center gap-1.5 pt-1">
+              <Button size="sm" variant="outline" className="h-7 text-[10px] gap-1 border-white/[0.08]" onClick={() => onEdit(letter)}><Edit3 className="w-3 h-3" /> Ouvrir</Button>
+              <Button size="sm" variant="outline" className="h-7 text-[10px] gap-1 border-white/[0.08]" onClick={() => onDuplicate(letter)}><Copy className="w-3 h-3" /> Dupliquer</Button>
+              <Button size="sm" variant="outline" className="h-7 text-[10px] gap-1 border-white/[0.08]" onClick={() => onDownloadPdf(letter)}><FileDown className="w-3 h-3" /> PDF</Button>
+              <Button size="sm" variant="outline" className="h-7 text-[10px] gap-1 border-white/[0.08]" onClick={() => copyDetails(letter)}><Hash className="w-3 h-3" /> Copier</Button>
+            </div>
           </div>
+        )}
+      </div>
+    );
+  };
+
+  // ── Card view renderer ──
+  const renderCardView = (letter: SavedLetter) => {
+    const rowCatColors = getLetterCategoryColors(letter);
+    const isSelected = selectedIds.has(letter.id);
+    const isFav = favorites.has(letter.id);
+    const avenantCount = avenantsByLetter[letter.id]?.length || 0;
+    return (
+      <div key={letter.id} className={`group relative p-4 rounded-xl border transition-all duration-200 hover:scale-[1.01] cursor-pointer ${isSelected ? "bg-blue-500/[0.08] border-blue-500/30 shadow-md shadow-blue-500/5" : "bg-white dark:bg-white/[0.02] border-gray-200 dark:border-white/[0.06] hover:border-white/[0.12]"} ${rowCatColors ? `border-t-[3px] ${rowCatColors.border}` : ""}`} onClick={() => onEdit(letter)}>
+        <div className="flex items-start justify-between mb-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <Checkbox checked={isSelected} onCheckedChange={() => toggleSelect(letter.id)} onClick={(e) => e.stopPropagation()} />
+            <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold shrink-0 ${avatarColor(letter.raison_sociale)}`}>{letter.raison_sociale.slice(0, 2).toUpperCase()}</div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1">{isFav && <Star className="w-3 h-3 text-amber-400 fill-amber-400 shrink-0" />}<p className="text-sm font-semibold text-white truncate">{letter.raison_sociale}</p></div>
+              <p className="text-[10px] text-slate-500 font-mono">{letter.numero}</p>
+            </div>
+          </div>
+          <button onClick={(e) => { e.stopPropagation(); toggleFavorite(letter.id); }} className="p-1 text-slate-500 hover:text-amber-400">
+            {isFav ? <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" /> : <StarOff className="w-3.5 h-3.5" />}
+          </button>
+        </div>
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Badge className={`text-[9px] ${rowCatColors ? rowCatColors.badge : "bg-white/[0.04] border-white/[0.08] text-slate-300"}`}>{getMissionLabel(letter)}</Badge>
+            <LMStatusBadge status={letter.status} />
+            {avenantCount > 0 && <Badge variant="outline" className="text-[9px] bg-cyan-500/10 text-cyan-400 border-cyan-500/20">{avenantCount} av.</Badge>}
+          </div>
+          <div className="flex items-center justify-between text-[10px]">
+            <span className="text-slate-500">{letter.wizard_data?.collaborateur_principal_nom as string || "Non assigne"}</span>
+            <span className={`font-mono ${honorairesColor(letter.honoraires_ht || 0)}`}>{letter.honoraires_ht ? formatEurCompact(letter.honoraires_ht) : "—"}</span>
+          </div>
+          <p className="text-[10px] text-slate-600">{relativeDate(letter.updated_at)}</p>
+        </div>
+        <div className="absolute bottom-2 right-2 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+          <button onClick={() => onDuplicate(letter)} className="p-1 rounded bg-white/[0.06] text-slate-500 hover:text-emerald-400" title="Dupliquer"><Copy className="w-3 h-3" /></button>
+          <button onClick={() => onDownloadPdf(letter)} className="p-1 rounded bg-white/[0.06] text-slate-500 hover:text-purple-400" title="PDF"><FileDown className="w-3 h-3" /></button>
+        </div>
+      </div>
+    );
+  };
+
+  // ── Compact view renderer ──
+  const renderCompactRow = (letter: SavedLetter) => {
+    const isSelected = selectedIds.has(letter.id);
+    const rowCatColors = getLetterCategoryColors(letter);
+    return (
+      <div key={letter.id} className={`group flex items-center gap-2 px-3 py-1.5 rounded-md border transition-colors cursor-pointer ${isSelected ? "bg-blue-500/[0.08] border-blue-500/30" : "bg-white/[0.01] border-white/[0.04] hover:bg-white/[0.03]"} ${rowCatColors ? `border-l-2 ${rowCatColors.border}` : ""}`} onClick={() => onEdit(letter)}>
+        <Checkbox checked={isSelected} onCheckedChange={() => toggleSelect(letter.id)} onClick={(e) => e.stopPropagation()} className="shrink-0" />
+        {favorites.has(letter.id) && <Star className="w-3 h-3 text-amber-400 fill-amber-400 shrink-0" />}
+        <span className="text-xs text-slate-400 font-mono w-[90px] shrink-0 truncate">{letter.numero}</span>
+        <span className="text-xs text-white font-medium truncate flex-1">{letter.raison_sociale}</span>
+        <Badge className={`text-[8px] shrink-0 ${rowCatColors ? rowCatColors.badge : "bg-white/[0.04] text-slate-400"}`}>{getMissionLabel(letter)}</Badge>
+        <span className={`text-[10px] font-mono w-[60px] text-right shrink-0 ${honorairesColor(letter.honoraires_ht || 0)}`}>{letter.honoraires_ht ? formatEurCompact(letter.honoraires_ht) : "—"}</span>
+        <LMStatusBadge status={letter.status} />
+        <span className="text-[10px] text-slate-600 w-[60px] text-right shrink-0">{relativeDate(letter.updated_at)}</span>
+        <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" onClick={(e) => e.stopPropagation()}>
+          <button onClick={() => onDownloadPdf(letter)} className="p-1 text-slate-500 hover:text-purple-400"><FileDown className="w-3 h-3" /></button>
+          <button onClick={() => onDelete(letter)} className="p-1 text-slate-500 hover:text-red-400"><Trash2 className="w-3 h-3" /></button>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="space-y-4">
+      {cabinetId && <LMAlertesList cabinetId={cabinetId} compact onNavigateToLM={(instanceId) => { const l = letters.find(ll => ll.id === instanceId); if (l) onEdit(l); }} />}
+
+      {/* KPI Stats Dashboard */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2">
+        <div className="p-3 rounded-xl bg-gradient-to-br from-blue-500/10 to-blue-500/5 border border-blue-500/20">
+          <p className="text-[10px] text-blue-400/70 uppercase tracking-wide">Total lettres</p>
+          <p className="text-xl font-bold text-blue-300">{letters.length}</p>
+          <p className="text-[9px] text-blue-400/50">{stats.uniqueClients} client{stats.uniqueClients > 1 ? "s" : ""}</p>
+        </div>
+        <div className="p-3 rounded-xl bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 border border-emerald-500/20">
+          <p className="text-[10px] text-emerald-400/70 uppercase tracking-wide">CA Actif</p>
+          <p className="text-xl font-bold text-emerald-300">{formatEurCompact(stats.totalActif)}</p>
+          <p className="text-[9px] text-emerald-400/50">Signees + Envoyees</p>
+        </div>
+        <div className="p-3 rounded-xl bg-gradient-to-br from-amber-500/10 to-amber-500/5 border border-amber-500/20">
+          <p className="text-[10px] text-amber-400/70 uppercase tracking-wide">Moy. honoraires</p>
+          <p className="text-xl font-bold text-amber-300">{formatEurCompact(stats.avgHono)}</p>
+          <p className="text-[9px] text-amber-400/50">Par lettre</p>
+        </div>
+        <div className="p-3 rounded-xl bg-gradient-to-br from-violet-500/10 to-violet-500/5 border border-violet-500/20">
+          <p className="text-[10px] text-violet-400/70 uppercase tracking-wide">Taux conversion</p>
+          <p className="text-xl font-bold text-violet-300">{stats.conversionRate}%</p>
+          <p className="text-[9px] text-violet-400/50">{stats.counts["signee"] || 0} signees</p>
+        </div>
+        <div className="p-3 rounded-xl bg-gradient-to-br from-cyan-500/10 to-cyan-500/5 border border-cyan-500/20">
+          <p className="text-[10px] text-cyan-400/70 uppercase tracking-wide">Ce mois</p>
+          <p className="text-xl font-bold text-cyan-300">{stats.thisMonthCount}</p>
+          <div className="flex items-center gap-1 text-[9px]">
+            {stats.trend > 0 ? <TrendingUp className="w-3 h-3 text-emerald-400" /> : stats.trend < 0 ? <TrendingUp className="w-3 h-3 text-red-400 rotate-180" /> : null}
+            <span className={stats.trend > 0 ? "text-emerald-400" : stats.trend < 0 ? "text-red-400" : "text-slate-500"}>{stats.trend > 0 ? "+" : ""}{stats.trend}%</span>
+          </div>
+        </div>
+        <div className="p-3 rounded-xl bg-gradient-to-br from-slate-500/10 to-slate-500/5 border border-slate-500/20">
+          <p className="text-[10px] text-slate-400/70 uppercase tracking-wide">Brouillons</p>
+          <p className="text-xl font-bold text-slate-300">{stats.counts["brouillon"] || 0}</p>
+          <p className="text-[9px] text-slate-400/50">En attente</p>
+        </div>
+      </div>
+
+      {/* Status pills */}
+      <div className="flex flex-wrap gap-1.5">
+        {STATUS_PILLS.map(pill => {
+          const count = stats.counts[pill.value] || 0;
+          if (pill.value !== "all" && count === 0) return null;
+          const isActive = filterStatut === pill.value;
+          return (
+            <button key={pill.value} onClick={() => { setFilterStatut(pill.value); setQuickFilter(null); }} aria-pressed={isActive}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs border transition-all ${isActive ? `${pill.color} ring-1 ring-white/10` : "bg-white/[0.02] text-slate-500 border-white/[0.06] hover:bg-white/[0.04]"}`}>
+              {pill.label}
+              <span className={`text-[10px] ${isActive ? "opacity-80" : "text-slate-600"}`}>{pill.value === "all" ? letters.length : count}</span>
+            </button>
           );
         })}
       </div>
 
+      {/* Toolbar */}
+      <div className="space-y-2">
+        <div className="flex flex-col sm:flex-row gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
+            <Input placeholder="Rechercher par client, n° LM, responsable..." value={searchQ} onChange={(e) => setSearchQ(e.target.value)} className="pl-9 pr-8 h-9 bg-white/[0.04] border-white/[0.08] text-white text-xs" />
+            {searchQ && <button onClick={() => setSearchQ("")} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"><XIcon className="w-3.5 h-3.5" /></button>}
+          </div>
+          <Select value={filterType} onValueChange={setFilterType}>
+            <SelectTrigger className="w-full sm:w-[180px] h-9 bg-white/[0.04] border-white/[0.08] text-xs text-slate-300">
+              <Filter className="w-3 h-3 mr-1.5 text-slate-500" /><SelectValue placeholder="Type de mission" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tous les types</SelectItem>
+              {MISSION_TYPE_OPTIONS.map(m => <SelectItem key={m.id} value={m.id}>{m.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Button variant="outline" size="sm" className={`h-9 gap-1.5 border-white/[0.08] text-xs ${showAdvancedFilters ? "bg-blue-500/10 text-blue-400 border-blue-500/30" : "text-slate-400"}`} onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}>
+            <Filter className="w-3 h-3" /> Filtres
+            {activeFilterCount > 0 && <span className="w-4 h-4 rounded-full bg-blue-500 text-white text-[9px] flex items-center justify-center">{activeFilterCount}</span>}
+          </Button>
+        </div>
+
+        {/* Advanced Filters Panel */}
+        {showAdvancedFilters && (
+          <div className="p-3 rounded-xl border border-white/[0.08] bg-white/[0.02] space-y-3 animate-in slide-in-from-top-2 duration-200">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-medium text-slate-300">Filtres avances</p>
+              {activeFilterCount > 0 && <button onClick={clearAllFilters} className="text-[10px] text-blue-400 hover:underline flex items-center gap-1"><RotateCcw className="w-3 h-3" /> Reinitialiser ({activeFilterCount})</button>}
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div><Label className="text-[10px] text-slate-500 mb-1 block">Date depuis</Label><Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="h-8 text-xs bg-white/[0.04] border-white/[0.08]" /></div>
+              <div><Label className="text-[10px] text-slate-500 mb-1 block">Date jusqu'au</Label><Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="h-8 text-xs bg-white/[0.04] border-white/[0.08]" /></div>
+              <div><Label className="text-[10px] text-slate-500 mb-1 block">Honoraires min</Label><Input type="number" placeholder="0" value={honorairesMin} onChange={e => setHonoMin(e.target.value)} className="h-8 text-xs bg-white/[0.04] border-white/[0.08]" /></div>
+              <div><Label className="text-[10px] text-slate-500 mb-1 block">Honoraires max</Label><Input type="number" placeholder="∞" value={honorairesMax} onChange={e => setHonoMax(e.target.value)} className="h-8 text-xs bg-white/[0.04] border-white/[0.08]" /></div>
+            </div>
+            {responsableOptions.length > 0 && (
+              <div>
+                <Label className="text-[10px] text-slate-500 mb-1 block">Responsable</Label>
+                <Select value={filterResponsable} onValueChange={setFilterResponsable}>
+                  <SelectTrigger className="h-8 text-xs bg-white/[0.04] border-white/[0.08] w-full sm:w-[250px]"><Users className="w-3 h-3 mr-1.5 text-slate-500" /><SelectValue /></SelectTrigger>
+                  <SelectContent><SelectItem value="all">Tous les responsables</SelectItem>{responsableOptions.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+            )}
+            <div className="flex gap-1.5 flex-wrap">
+              <p className="text-[10px] text-slate-500 self-center mr-1">Raccourcis :</p>
+              {([{ id: "favorites", label: "Favoris", icon: Star }, { id: "this_week", label: "Cette semaine", icon: Calendar }, { id: "this_month", label: "Ce mois", icon: BarChart3 }] as const).map(qf => (
+                <button key={qf.id} onClick={() => setQuickFilter(quickFilter === qf.id ? null : qf.id)}
+                  className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] border transition-colors ${quickFilter === qf.id ? "bg-blue-500/15 text-blue-400 border-blue-500/30" : "text-slate-500 border-white/[0.06] hover:bg-white/[0.04]"}`}>
+                  <qf.icon className="w-3 h-3" /> {qf.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* View controls bar */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <p className="text-[10px] text-slate-600">{filtered.length} lettre{filtered.length > 1 ? "s" : ""}</p>
+            {filteredHonoraires > 0 && <p className="text-[10px] text-slate-500">· Total : <span className="text-white font-medium">{formatEurCompact(filteredHonoraires)}</span> HT</p>}
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="flex items-center border border-white/[0.08] rounded-md overflow-hidden">
+              <button onClick={() => setViewMode("table")} className={`p-1.5 transition-colors ${viewMode === "table" ? "bg-blue-500/20 text-blue-400" : "text-slate-500 hover:bg-white/[0.04]"}`} title="Vue tableau"><LayoutList className="w-3.5 h-3.5" /></button>
+              <button onClick={() => setViewMode("cards")} className={`p-1.5 transition-colors ${viewMode === "cards" ? "bg-blue-500/20 text-blue-400" : "text-slate-500 hover:bg-white/[0.04]"}`} title="Vue cartes"><LayoutGrid className="w-3.5 h-3.5" /></button>
+              <button onClick={() => setViewMode("compact")} className={`p-1.5 transition-colors ${viewMode === "compact" ? "bg-blue-500/20 text-blue-400" : "text-slate-500 hover:bg-white/[0.04]"}`} title="Vue compacte"><List className="w-3.5 h-3.5" /></button>
+            </div>
+            <Select value={String(pageSize)} onValueChange={v => setPageSize(Number(v))}>
+              <SelectTrigger className="w-[70px] h-7 text-[10px] bg-white/[0.04] border-white/[0.08]"><SelectValue /></SelectTrigger>
+              <SelectContent>{PAGE_SIZE_OPTIONS.map(n => <SelectItem key={n} value={String(n)}>{n}/page</SelectItem>)}</SelectContent>
+            </Select>
+            <button onClick={exportCsv} className="p-1.5 rounded-md border border-white/[0.08] text-slate-500 hover:text-emerald-400 hover:border-emerald-500/30 transition-colors" title="Exporter en CSV"><Download className="w-3.5 h-3.5" /></button>
+            <button onClick={handlePrint} className="p-1.5 rounded-md border border-white/[0.08] text-slate-500 hover:text-blue-400 hover:border-blue-500/30 transition-colors" title="Imprimer"><Printer className="w-3.5 h-3.5" /></button>
+          </div>
+        </div>
+      </div>
+
+      {/* Floating Bulk Action Toolbar */}
+      {selectedIds.size > 0 && (
+        <div className="sticky top-0 z-30 p-3 rounded-xl bg-gradient-to-r from-blue-500/15 to-indigo-500/10 border border-blue-500/30 backdrop-blur-xl flex items-center gap-2 flex-wrap animate-in slide-in-from-top-2 duration-200 shadow-lg shadow-blue-500/10">
+          <div className="flex items-center gap-2 mr-2">
+            <CheckSquare className="w-4 h-4 text-blue-400" />
+            <span className="text-sm font-medium text-blue-300">{selectedIds.size} selectionne{selectedIds.size > 1 ? "s" : ""}</span>
+            {selectedIds.size < filtered.length && <button onClick={selectAllFiltered} className="text-[10px] text-blue-400 hover:underline">Tout selectionner ({filtered.length})</button>}
+          </div>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <Button size="sm" variant="outline" className="h-7 text-xs gap-1 border-amber-500/30 text-amber-400 hover:bg-amber-500/10" disabled={bulkLoading} onClick={() => runBulkAction(() => onBulkArchive([...selectedIds]))}><Archive className="w-3 h-3" /> Archiver</Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm" variant="outline" className="h-7 text-xs gap-1 border-violet-500/30 text-violet-400 hover:bg-violet-500/10" disabled={bulkLoading}><ArrowUpDown className="w-3 h-3" /> Statut</Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                {["brouillon", "envoyee", "signee", "resiliee", "archivee"].map(s => (
+                  <DropdownMenuItem key={s} onClick={() => runBulkAction(() => onBulkStatusChange([...selectedIds], s))} className="text-xs capitalize">{s}</DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Button size="sm" variant="outline" className="h-7 text-xs gap-1 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10" disabled={bulkLoading} onClick={() => runBulkAction(() => onBulkDuplicate(selectedLetters))}><Copy className="w-3 h-3" /> Dupliquer</Button>
+            <Button size="sm" variant="outline" className="h-7 text-xs gap-1 border-purple-500/30 text-purple-400 hover:bg-purple-500/10" disabled={bulkLoading}
+              onClick={async () => { for (const l of selectedLetters) await onDownloadPdf(l); toast.success(`${selectedLetters.length} PDF generes`); }}><FileDown className="w-3 h-3" /> PDF</Button>
+            <Button size="sm" variant="outline" className="h-7 text-xs gap-1 border-red-500/30 text-red-400 hover:bg-red-500/10" disabled={bulkLoading} onClick={() => runBulkAction(() => onBulkDelete([...selectedIds]))}><Trash2 className="w-3 h-3" /> Supprimer</Button>
+            <div className="w-px h-5 bg-white/[0.08] mx-1" />
+            <button onClick={clearSelection} className="text-[10px] text-slate-400 hover:text-white flex items-center gap-1"><XIcon className="w-3 h-3" /> Deselectionner</button>
+          </div>
+          {bulkLoading && <Loader2 className="w-4 h-4 animate-spin text-blue-400 ml-2" />}
+        </div>
+      )}
+
+      {/* Table Header */}
+      {viewMode === "table" && (
+        <div className="hidden sm:grid grid-cols-[32px_1fr_100px_130px_90px_80px_80px_80px_40px_140px] gap-2 px-3 text-[10px] text-slate-600 uppercase tracking-wider">
+          <div className="flex items-center justify-center"><Checkbox checked={allPageSelected} onCheckedChange={selectAllOnPage} aria-label="Tout selectionner" /></div>
+          <button onClick={() => toggleSort("client")} className="text-left hover:text-slate-400 transition-colors flex items-center gap-1">Client {sortBy === "client" && <ArrowUpDown className="w-3 h-3" />}</button>
+          <button onClick={() => toggleSort("numero")} className="text-left hover:text-slate-400 transition-colors flex items-center gap-1">Numero {sortBy === "numero" && <ArrowUpDown className="w-3 h-3" />}</button>
+          <span>Type de mission</span>
+          <span>Responsable</span>
+          <button onClick={() => toggleSort("honoraires")} className="text-left hover:text-slate-400 transition-colors flex items-center gap-1">Honoraires {sortBy === "honoraires" && <ArrowUpDown className="w-3 h-3" />}</button>
+          <button onClick={() => toggleSort("date")} className="text-left hover:text-slate-400 transition-colors flex items-center gap-1">Date {sortBy === "date" && <ArrowUpDown className="w-3 h-3" />}</button>
+          <button onClick={() => toggleSort("status")} className="text-left hover:text-slate-400 transition-colors flex items-center gap-1">Statut {sortBy === "status" && <ArrowUpDown className="w-3 h-3" />}</button>
+          <span>Av.</span>
+          <span className="text-right">Actions</span>
+        </div>
+      )}
+
+      {/* Content */}
+      {viewMode === "table" && <div className="space-y-1.5">{paged.map(renderTableRow)}</div>}
+      {viewMode === "cards" && <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">{paged.map(renderCardView)}</div>}
+      {viewMode === "compact" && <div className="space-y-0.5">{paged.map(renderCompactRow)}</div>}
+
       {/* Empty filter state */}
       {filtered.length === 0 && letters.length > 0 && (
-        <div className="text-center py-10 space-y-2">
-          <Search className="w-8 h-8 text-slate-600 mx-auto" />
-          <p className="text-slate-400 dark:text-slate-400 text-sm">Aucun resultat pour ces filtres</p>
-          <button
-            onClick={() => { setSearchQ(""); setFilterStatut("all"); setFilterType("all"); }}
-            className="text-xs text-blue-400 hover:underline"
-          >
-            Reinitialiser les filtres
-          </button>
+        <div className="text-center py-10 space-y-3">
+          <div className="w-12 h-12 rounded-xl bg-white/[0.04] flex items-center justify-center mx-auto"><Search className="w-6 h-6 text-slate-600" /></div>
+          <p className="text-slate-400 text-sm">Aucun resultat pour ces filtres</p>
+          <p className="text-[10px] text-slate-600">{activeFilterCount} filtre{activeFilterCount > 1 ? "s" : ""} actif{activeFilterCount > 1 ? "s" : ""}</p>
+          <button onClick={clearAllFilters} className="text-xs text-blue-400 hover:underline flex items-center gap-1 mx-auto"><RotateCcw className="w-3 h-3" /> Reinitialiser tous les filtres</button>
         </div>
       )}
 
       {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between pt-2">
-          <p className="text-[10px] text-slate-600">
-            {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, filtered.length)} sur {filtered.length}
-          </p>
+          <p className="text-[10px] text-slate-600">{page * pageSize + 1}–{Math.min((page + 1) * pageSize, filtered.length)} sur {filtered.length}</p>
           <div className="flex items-center gap-1">
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={page === 0}
-              onClick={() => setPage(page - 1)}
-              className="h-7 w-7 p-0 border-gray-200 dark:border-white/[0.06]"
-              aria-label="Page precedente"
-            >
-              <ChevronLeft className="w-3.5 h-3.5" />
-            </Button>
-            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-              const start = Math.max(0, Math.min(page - 2, totalPages - 5));
-              return start + i;
-            }).filter(p => p < totalPages).map(p => (
-              <button
-                key={p}
-                onClick={() => setPage(p)}
-                className={`w-7 h-7 rounded text-xs transition-colors ${
-                  p === page
-                    ? "bg-blue-500/20 text-blue-300"
-                    : "text-slate-400 dark:text-slate-500 hover:bg-gray-100 dark:hover:bg-white/[0.04]"
-                }`}
-              >
-                {p + 1}
-              </button>
+            <Button size="sm" variant="outline" disabled={page === 0} onClick={() => setPage(page - 1)} className="h-7 w-7 p-0 border-white/[0.06]" aria-label="Page precedente"><ChevronLeft className="w-3.5 h-3.5" /></Button>
+            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => { const start = Math.max(0, Math.min(page - 2, totalPages - 5)); return start + i; }).filter(p => p < totalPages).map(p => (
+              <button key={p} onClick={() => setPage(p)} className={`w-7 h-7 rounded text-xs transition-colors ${p === page ? "bg-blue-500/20 text-blue-300" : "text-slate-500 hover:bg-white/[0.04]"}`}>{p + 1}</button>
             ))}
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={page >= totalPages - 1}
-              onClick={() => setPage(page + 1)}
-              className="h-7 w-7 p-0 border-gray-200 dark:border-white/[0.06]"
-              aria-label="Page suivante"
-            >
-              <ChevronRight className="w-3.5 h-3.5" />
-            </Button>
+            <Button size="sm" variant="outline" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)} className="h-7 w-7 p-0 border-white/[0.06]" aria-label="Page suivante"><ChevronRight className="w-3.5 h-3.5" /></Button>
           </div>
         </div>
       )}
@@ -654,75 +889,27 @@ const LetterHistory = React.memo(function LetterHistory({
       {/* Signature dialog */}
       <Dialog open={!!signTarget} onOpenChange={(open) => !open && setSignTarget(null)}>
         <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Envoyer pour signature</DialogTitle>
-            <DialogDescription>
-              {signTarget?.raison_sociale} — {signTarget?.numero}
-            </DialogDescription>
-          </DialogHeader>
+          <DialogHeader><DialogTitle>Envoyer pour signature</DialogTitle><DialogDescription>{signTarget?.raison_sociale} — {signTarget?.numero}</DialogDescription></DialogHeader>
           {signUrl ? (
             <div className="space-y-3">
-              <div className="flex items-center gap-2 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-                <Check className="w-4 h-4 text-emerald-400 shrink-0" />
-                <p className="text-sm text-emerald-300">Lien de signature genere</p>
-              </div>
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20"><Check className="w-4 h-4 text-emerald-400 shrink-0" /><p className="text-sm text-emerald-300">Lien de signature genere</p></div>
               <div className="space-y-1.5">
-                <Label className="text-xs text-slate-400 dark:text-slate-400">Lien a envoyer au client</Label>
+                <Label className="text-xs text-slate-400">Lien a envoyer au client</Label>
                 <div className="flex gap-2">
-                  <Input value={signUrl} readOnly className="bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08] text-xs font-mono" />
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="shrink-0 gap-1 border-gray-200 dark:border-white/[0.06]"
-                    onClick={async () => {
-                      try { await navigator.clipboard.writeText(signUrl); toast.success("Lien copie"); } catch { toast.error("Impossible de copier le lien"); }
-                    }}
-                  >
-                    <Link className="w-3 h-3" /> Copier
-                  </Button>
+                  <Input value={signUrl} readOnly className="bg-white/[0.04] border-white/[0.08] text-xs font-mono" />
+                  <Button size="sm" variant="outline" className="shrink-0 gap-1 border-white/[0.06]" onClick={async () => { try { await navigator.clipboard.writeText(signUrl); toast.success("Lien copie"); } catch { toast.error("Impossible de copier"); } }}><Link className="w-3 h-3" /> Copier</Button>
                 </div>
               </div>
-              <p className="text-[10px] text-slate-400 dark:text-slate-500">
-                Le client pourra consulter la lettre de mission et la signer electroniquement via ce lien.
-              </p>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setSignTarget(null)} className="border-gray-200 dark:border-white/[0.06]">
-                  Fermer
-                </Button>
-              </DialogFooter>
+              <p className="text-[10px] text-slate-500">Le client pourra consulter la lettre de mission et la signer electroniquement via ce lien.</p>
+              <DialogFooter><Button variant="outline" onClick={() => setSignTarget(null)} className="border-white/[0.06]">Fermer</Button></DialogFooter>
             </div>
           ) : (
             <div className="space-y-4 py-2">
-              <div className="space-y-1.5">
-                <Label htmlFor="sign-email" className="text-xs text-slate-400 dark:text-slate-400">Email du client *</Label>
-                <Input
-                  id="sign-email"
-                  type="email"
-                  value={signEmail}
-                  onChange={(e) => setSignEmail(e.target.value)}
-                  placeholder="client@example.com"
-                  className="bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08]"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="sign-client-nom" className="text-xs text-slate-400 dark:text-slate-400">Nom du signataire</Label>
-                <Input
-                  id="sign-client-nom"
-                  value={signClientNom}
-                  onChange={(e) => setSignClientNom(e.target.value)}
-                  placeholder="Nom du client"
-                  className="bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08]"
-                />
-              </div>
+              <div className="space-y-1.5"><Label htmlFor="sign-email" className="text-xs text-slate-400">Email du client *</Label><Input id="sign-email" type="email" value={signEmail} onChange={(e) => setSignEmail(e.target.value)} placeholder="client@example.com" className="bg-white/[0.04] border-white/[0.08]" /></div>
+              <div className="space-y-1.5"><Label htmlFor="sign-client-nom" className="text-xs text-slate-400">Nom du signataire</Label><Input id="sign-client-nom" value={signClientNom} onChange={(e) => setSignClientNom(e.target.value)} placeholder="Nom du client" className="bg-white/[0.04] border-white/[0.08]" /></div>
               <DialogFooter className="gap-2">
-                <Button variant="outline" onClick={() => setSignTarget(null)} className="border-gray-200 dark:border-white/[0.06]">
-                  Annuler
-                </Button>
-                <Button
-                  onClick={handleSendForSignature}
-                  disabled={signLoading || !signEmail.trim()}
-                  className="gap-1.5 bg-blue-600 hover:bg-blue-700"
-                >
+                <Button variant="outline" onClick={() => setSignTarget(null)} className="border-white/[0.06]">Annuler</Button>
+                <Button onClick={handleSendForSignature} disabled={signLoading || !signEmail.trim()} className="gap-1.5 bg-blue-600 hover:bg-blue-700">
                   {signLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                   Generer le lien
                 </Button>
@@ -1903,6 +2090,10 @@ export default function LettreMissionPage() {
               onDelete={handleDelete}
               onDownloadPdf={handleDownloadPdf}
               onCreateAvenant={handleCreateAvenant}
+              onBulkDelete={handleBulkDelete}
+              onBulkArchive={handleBulkArchive}
+              onBulkStatusChange={handleBulkStatusChange}
+              onBulkDuplicate={handleBulkDuplicate}
               avenantsByLetter={avenantsByLetter}
               cabinetId={profile?.cabinet_id}
             />

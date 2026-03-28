@@ -2602,7 +2602,8 @@ export default function NouveauClientPage() {
           <p className="text-sm text-slate-400 dark:text-slate-500 mt-0.5">Parcours d'entree en relation</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Idee 18: KYC progress bar */}
+          {/* Idee 18: KYC + Score — hidden until a client is loaded */}
+          {form.siren && (<>
           <Popover>
             <PopoverTrigger asChild>
               <button className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-colors cursor-pointer ${
@@ -2634,6 +2635,7 @@ export default function NouveauClientPage() {
           </Popover>
           <ScoreGauge score={adjustedScore} />
           <VigilanceBadge level={risk.nivVigilance} />
+          </>)}
           {(() => {
             const reasons: string[] = [];
             if (riskFlags.ppe) reasons.push("PPE");
