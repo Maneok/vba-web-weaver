@@ -53,7 +53,7 @@ import {
   Pencil, ImageIcon, Inbox, FolderOpen, Copy, Circle, Link2, ArrowRightLeft,
 } from "lucide-react";
 
-import DocumentAnalysis from "@/components/client/DocumentAnalysis";
+// DocumentAnalysis: UI supprimée — l'analyse IA tourne en background (effet P2 L649)
 import { FORMES_JURIDIQUES as FORMES, MISSIONS, DEFAULT_COMPTABLES as COMPTABLES, DEFAULT_ASSOCIES as ASSOCIES, DEFAULT_SUPERVISEURS as SUPERVISEURS, AUTOSAVE_DELAY_MS } from "@/lib/constants";
 
 const STEP_LABELS = ["Recherche", "Informations", "Personnes", "Questionnaire", "Scoring", "Documents"];
@@ -5846,18 +5846,8 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
               </CollapsibleContent>
             </Collapsible>
 
-            {/* Analyse documentaire IA — results from background fetch (P2) */}
-            <DocumentAnalysis
-              siren={form.siren?.replace(/\s/g, "") || screening?.enterprise?.data?.[0]?.siren || ""}
-              raisonSociale={form.raisonSociale || screening?.enterprise?.data?.[0]?.denomination || ""}
-              autoAnalyze
-              analysis={docAnalysis}
-              analysisLoading={docAnalysisLoading}
-              documents={[
-                ...(screening.documents.data?.documents ?? []),
-                ...(screening.inpi.data?.documents ?? []),
-              ]}
-            />
+            {/* P2: Analyse IA invisible — traitement en background (useEffect L649-700),
+                résultats dans docAnalysis pour renommage, GED et complétude */}
 
           </div>
         )}
