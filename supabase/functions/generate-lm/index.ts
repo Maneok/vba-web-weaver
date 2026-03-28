@@ -37,6 +37,8 @@ Deno.serve(async (req) => {
       honoraires,
       volume_comptable,
       outil_transmission,
+      option_controle_fiscal,
+      frequence_facturation,
     } = await req.json();
 
     if (!client_id) {
@@ -193,7 +195,7 @@ Deno.serve(async (req) => {
       volume_comptable: volume_comptable || "",
       outil_transmission:
         outil_transmission || cabinet.outil_transmission_defaut || "GRIMY",
-      periodicite_transmission: "MENSUEL",
+      periodicite_transmission: frequence_facturation || "MENSUEL",
 
       // LCB-FT
       score_risque: client.score_risque?.toString() || "",
@@ -211,6 +213,23 @@ Deno.serve(async (req) => {
       prix_contrat_simple: honoraires?.contrat_simple || "100 € HT",
       prix_entree_salarie: honoraires?.entree_salarie || "30 € HT",
       prix_attestation_maladie: honoraires?.attestation || "30 € HT",
+      prix_coffre_fort: honoraires?.coffre_fort || "5 € HT",
+      prix_bordereaux: honoraires?.bordereaux || "25 € HT",
+      prix_sylae: honoraires?.sylae || "15 € HT",
+
+      // Facturation
+      frequence_facturation: (() => {
+        const freq = frequence_facturation || "MENSUEL";
+        if (freq === "MENSUEL") return "Mensuellement";
+        if (freq === "TRIMESTRIEL") return "Trimestriellement";
+        if (freq === "ANNUEL") return "Annuellement";
+        return freq;
+      })(),
+
+      // Checkboxes contrôle fiscal
+      checkbox_option_a: option_controle_fiscal === "A" ? "☒" : "☐",
+      checkbox_option_b: option_controle_fiscal === "B" ? "☒" : "☐",
+      checkbox_renonce: option_controle_fiscal === "none" ? "☒" : "☐",
     };
 
     // 7. Ouvrir le DOCX (c'est un ZIP), remplacer les variables
