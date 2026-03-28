@@ -49,8 +49,7 @@ import DocumentAnalysis from "@/components/client/DocumentAnalysis";
 
 const CATEGORY_TABS = [
   { key: "accueil", label: "Accueil" },
-  { key: "extrait_kbis", label: "Extrait KBis" },
-  { key: "kbis", label: "KBIS" },
+  { key: "kbis", label: "Kbis / RNE" },
   { key: "cni_dirigeant", label: "CNI" },
   { key: "rib", label: "RIB" },
   { key: "statuts", label: "Statuts" },

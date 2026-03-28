@@ -63,7 +63,7 @@ describe("riskEngine - calculateRiskScore", () => {
     expect(result.nivVigilance).toBe("RENFORCEE");
   });
 
-  it("should cap score at 120", () => {
+  it("should cap score at 100", () => {
     const result = calculateRiskScore({
       ...baseParams,
       ape: "92.00Z", // score 100
@@ -71,7 +71,7 @@ describe("riskEngine - calculateRiskScore", () => {
       pression: true,
       distanciel: true,
     });
-    expect(result.scoreGlobal).toBeLessThanOrEqual(120);
+    expect(result.scoreGlobal).toBeLessThanOrEqual(100);
   });
 
   it("should return SIMPLIFIEE for score <= 25", () => {
@@ -84,11 +84,11 @@ describe("riskEngine - calculateRiskScore", () => {
     expect(result.nivVigilance).toBe("SIMPLIFIEE");
   });
 
-  it("should return paysRisque score 100 when paysRisque is true", () => {
+  it("should return paysRisque score 100 → RENFORCEE when paysRisque is true", () => {
     const result = calculateRiskScore({ ...baseParams, paysRisque: true });
     expect(result.scorePays).toBe(100);
-    // Average with paysRisque=100: (25+100+25+scoreMat+20)/5 → ~34 + malus → STANDARD or above
-    expect(result.scorePays).toBe(100);
+    // scorePays (100) > seuil_haut (60) → RENFORCEE
+    expect(result.nivVigilance).toBe("RENFORCEE");
   });
 
   it("should default APE score to 25 for unknown codes", () => {

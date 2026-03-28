@@ -965,7 +965,7 @@ export default function NouveauClientPage() {
   // BUG 46 FIX: Include screening malus in the adjusted score
   const screeningMalus = useMemo(() => computeScreeningMalus(screening), [screening]);
   const totalMalus = risk.malus + extraMalus + bodaccMalus + screeningMalus;
-  const adjustedScore = Math.min(risk.scoreGlobal + extraMalus + bodaccMalus + screeningMalus, 120);
+  const adjustedScore = Math.min(risk.scoreGlobal + extraMalus + bodaccMalus + screeningMalus, 100);
 
   // #51: Animate score on step 4 (placed after adjustedScore to avoid TDZ)
   useEffect(() => {

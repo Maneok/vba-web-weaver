@@ -461,17 +461,19 @@ export function calculateRiskScore(params: {
     }
   }
 
-  // Weighted average of 5 criteria + malus
+  // Weighted average of 5 criteria + malus, capped at 100
   const avg = (scoreAct + scorePays + scoreMis + scoreMat + scoreStr) / 5;
-  let scoreGlobal = Math.round(avg + malus);
-
-  scoreGlobal = Math.min(scoreGlobal, 120);
+  let scoreGlobal = Math.min(Math.round(avg + malus), 100);
 
   const seuilSimplifie = cfg?.seuil_bas ?? RISK_THRESHOLDS.SIMPLIFIEE_MAX;
   const seuilRenforce = cfg?.seuil_haut ?? RISK_THRESHOLDS.STANDARD_MAX;
 
+  // If ANY axis exceeds the seuil haut → force RENFORCEE
+  const maxCriterion = Math.max(scoreAct, scorePays, scoreMis, scoreMat, scoreStr);
+
   let nivVigilance: VigilanceLevel;
-  if (scoreGlobal <= seuilSimplifie) nivVigilance = "SIMPLIFIEE";
+  if (maxCriterion > seuilRenforce) nivVigilance = "RENFORCEE";
+  else if (scoreGlobal <= seuilSimplifie) nivVigilance = "SIMPLIFIEE";
   else if (scoreGlobal <= seuilRenforce) nivVigilance = "STANDARD";
   else nivVigilance = "RENFORCEE";
 

@@ -511,8 +511,8 @@ describe("#19: riskEngine — scoreStructure edge cases", () => {
       cash: false, pression: false,
     });
     expect(result.scoreStructure).toBe(100);
-    // Average-based: (25+0+25+scoreMat+100)/5 → ~30-40. TRUST has high structure but average may be STANDARD
-    expect(result.scoreStructure).toBeGreaterThanOrEqual(80);
+    // scoreStructure (100) > seuil_haut (60) → RENFORCEE
+    expect(result.nivVigilance).toBe("RENFORCEE");
   });
 
   it("should handle SCI correctly", () => {

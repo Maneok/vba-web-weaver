@@ -95,11 +95,11 @@ describe("riskEngine — calculateRiskScore", () => {
     expect(r.nivVigilance).toBe("STANDARD");
   });
 
-  it("4. paysRisque=true gives scorePays=100", () => {
+  it("4. paysRisque=true gives scorePays=100 → RENFORCEE", () => {
     const r = calculateRiskScore({ ...baseRiskParams, paysRisque: true });
     expect(r.scorePays).toBe(100);
-    // Average-based: (25+100+25+0+20)/5 = 34 → STANDARD
-    expect(r.nivVigilance).toBe("STANDARD");
+    // scorePays (100) > seuil_haut (60) → RENFORCEE
+    expect(r.nivVigilance).toBe("RENFORCEE");
   });
 
   it("5. all malus flags sum correctly", () => {
@@ -107,9 +107,9 @@ describe("riskEngine — calculateRiskScore", () => {
     expect(r.malus).toBe(110); // 40+30+40
   });
 
-  it("6. score capped at 120", () => {
+  it("6. score capped at 100", () => {
     const r = calculateRiskScore({ ...baseRiskParams, ape: "92.00Z", cash: true, pression: true, distanciel: true });
-    expect(r.scoreGlobal).toBeLessThanOrEqual(120);
+    expect(r.scoreGlobal).toBeLessThanOrEqual(100);
   });
 
   it("7. unknown APE defaults to 25", () => {
@@ -175,11 +175,11 @@ describe("riskEngine — vigilance levels", () => {
     expect(r.nivVigilance).toBe("STANDARD");
   });
 
-  it("18. high APE with average scoring", () => {
+  it("18. APE > seuil haut forces RENFORCEE", () => {
     const r = calculateRiskScore({ ...baseRiskParams, ape: "92.00Z" });
-    // Average: (100+0+25+0+20)/5 = 29 → STANDARD (no longer forced to RENFORCEE)
     expect(r.scoreActivite).toBe(100);
-    expect(r.nivVigilance).toBe("STANDARD");
+    // scoreActivite (100) > seuil_haut (60) → RENFORCEE regardless of average
+    expect(r.nivVigilance).toBe("RENFORCEE");
   });
 
   it("19. PPE with malus still returns 100 (not above)", () => {
