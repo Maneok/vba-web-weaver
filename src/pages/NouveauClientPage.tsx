@@ -13,7 +13,7 @@ import {
   INITIAL_SCREENING, createInitialScreening, type ScreeningState, type EnterpriseResult, type Dirigeant, type BeneficiaireEffectif,
   type InpiCompanyData, type InpiFinancials, type DataProvenance, type AmlSignal,
   computeKycCompleteness, detectAmlSignals, pickPrincipalDirigeant,
-  getFormeJuridiqueLabel,
+  getFormeJuridiqueLabel, APE_LABELS,
 } from "@/lib/kycService";
 // OPT-48: Use shared formatDateFR from dateUtils instead of kycService duplicate
 import { formatDateFR, formatDateFr } from "@/lib/dateUtils";
@@ -1637,9 +1637,10 @@ export default function NouveauClientPage() {
     autoSet("mail", entData?.email);
     autoSet("siteWeb", entData?.site_web);
 
-    // A2: Fallback domain from APE code
+    // A2: Fallback domain from APE code — use label map for readable description
     if (!updates.domaine && updates.ape) {
-      updates.domaine = `Activite ${updates.ape}`;
+      const apeCode = String(updates.ape);
+      updates.domaine = APE_LABELS[apeCode] || `Activite ${apeCode}`;
       newAutoFields.add("domaine");
     }
 
@@ -3227,19 +3228,38 @@ export default function NouveauClientPage() {
                       )}
                     </div>
 
-                    {/* #18: Objet social with character count */}
-                    {form.objetSocial && (
-                      <div className="mt-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-1.5">
-                            <Label className="text-[10px] text-slate-400 dark:text-slate-500 uppercase">Objet social</Label>
-                            <Badge className="text-[9px] bg-blue-500/20 text-blue-400 border-0">INPI</Badge>
+                    {/* #18: Objet social with expand/collapse */}
+                    {form.objetSocial && (() => {
+                      const isLong = form.objetSocial.length > 120;
+                      return (
+                        <div className="mt-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-1.5">
+                              <Label className="text-[10px] text-slate-400 dark:text-slate-500 uppercase">Objet social</Label>
+                              <Badge className="text-[9px] bg-blue-500/20 text-blue-400 border-0">INPI</Badge>
+                            </div>
+                            <span className="text-[9px] text-slate-300 dark:text-slate-600">{form.objetSocial.length} caracteres</span>
                           </div>
-                          <span className="text-[9px] text-slate-300 dark:text-slate-600">{form.objetSocial.length} caracteres</span>
+                          <div className="mt-1 p-2 rounded bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06]">
+                            <p className="text-xs text-slate-700 dark:text-slate-300">
+                              {collapsedSections["objetSocial"] !== false && isLong
+                                ? <>{form.objetSocial.slice(0, 120)}<span className="text-slate-400">&hellip;</span></>
+                                : form.objetSocial}
+                            </p>
+                            {isLong && (
+                              <button
+                                type="button"
+                                onClick={() => setCollapsedSections(prev => ({ ...prev, objetSocial: prev["objetSocial"] === false ? true : false }))}
+                                className="mt-1.5 flex items-center gap-1 text-[10px] text-blue-400 hover:text-blue-300 transition-colors"
+                              >
+                                <ChevronDown className={`w-3 h-3 transition-transform ${collapsedSections["objetSocial"] === false ? "rotate-180" : ""}`} />
+                                {collapsedSections["objetSocial"] === false ? "Reduire" : "Voir tout"}
+                              </button>
+                            )}
+                          </div>
                         </div>
-                        <p className="text-xs text-slate-700 dark:text-slate-300 mt-1 p-2 rounded bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06]">{form.objetSocial.slice(0, 300)}{form.objetSocial.length > 300 ? "..." : ""}</p>
-                      </div>
-                    )}
+                      );
+                    })()}
 
                     {/* INPI badges */}
                     {screening.inpi.data?.companyData && (
