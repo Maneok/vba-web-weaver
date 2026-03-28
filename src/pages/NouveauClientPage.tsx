@@ -3428,40 +3428,35 @@ export default function NouveauClientPage() {
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
                       {MISSIONS.map(m => {
                         const isActive = form.mission === m;
-                        const icons: Record<string, string> = {
-                          "TENUE COMPTABLE": "\u{1F4D2}",
-                          "REVISION": "\u{1F50D}",
-                          "SURVEILLANCE": "\u{1F441}",
-                          "CONSOLIDATION": "\u{1F3D7}",
-                          "AUDIT LEGAL": "\u2696\uFE0F",
-                          "AUDIT CONTRACTUEL": "\u{1F4CB}",
-                          "CONSEIL": "\u{1F4A1}",
-                          "SOCIAL": "\u{1F465}",
-                          "JURIDIQUE": "\u{1F4DC}",
-                          "FISCAL": "\u{1F9FE}",
-                          "DOMICILIATION": "\u{1F3E2}",
-                          "CREATION": "\u{1F680}",
-                        };
+                        const MissionIcon = ({
+                          "TENUE COMPTABLE": BookOpen,
+                          "REVISION / SURVEILLANCE": Eye,
+                          "SOCIAL / PAIE SEULE": Users,
+                          "CONSEIL DE GESTION": Briefcase,
+                          "CONSTITUTION / CESSION": FileSignature,
+                          "DOMICILIATION": Building2,
+                          "IRPP": Scale,
+                        } as Record<string, typeof BookOpen>)[m] || FileText;
                         return (
                           <button
                             key={m}
                             type="button"
                             onClick={() => set("mission", m)}
-                            className={`text-left p-3 rounded-lg border transition-all duration-200 hover:scale-[1.02] ${
+                            className={`text-left p-3 rounded-lg border transition-colors duration-150 ${
                               isActive
-                                ? "border-amber-500/50 bg-amber-500/10 shadow-sm shadow-amber-500/5"
+                                ? "border-amber-500/50 bg-amber-500/10"
                                 : "border-gray-200 dark:border-white/[0.06] bg-white/[0.02] hover:bg-amber-500/[0.03] hover:border-amber-500/30"
                             }`}
                           >
-                            <div className="flex items-center gap-2">
-                              <span className="text-base">{icons[m] || "\u{1F4CC}"}</span>
+                            <div className="flex items-center gap-2.5">
+                              <MissionIcon className={`w-4 h-4 shrink-0 ${isActive ? "text-amber-400" : "text-slate-400 dark:text-slate-500"}`} />
                               <span className={`text-xs font-medium ${isActive ? "text-amber-300" : "text-slate-300 dark:text-slate-400"}`}>
                                 {m}
                               </span>
                             </div>
                             {isActive && (
-                              <div className="mt-1.5 flex items-center gap-1">
-                                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                              <div className="mt-1.5 flex items-center gap-1 ml-6.5">
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
                                 <span className="text-[9px] text-amber-400/80">Selectionne</span>
                               </div>
                             )}
