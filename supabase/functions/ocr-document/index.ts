@@ -39,13 +39,14 @@ Deno.serve(async (req) => {
     }
 
     const ALLOWED_MEDIA = ["image/jpeg", "image/png", "image/webp", "image/gif"];
-    if (mimeType && !ALLOWED_MEDIA.includes(mimeType)) {
+    // FIX: Require mimeType — don't silently default to JPEG (could be PDF sent as base64)
+    if (!mimeType || !ALLOWED_MEDIA.includes(mimeType)) {
       return new Response(
-        JSON.stringify({ error: "Type de fichier non supporte", extracted: null }),
+        JSON.stringify({ error: `Type MIME requis et valide (${ALLOWED_MEDIA.join(", ")})`, extracted: null }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-    const mediaType = mimeType || "image/jpeg";
+    const mediaType = mimeType;
     const VALID_MODES = ["cni", "rib", "kbis"];
     if (mode && !VALID_MODES.includes(mode)) {
       return new Response(
@@ -106,7 +107,7 @@ Réponds UNIQUEMENT avec le JSON, sans markdown ni explication. Si un champ n'es
 
     const anthropicBody = {
       model: "claude-sonnet-4-20250514",
-      max_tokens: 1024,
+      max_tokens: 2048,
       system: systemPrompt,
       messages: [
         {
@@ -134,19 +135,25 @@ Réponds UNIQUEMENT avec le JSON, sans markdown ni explication. Si un champ n'es
       headers: {
         "Content-Type": "application/json",
         "x-api-key": anthropicKey,
-        "anthropic-version": "2023-06-01",
+        "anthropic-version": "2024-10-22",
       },
       body: JSON.stringify(anthropicBody),
       signal: AbortSignal.timeout(30000),
     });
 
     if (!anthropicRes.ok) {
-      const errText = await anthropicRes.text().catch(() => "unknown");
-      console.error("Anthropic API error:", anthropicRes.status, errText);
+      // FIX: Don't log raw Anthropic error body (may contain sensitive debug info)
+      console.error("Anthropic API error:", anthropicRes.status);
       if (anthropicRes.status === 429) {
         return new Response(
           JSON.stringify({ error: "Service OCR temporairement sature, reessayez dans quelques instants", extracted: null }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      if (anthropicRes.status === 400) {
+        return new Response(
+          JSON.stringify({ error: "Image non exploitable par le service OCR", extracted: null }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
       return new Response(
@@ -168,12 +175,17 @@ Réponds UNIQUEMENT avec le JSON, sans markdown ni explication. Si un champ n'es
 
     // Parse JSON from response (handle potential markdown wrapping)
     let extracted = null;
+    // FIX: Strip markdown code fences before parsing
+    let cleanText = textContent.trim();
+    cleanText = cleanText.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
     try {
-      extracted = JSON.parse(textContent);
+      extracted = JSON.parse(cleanText);
     } catch {
-      const jsonMatch = textContent.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        try { extracted = JSON.parse(jsonMatch[0]); } catch { /* ignore */ }
+      // FIX: Find the outermost balanced JSON object (not greedy [\s\S]*)
+      const startIdx = cleanText.indexOf("{");
+      const endIdx = cleanText.lastIndexOf("}");
+      if (startIdx !== -1 && endIdx > startIdx) {
+        try { extracted = JSON.parse(cleanText.slice(startIdx, endIdx + 1)); } catch { /* fallback below */ }
       }
     }
     if (!extracted) {
@@ -187,12 +199,16 @@ Réponds UNIQUEMENT avec le JSON, sans markdown ni explication. Si un champ n'es
     // For RIB mode, also apply regex fallback on raw text
     if (ocrMode === "rib" && extracted) {
       if (!extracted.iban) {
-        const ibanMatch = textContent.match(/FR\d{2}\s?\d{4}\s?\d{4}\s?\d{4}\s?\d{4}\s?\d{4}\s?\d{3}/);
-        if (ibanMatch) extracted.iban = ibanMatch[0];
+        // FIX: Accept IBAN with or without spaces, any spacing pattern
+        const ibanMatch = cleanText.match(/FR\s?\d{2}[\s.]?\d{4}[\s.]?\d{4}[\s.]?\d{4}[\s.]?\d{4}[\s.]?\d{4}[\s.]?\d{3}/);
+        if (ibanMatch) extracted.iban = ibanMatch[0].replace(/[\s.]/g, "").replace(/(.{4})/g, "$1 ").trim();
       }
       if (!extracted.bic) {
-        const bicMatch = textContent.match(/[A-Z]{4}FR[A-Z0-9]{2}([A-Z0-9]{3})?/);
-        if (bicMatch) extracted.bic = bicMatch[0];
+        // FIX: BIC must be exactly 8 or 11 chars (SWIFT format)
+        const bicMatch = cleanText.match(/\b[A-Z]{4}FR[A-Z0-9]{2}(?:[A-Z0-9]{3})?\b/);
+        if (bicMatch && (bicMatch[0].length === 8 || bicMatch[0].length === 11)) {
+          extracted.bic = bicMatch[0];
+        }
       }
     }
 
@@ -201,10 +217,15 @@ Réponds UNIQUEMENT avec le JSON, sans markdown ni explication. Si un champ n'es
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
-    console.error("OCR error:", (error as Error).message);
+    const msg = (error as Error).message || "";
+    const isTimeout = (error as Error).name === "AbortError" || msg.includes("abort") || msg.includes("timeout");
+    console.error("OCR error:", isTimeout ? "timeout" : msg);
     return new Response(
-      JSON.stringify({ error: "Erreur interne OCR", extracted: null }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({
+        error: isTimeout ? "Delai OCR depasse (30s) — reessayez avec une image plus legere" : "Erreur interne OCR",
+        extracted: null,
+      }),
+      { status: isTimeout ? 408 : 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });

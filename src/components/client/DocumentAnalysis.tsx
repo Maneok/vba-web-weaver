@@ -54,8 +54,10 @@ export interface AnalysisResult {
 // ── Helpers ──────────────────────────────────────────────────────────
 
 function extractStoragePath(url: string): string {
-  const match = url.match(/kyc-documents\/(.+?)(?:\?|$)/);
-  return match ? match[1] : url;
+  if (!url) return "";
+  // FIX: Handle both kyc-documents and documents bucket paths
+  const match = url.match(/(?:kyc-documents|documents)\/(.+?)(?:\?|$)/);
+  return match ? decodeURIComponent(match[1]) : url;
 }
 
 const QUALITE_CONFIG: Record<string, { label: string; cls: string }> = {
@@ -157,10 +159,11 @@ export default function DocumentAnalysis({
   const [expandedCards, setExpandedCards] = useState<Set<number>>(new Set());
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
 
+  // FIX: Accept docs with storedInSupabase OR with a valid URL/storageUrl (not just storedInSupabase)
   const eligibleDocs =
     mode === "ged"
       ? documents.filter((d) => d.file_path)
-      : documents.filter((d) => d.storedInSupabase);
+      : documents.filter((d) => d.storedInSupabase || d.storageUrl || d.url);
 
   // Auto-analyze on mount (#6) — skip if external analysis provided or loading
   useEffect(() => {
@@ -176,33 +179,40 @@ export default function DocumentAnalysis({
       return;
     }
 
+    // FIX: Clear cache before re-analyzing (so "Relancer" actually re-runs)
+    try { localStorage.removeItem(getCacheKey(siren)); } catch { /* ignore */ }
     setLoading(true);
     setResult(null);
 
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData?.session?.access_token;
+      if (!token) {
+        throw new Error("Session expirée — reconnectez-vous");
+      }
 
       const docsPayload =
         mode === "ged"
           ? eligibleDocs.map((d) => ({
-              type: d.category || d.type,
-              label: d.label || (d as any).name,
+              type: d.category || d.type || "AUTRE",
+              label: d.label || (d as any).name || "Document",
               source: d.source || "ged",
               storagePath: d.file_path,
               doc_id: d.id,
             }))
           : eligibleDocs.map((d) => ({
-              type: d.type,
-              label: d.label,
-              source: d.source,
+              type: d.type || "AUTRE",
+              label: d.label || d.type || "Document",
+              source: d.source || "auto",
               storagePath: extractStoragePath(d.storageUrl || d.url || ""),
             }));
 
+      // FIX: Add 60s timeout to avoid infinite hang
       const res = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyse-docs`,
         {
           method: "POST",
+          signal: AbortSignal.timeout(60_000),
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
@@ -217,8 +227,15 @@ export default function DocumentAnalysis({
       );
 
       if (!res.ok) {
-        const errText = await res.text();
-        throw new Error(errText || `Erreur ${res.status}`);
+        let errMsg = `Erreur ${res.status}`;
+        try {
+          const errJson = await res.json();
+          errMsg = errJson.error || errMsg;
+        } catch {
+          const errText = await res.text().catch(() => "");
+          if (errText) errMsg = errText;
+        }
+        throw new Error(errMsg);
       }
 
       const raw = await res.json();
@@ -266,8 +283,14 @@ export default function DocumentAnalysis({
         `${mapped.documents?.length || 0} documents analyses${incCount > 0 ? ` — ${incCount} incoherence${incCount > 1 ? "s" : ""} detectee${incCount > 1 ? "s" : ""}` : ""}`
       );
     } catch (err: any) {
-      console.error("analyse-docs error:", err);
-      toast.error(err.message || "Erreur lors de l'analyse documentaire");
+      const isTimeout = err?.name === "TimeoutError" || err?.name === "AbortError" || err?.message?.includes("timeout");
+      console.error("analyse-docs error:", err?.message);
+      toast.error(
+        isTimeout
+          ? "Delai d'analyse depasse (60s) — reessayez avec moins de documents"
+          : (err?.message || "Erreur lors de l'analyse documentaire"),
+        { duration: 8000 }
+      );
     } finally {
       setLoading(false);
     }
