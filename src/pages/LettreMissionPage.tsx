@@ -134,7 +134,7 @@ const formatEurCompact = (n: number) => eurFormatter.format(n);
 
 const LetterHistory = React.memo(function LetterHistory({
   letters, loading, onEdit, onDuplicate, onArchive, onDelete, onDownloadPdf, onCreateAvenant,
-  onBulkDelete, onBulkArchive, onBulkStatusChange, onBulkDuplicate,
+  onBulkDelete, onBulkArchive, onBulkStatusChange, onBulkDuplicate, onBulkDownloadPdf,
   avenantsByLetter, cabinetId,
 }: {
   letters: SavedLetter[];
@@ -149,6 +149,7 @@ const LetterHistory = React.memo(function LetterHistory({
   onBulkArchive: (ids: string[]) => Promise<void>;
   onBulkStatusChange: (ids: string[], status: string) => Promise<void>;
   onBulkDuplicate: (letters: SavedLetter[]) => Promise<void>;
+  onBulkDownloadPdf: (letters: SavedLetter[]) => Promise<void>;
   avenantsByLetter: Record<string, LMAvenant[]>;
   cabinetId?: string;
 }) {
@@ -832,7 +833,7 @@ const LetterHistory = React.memo(function LetterHistory({
             </DropdownMenu>
             <Button size="sm" variant="outline" className="h-7 text-xs gap-1 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10" disabled={bulkLoading} onClick={() => runBulkAction(() => onBulkDuplicate(selectedLetters))}><Copy className="w-3 h-3" /> Dupliquer</Button>
             <Button size="sm" variant="outline" className="h-7 text-xs gap-1 border-purple-500/30 text-purple-400 hover:bg-purple-500/10" disabled={bulkLoading}
-              onClick={async () => { for (const l of selectedLetters) await onDownloadPdf(l); toast.success(`${selectedLetters.length} PDF generes`); }}><FileDown className="w-3 h-3" /> PDF</Button>
+              onClick={() => runBulkAction(() => onBulkDownloadPdf(selectedLetters))}><FileDown className="w-3 h-3" /> PDF</Button>
             <Button size="sm" variant="outline" className="h-7 text-xs gap-1 border-red-500/30 text-red-400 hover:bg-red-500/10" disabled={bulkLoading} onClick={() => runBulkAction(() => onBulkDelete([...selectedIds]))}><Trash2 className="w-3 h-3" /> Supprimer</Button>
             <div className="w-px h-5 bg-white/[0.08] mx-1" />
             <button onClick={clearSelection} className="text-[10px] text-slate-400 hover:text-white flex items-center gap-1"><XIcon className="w-3 h-3" /> Deselectionner</button>
@@ -1768,31 +1769,52 @@ export default function LettreMissionPage() {
     await loadSavedLetters();
   };
 
-  // G) Download PDF from history
+  // G) Download PDF — core function (throws on error for bulk usage)
+  const downloadPdfCore = async (letter: SavedLetter): Promise<void> => {
+    if (!letter.wizard_data) throw new Error("Pas de donnees pour cette lettre");
+    const { renderLettreMissionPdf } = await import("@/lib/lettreMissionPdf");
+    const wd = letter.wizard_data;
+    const client = buildClientFromWizardData(wd as LMWizardData);
+    await renderLettreMissionPdf({
+      numero: letter.numero, date: formatDateFr(letter.created_at),
+      client,
+      cabinet: cabinetInfo,
+      options: {
+        genre: "M" as const,
+        missionSociale: wd.missions_selected?.some((m: Record<string, unknown>) => m.section_id === "social" && m.selected),
+        missionJuridique: wd.missions_selected?.some((m: Record<string, unknown>) => m.section_id === "juridique" && m.selected),
+        missionControleFiscal: wd.missions_selected?.some((m: Record<string, unknown>) => m.section_id === "fiscal" && m.selected),
+        regimeFiscal: "", exerciceDebut: "", exerciceFin: "",
+        tvaRegime: "", volumeComptable: "", cac: false, outilComptable: "",
+        periodicite: wd.frequence_facturation,
+      },
+    });
+  };
+
+  // Single PDF download (shows toast, safe for row-level actions)
   const handleDownloadPdf = async (letter: SavedLetter) => {
-    if (!letter.wizard_data) return;
     try {
-      const { renderLettreMissionPdf } = await import("@/lib/lettreMissionPdf");
-      const wd = letter.wizard_data;
-      const client = buildClientFromWizardData(wd as LMWizardData);
-      await renderLettreMissionPdf({
-        numero: letter.numero, date: formatDateFr(letter.created_at),
-        client,
-        cabinet: cabinetInfo,
-        options: {
-          genre: "M" as const,
-          missionSociale: wd.missions_selected?.some((m: Record<string, unknown>) => m.section_id === "social" && m.selected),
-          missionJuridique: wd.missions_selected?.some((m: Record<string, unknown>) => m.section_id === "juridique" && m.selected),
-          missionControleFiscal: wd.missions_selected?.some((m: Record<string, unknown>) => m.section_id === "fiscal" && m.selected),
-          regimeFiscal: "", exerciceDebut: "", exerciceFin: "",
-          tvaRegime: "", volumeComptable: "", cac: false, outilComptable: "",
-          periodicite: wd.frequence_facturation,
-        },
-      });
+      await downloadPdfCore(letter);
       toast.success("PDF genere");
     } catch (e: any) {
       toast.error(e?.message || "Erreur PDF");
     }
+  };
+
+  // Bulk PDF download (per-item error handling, shows summary)
+  const handleBulkDownloadPdf = async (letters: SavedLetter[]) => {
+    let ok = 0;
+    let fail = 0;
+    for (const letter of letters) {
+      try {
+        await downloadPdfCore(letter);
+        ok++;
+      } catch {
+        fail++;
+      }
+    }
+    if (ok > 0) toast.success(`${ok} PDF genere${ok > 1 ? "s" : ""}`);
+    if (fail > 0) toast.error(`${fail} PDF en erreur sur ${letters.length}`);
   };
 
   // Express mode removed (3-step wizard is already express)
@@ -2100,6 +2122,7 @@ export default function LettreMissionPage() {
               onBulkArchive={handleBulkArchive}
               onBulkStatusChange={handleBulkStatusChange}
               onBulkDuplicate={handleBulkDuplicate}
+              onBulkDownloadPdf={handleBulkDownloadPdf}
               avenantsByLetter={avenantsByLetter}
               cabinetId={profile?.cabinet_id}
             />
