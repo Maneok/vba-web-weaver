@@ -314,8 +314,13 @@ export default function NouveauClientPage() {
       if (!session) return;
       supabase.from("profiles").select("cabinet_id").eq("id", session.user.id).single().then(({ data: prof }) => {
         if (!prof?.cabinet_id) return;
-        supabase.from("ref_missions").select("code, libelle, score").or(`cabinet_id.eq.${prof.cabinet_id},cabinet_id.is.null`).order("libelle").then(({ data: rows }) => {
-          if (rows) setRefMissions(rows.map(r => ({ code: r.code, libelle: r.libelle, score: r.score ?? 25 })));
+        supabase.from("ref_missions").select("code, libelle, score, cabinet_id").or(`cabinet_id.eq.${prof.cabinet_id},cabinet_id.is.null`).order("cabinet_id", { ascending: true, nullsFirst: true }).then(({ data: rows }) => {
+          if (!rows) return;
+          // Dedup: cabinet-specific entries override templates (nullsFirst ensures templates come first)
+          const byCode = new Map<string, { code: string; libelle: string; score: number }>();
+          for (const r of rows) byCode.set(r.code, { code: r.code, libelle: r.libelle, score: r.score ?? 25 });
+          const sorted = [...byCode.values()].sort((a, b) => a.libelle.localeCompare(b.libelle, "fr"));
+          setRefMissions(sorted);
         });
       });
     });
@@ -2224,7 +2229,7 @@ export default function NouveauClientPage() {
                 file_size: doc.file.size,
                 mime_type: doc.file.type || "application/octet-stream",
                 status: "manual",
-              }).catch(err => logger.warn("[Submit] documents_kyc insert failed:", err));
+              }).then(null, err => logger.warn("[Submit] documents_kyc insert failed:", err));
 
               // ★ Mirror dans documents (GED) — auto-renommage DATE_SOCIETE_TYPE.ext
               const gedCategory = mapDocTypeToCategory(doc.type);

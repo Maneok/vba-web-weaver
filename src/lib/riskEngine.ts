@@ -65,12 +65,12 @@ export async function loadScoringData(cabinetId: string): Promise<ScoringData> {
   }
 
   try {
-    // #15 - Load libelle alongside code for fuzzy matching
+    // #15 - Load templates (cabinet_id IS NULL) + cabinet overrides, ordered so cabinet values come last and overwrite templates
     const [missionsRes, typesRes, paysRes, activitesRes] = await Promise.all([
-      supabase.from("ref_missions").select("code, libelle, score").or(`cabinet_id.eq.${cabinetId},cabinet_id.is.null`),
-      supabase.from("ref_types_juridiques").select("code, libelle, score").or(`cabinet_id.eq.${cabinetId},cabinet_id.is.null`),
-      supabase.from("ref_pays").select("code, libelle, libelle_nationalite, score, est_gafi_noir, est_gafi_gris, est_offshore").or(`cabinet_id.eq.${cabinetId},cabinet_id.is.null`),
-      supabase.from("ref_activites").select("code, libelle, score").or(`cabinet_id.eq.${cabinetId},cabinet_id.is.null`),
+      supabase.from("ref_missions").select("code, libelle, score, cabinet_id").or(`cabinet_id.eq.${cabinetId},cabinet_id.is.null`).order("cabinet_id", { ascending: true, nullsFirst: true }),
+      supabase.from("ref_types_juridiques").select("code, libelle, score, cabinet_id").or(`cabinet_id.eq.${cabinetId},cabinet_id.is.null`).order("cabinet_id", { ascending: true, nullsFirst: true }),
+      supabase.from("ref_pays").select("code, libelle, libelle_nationalite, score, est_gafi_noir, est_gafi_gris, est_offshore, cabinet_id").or(`cabinet_id.eq.${cabinetId},cabinet_id.is.null`).order("cabinet_id", { ascending: true, nullsFirst: true }),
+      supabase.from("ref_activites").select("code, libelle, score, cabinet_id").or(`cabinet_id.eq.${cabinetId},cabinet_id.is.null`).order("cabinet_id", { ascending: true, nullsFirst: true }),
     ]);
 
     const missions = new Map<string, number>();
