@@ -4,19 +4,29 @@ import { clearScoringCache } from "@/lib/riskEngine";
 import RefTableBase, { RiskBadge, type ColumnDef, type FieldDef } from "./RefTableBase";
 import { Badge } from "@/components/ui/badge";
 
+// Color map per mission type category
+const TYPE_COLORS: Record<string, string> = {
+  "Mission d'assurance sur les comptes complets historiques": "border-blue-500/40 text-blue-400 bg-blue-500/10",
+  "Autres missions d'assurance": "border-cyan-500/40 text-cyan-400 bg-cyan-500/10",
+  "Missions legales": "border-purple-500/40 text-purple-400 bg-purple-500/10",
+  "Autres prestations": "border-amber-500/40 text-amber-400 bg-amber-500/10",
+  "Missions sans assurance": "border-slate-500/40 text-slate-400 bg-slate-500/10",
+  "Commissaire au compte": "border-emerald-500/40 text-emerald-400 bg-emerald-500/10",
+};
+
 const columns: ColumnDef<RefMission>[] = [
-  { key: "code", label: "Code", width: "100px" },
+  { key: "libelle", label: "Libelle", minWidth: "180px" },
   {
     key: "type_mission",
     label: "Type",
-    width: "160px",
+    width: "220px",
     render: (item) => {
       const val = item.type_mission;
-      if (!val) return <span className="text-slate-300 dark:text-slate-600">\u2014</span>;
-      return <Badge variant="outline" className="text-xs border-slate-500/30 text-slate-400 dark:text-slate-500 dark:text-slate-400 whitespace-nowrap">{val}</Badge>;
+      if (!val) return <span className="text-slate-300 dark:text-slate-600">{"\u2014"}</span>;
+      const colors = TYPE_COLORS[val] || "border-slate-500/30 text-slate-400 bg-slate-500/5";
+      return <Badge variant="outline" className={`text-xs whitespace-nowrap ${colors}`}>{val}</Badge>;
     },
   },
-  { key: "libelle", label: "Libelle", minWidth: "120px" },
   { key: "score", label: "Risque", width: "100px", render: (item) => <RiskBadge score={item.score} /> },
 ];
 
