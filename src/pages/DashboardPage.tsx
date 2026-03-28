@@ -254,7 +254,7 @@ export default function DashboardPage() {
       const tag = (e.target as HTMLElement)?.tagName;
       const inInput = tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
       if (e.ctrlKey || e.metaKey) {
-        if (e.key === "n") { e.preventDefault(); navigate("/nouveau-client"); }
+        if (e.key === "n") { e.preventDefault(); navigate("/nouveau-client?fresh=1"); }
         else if (e.shiftKey && e.key === "A") { e.preventDefault(); navigate("/registre"); }
         return;
       }
@@ -510,7 +510,7 @@ export default function DashboardPage() {
       {/* ── 5 KPI Cards ── */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 mb-6" role="region" aria-label="Indicateurs clés">
         <KPICard icon={Users} title="Clients actifs" value={stats.totalClients} color={COLOR.primary}
-          onClick={() => navigate(stats.totalClients === 0 ? "/nouveau-client" : "/bdd")}
+          onClick={() => navigate(stats.totalClients === 0 ? "/nouveau-client?fresh=1" : "/bdd")}
           loading={isLoading} subValue={stats.totalClients === 0 ? "Ajouter" : undefined}
           ariaLabel={`${stats.totalClients} clients actifs`} />
         <KPICard icon={TrendingUp} title="Score moyen" value={`${cockpitData.scoreMoyen}/120`} color={avgScoreColor}

@@ -132,7 +132,7 @@ export default function OnboardingWizard() {
 
   function handleFinish() {
     markOnboardingComplete();
-    navigate("/nouveau-client");
+    navigate("/nouveau-client?fresh=1");
   }
 
   const [dismissed, setDismissed] = useState(false);

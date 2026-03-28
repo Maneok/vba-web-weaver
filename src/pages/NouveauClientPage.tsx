@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { logger } from "@/lib/logger";
 import { useAppState } from "@/lib/AppContext";
@@ -47,7 +47,7 @@ import {
   Search, Hash, Building2, User, Loader2, CheckCircle2, ChevronLeft, ChevronRight,
   Upload, FileText, AlertTriangle, Plus, Trash2, FileDown, Check, X, ArrowRight, Info,
   Map as MapIcon, ExternalLink, Eye, Clock, Calendar, ChevronDown, Lock, Sparkles,
-  GripVertical, Flag, Shield, Briefcase, MapPin, Save, Wifi, WifiOff, Printer, Scale, GitBranch,
+  GripVertical, Flag, Shield, Briefcase, MapPin, Save, Wifi, WifiOff, Printer, Scale, GitBranch, RotateCcw,
   ChevronUp, HelpCircle, BarChart3, History, RefreshCw, BookOpen, Download, Users, FileSignature,
   ZoomIn, ZoomOut, Maximize, Mail, QrCode, Filter, SortAsc, SortDesc, CheckSquare, Square,
   Pencil, ImageIcon, Inbox, FolderOpen, Copy, Circle, Link2, ArrowRightLeft,
@@ -296,6 +296,8 @@ function computeRegimeFiscal(
 
 export default function NouveauClientPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const isFreshStart = searchParams.get("fresh") === "1";
   const { clients, addClient, refreshClients, isOnline } = useAppState();
   const [step, setStep] = useState(0);
   const [maxStepReached, setMaxStepReached] = useState(0);
@@ -390,6 +392,12 @@ export default function NouveauClientPage() {
 
   // Draft banner state
   const [draftBanner, setDraftBanner] = useState<{ restoredAt: Date } | null>(null);
+  const [draftAvailable, setDraftAvailable] = useState<{
+    siren: string;
+    raisonSociale: string;
+    savedAt: Date;
+    step: number;
+  } | null>(null);
 
   // Idee 28: Success modal state
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -584,13 +592,34 @@ export default function NouveauClientPage() {
     }
   }, []);
 
-  // On mount: silently restore draft if exists (check sessionStorage → localStorage → Supabase)
+  // On mount: restore draft or propose resume depending on ?fresh=1
   useEffect(() => {
+    if (isFreshStart) {
+      // Fresh start — don't restore, but check if a draft exists to offer resume
+      const draftRaw = sessionStorage.getItem("draft_nouveau_client") || localStorage.getItem("draft_nouveau_client");
+      if (draftRaw) {
+        try {
+          const data = JSON.parse(draftRaw);
+          if (data.savedAt && Date.now() - data.savedAt < 24 * 60 * 60 * 1000 && data.form?.siren) {
+            setDraftAvailable({
+              siren: data.form.siren,
+              raisonSociale: data.form.raisonSociale || data.form.siren,
+              savedAt: new Date(data.savedAt),
+              step: typeof data.step === "number" ? data.step : 0,
+            });
+          }
+        } catch { /* ignore */ }
+      }
+      // Clean the ?fresh param from URL
+      searchParams.delete("fresh");
+      setSearchParams(searchParams, { replace: true });
+      return;
+    }
+    // Resume mode (no ?fresh=1): silently restore as before
     const draft = sessionStorage.getItem("draft_nouveau_client") || localStorage.getItem("draft_nouveau_client");
     if (draft) {
       try {
         const data = JSON.parse(draft);
-        // P5: Expire drafts older than 24h
         if (data.savedAt && Date.now() - data.savedAt > 24 * 60 * 60 * 1000) {
           sessionStorage.removeItem("draft_nouveau_client");
           localStorage.removeItem("draft_nouveau_client");
@@ -619,7 +648,7 @@ export default function NouveauClientPage() {
         }).catch(() => {});
       }).catch(() => {});
     }).catch(() => {});
-  }, [restoreDraft]);
+  }, [restoreDraft, isFreshStart]);
 
   // P2: Launch IA analysis in background as soon as documents arrive
   useEffect(() => {
@@ -2536,6 +2565,76 @@ export default function NouveauClientPage() {
           })()}
         </div>
       </div>
+
+      {/* Draft available banner (fresh start mode) */}
+      {draftAvailable && !draftBanner && (
+        <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50 border border-border animate-fade-in-up">
+          <div className="flex items-center gap-2">
+            <Clock className="w-4 h-4 text-muted-foreground" />
+            <span className="text-sm text-muted-foreground">
+              Brouillon disponible : <strong className="text-foreground">{draftAvailable.raisonSociale}</strong>
+              <span className="ml-1 font-mono text-xs">{draftAvailable.siren}</span>
+              <span className="ml-2">— Étape {draftAvailable.step + 1}/6 · il y a {(() => {
+                const diff = Date.now() - draftAvailable.savedAt.getTime();
+                const mins = Math.floor(diff / 60000);
+                if (mins < 1) return "quelques secondes";
+                if (mins < 60) return `${mins} min`;
+                const hours = Math.floor(mins / 60);
+                if (hours < 24) return `${hours}h`;
+                return `${Math.floor(hours / 24)}j`;
+              })()}</span>
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              className="gap-1 text-xs bg-blue-600 hover:bg-blue-700"
+              onClick={() => {
+                const draftRaw = sessionStorage.getItem("draft_nouveau_client") || localStorage.getItem("draft_nouveau_client");
+                if (draftRaw) {
+                  restoreDraft(draftRaw);
+                  setDraftAvailable(null);
+                }
+              }}
+            >
+              <RotateCcw className="w-3 h-3" /> Reprendre
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10"
+              onClick={() => {
+                const cleanSiren = draftAvailable.siren?.replace(/\s/g, "");
+                sessionStorage.removeItem("draft_nouveau_client");
+                localStorage.removeItem("draft_nouveau_client");
+                if (cleanSiren && cleanSiren.length === 9) {
+                  sessionStorage.removeItem(`draft_nc_${cleanSiren}`);
+                }
+                supabase.auth.getSession().then(({ data: { session } }) => {
+                  if (!session) return;
+                  supabase.from("profiles").select("cabinet_id").eq("id", session.user.id).single().then(({ data: prof }) => {
+                    if (prof?.cabinet_id) {
+                      supabase.from("brouillons").delete().eq("cabinet_id", prof.cabinet_id).eq("user_id", session.user.id).then(() => {});
+                    }
+                  });
+                });
+                setDraftAvailable(null);
+                toast.success("Brouillon supprimé");
+              }}
+            >
+              <Trash2 className="w-3 h-3 mr-1" /> Supprimer
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-xs text-muted-foreground"
+              onClick={() => setDraftAvailable(null)}
+            >
+              Ignorer
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* FIX 2: Draft restored banner */}
       {draftBanner && (

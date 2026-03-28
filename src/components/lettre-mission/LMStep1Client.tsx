@@ -267,7 +267,7 @@ export default function LMStep1Client({ data, onChange }: Props) {
           <Button
             variant="outline"
             className="w-full gap-2 border-dashed border-gray-200 dark:border-white/[0.06] text-slate-600 dark:text-slate-400 hover:text-blue-500 hover:bg-blue-50/50 dark:hover:bg-blue-500/5 hover:border-blue-200 dark:hover:border-blue-500/20 h-11"
-            onClick={() => navigate("/nouveau-client")}
+            onClick={() => navigate("/nouveau-client?fresh=1")}
             aria-label="Creer un nouveau client"
           >
             <Plus className="w-4 h-4" /> Creer un nouveau client

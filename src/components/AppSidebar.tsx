@@ -325,7 +325,7 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  navigate("/nouveau-client");
+                  navigate("/nouveau-client?fresh=1");
                 }}
                 className="ml-auto text-[11px] px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 hover:scale-105 dark:bg-blue-500/15 dark:text-blue-400 dark:hover:bg-blue-500/25 transition-all duration-150 cursor-pointer flex items-center gap-0.5"
                 aria-label="Nouveau client"
