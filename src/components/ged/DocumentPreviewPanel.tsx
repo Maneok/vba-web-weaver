@@ -63,12 +63,12 @@ export default function DocumentPreviewPanel({
   onDelete,
   children,
 }: DocumentPreviewPanelProps) {
-  // P1: Lazy preview — don't load iframe/image until user clicks "Ouvrir"
-  const [showPreview, setShowPreview] = useState(false);
+  // Auto-load preview when doc changes (no extra click needed)
+  const [showPreview, setShowPreview] = useState(true);
 
-  // Reset preview state when doc changes
+  // Reset to auto-show when doc changes
   useEffect(() => {
-    setShowPreview(false);
+    setShowPreview(true);
   }, [doc?.id]);
 
   if (!doc) return null;

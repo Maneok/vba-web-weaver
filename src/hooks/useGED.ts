@@ -142,12 +142,14 @@ export function useGED(cabinetId: string, preselectedClientRef?: string) {
   const filteredDocuments = useMemo(() => {
     let result = documents;
 
-    // Category filter — exact match on DB category keys
+    // Category filter
     if (activeCategory === 'accueil') {
       // Accueil = only uncategorized or "autre" docs
       result = result.filter(d => !d.category || d.category === 'autre');
+    } else if (activeCategory === 'kbis') {
+      // Merge kbis + extrait_kbis into one tab
+      result = result.filter(d => d.category === 'kbis' || d.category === 'extrait_kbis');
     } else {
-      // Specific category tab — exact match
       result = result.filter(d => d.category === activeCategory);
     }
 
@@ -179,6 +181,8 @@ export function useGED(cabinetId: string, preselectedClientRef?: string) {
       const cat = doc.category || 'autre';
       counts[cat] = (counts[cat] || 0) + 1;
     }
+    // Merge extrait_kbis into kbis count
+    counts['kbis'] = (counts['kbis'] || 0) + (counts['extrait_kbis'] || 0);
     counts['accueil'] = counts['autre'] || 0;
     return counts;
   }, [documents]);

@@ -11,7 +11,7 @@ interface CategoryFilterProps {
   onChange: (key: string) => void;
 }
 
-const REQUIRED_CATEGORIES = new Set(["kbis", "extrait_kbis", "cni_dirigeant", "rib"]);
+const REQUIRED_CATEGORIES = new Set(["kbis", "cni_dirigeant", "rib"]);
 
 export default function CategoryFilter({ tabs, active, onChange }: CategoryFilterProps) {
   return (

@@ -669,17 +669,18 @@ export default function GedPage() {
                   {selectedFolder.client_name}
                 </h2>
                 {(() => {
-                  const kycDone = ["kbis", "extrait_kbis", "cni_dirigeant", "rib"].filter(
+                  // kbis count already includes extrait_kbis (merged)
+                  const kycDone = ["kbis", "cni_dirigeant", "rib"].filter(
                     k => (categoryCounts[k] || 0) > 0
                   ).length;
-                  return kycDone >= 4 ? (
+                  return kycDone >= 3 ? (
                     <Badge className="shrink-0 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-0">
                       <CheckCircle2 className="w-3 h-3 mr-1" />
                       Dossier KYC complet
                     </Badge>
                   ) : (
                     <Badge variant="secondary" className="shrink-0">
-                      KYC {kycDone}/4
+                      KYC {kycDone}/3
                     </Badge>
                   );
                 })()}

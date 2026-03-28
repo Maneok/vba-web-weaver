@@ -622,6 +622,10 @@ export async function renameAllToNorm(
 // ── URL signée ─────────────────────────────────────────────────────
 
 export async function getSignedUrl(filePath: string): Promise<string> {
+  // External URLs (from INPI/Pappers) don't need a signed URL
+  if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+    return filePath;
+  }
   // Try bucket "documents" first
   const { data, error } = await supabase.storage
     .from('documents').createSignedUrl(filePath, 3600);

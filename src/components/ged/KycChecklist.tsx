@@ -13,8 +13,8 @@ interface KycChecklistProps {
   onRequestDocument: (category: string) => void;
 }
 
-// 4 documents OBLIGATOIRES pour tous les niveaux de vigilance
-const REQUIRED_DOCS_BASE = ["kbis", "extrait_kbis", "cni_dirigeant", "rib"];
+// 3 documents OBLIGATOIRES (kbis couvre aussi extrait_kbis/RNE)
+const REQUIRED_DOCS_BASE = ["kbis", "cni_dirigeant", "rib"];
 
 // Documents complémentaires recommandés selon le niveau de vigilance
 const OPTIONAL_DOCS: Record<VigilanceLevel, string[]> = {
@@ -36,8 +36,7 @@ const OPTIONAL_DOCS: Record<VigilanceLevel, string[]> = {
 };
 
 const DOC_LABELS: Record<string, string> = {
-  kbis: "KBis",
-  extrait_kbis: "Extrait KBis",
+  kbis: "Kbis / Extrait RNE",
   cni_dirigeant: "Piece d'identite dirigeant",
   rib: "RIB",
   statuts: "Statuts a jour",
@@ -108,7 +107,11 @@ export default function KycChecklist({
   const [optionalOpen, setOptionalOpen] = useState(false);
 
   const existingLower = existingCategories.map((c) => c.toLowerCase());
-  const requiredPresent = REQUIRED_DOCS_BASE.filter((cat) => existingLower.includes(cat)).length;
+  // kbis requirement is satisfied by either "kbis" or "extrait_kbis"
+  const hasDoc = (cat: string) => cat === "kbis"
+    ? existingLower.includes("kbis") || existingLower.includes("extrait_kbis")
+    : existingLower.includes(cat);
+  const requiredPresent = REQUIRED_DOCS_BASE.filter(hasDoc).length;
   const isComplete = requiredPresent === REQUIRED_DOCS_BASE.length;
   const progressValue = Math.round((requiredPresent / REQUIRED_DOCS_BASE.length) * 100);
   const badgeConfig = VIGILANCE_BADGE[vigilanceLevel];
@@ -130,7 +133,7 @@ export default function KycChecklist({
           <DocLine
             key={cat}
             cat={cat}
-            isPresent={existingLower.includes(cat)}
+            isPresent={hasDoc(cat)}
             onRequest={() => onRequestDocument(cat)}
           />
         ))}
