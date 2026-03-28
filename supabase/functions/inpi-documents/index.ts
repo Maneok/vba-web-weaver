@@ -702,7 +702,12 @@ Deno.serve(async (req) => {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    if (cleanSiren.length === 14) cleanSiren = cleanSiren.slice(0, 9);
+    let siretTruncated = false;
+    if (cleanSiren.length === 14) {
+      console.log(`[INPI] SIRET ${cleanSiren} tronque en SIREN ${cleanSiren.slice(0, 9)}`);
+      siretTruncated = true;
+      cleanSiren = cleanSiren.slice(0, 9);
+    }
     // FIX 8: Reset dlLogs per request to prevent unbounded growth
     dlLogs = [];
     console.log(`[INPI] === Start for SIREN ${cleanSiren} ===`);
@@ -1074,6 +1079,7 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun bÃ
       financials,
       totalDocuments: documents.length,
       storedCount: documents.filter((d: any) => d.storedInSupabase).length,
+      ...(siretTruncated ? { note: `SIRET fourni (${String(siren).replace(/[\s.\-]/g, "")}) tronque en SIREN ${cleanSiren} pour l'interrogation INPI` } : {}),
       status: "ok",
       // FIX 28: Only include dlLogs in non-production for debugging
       ...(Deno.env.get("ENVIRONMENT") !== "production" ? { _dlLogs: dlLogs } : {}),

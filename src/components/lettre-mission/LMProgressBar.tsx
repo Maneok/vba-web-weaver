@@ -11,14 +11,9 @@ interface Props {
 }
 
 const STEP_DESCRIPTIONS = [
-  'Selection du client',
-  'Type de mission',
-  'Missions complementaires',
-  'Modele, duree, responsable',
-  'Tarification',
-  'Clauses et CGV',
-  'Previsualisation',
-  'Generation et envoi',
+  'Client et missions',
+  'Modalites et honoraires',
+  'Verification et generation',
 ];
 
 export default function LMProgressBar({ currentStep, onStepClick, missionCategory, maxClickable }: Props) {

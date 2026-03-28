@@ -93,11 +93,14 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Deduplicate by title
-    const seen = new Set<string>();
+    // Deduplicate by title and URL
+    const seenTitles = new Set<string>();
+    const seenUrls = new Set<string>();
     const unique = allArticles.filter(a => {
-      if (seen.has(a.title)) return false;
-      seen.add(a.title);
+      if (seenTitles.has(a.title)) return false;
+      if (a.url && seenUrls.has(a.url)) return false;
+      seenTitles.add(a.title);
+      if (a.url) seenUrls.add(a.url);
       return true;
     });
 

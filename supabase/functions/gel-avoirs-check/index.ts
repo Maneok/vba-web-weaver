@@ -7,6 +7,7 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 const CACHE_SIREN = "GEL_AVOIRS_GLOBAL";
 const CACHE_API = "gel_avoirs";
+// Intentionally global (not cabinet-scoped): sanctions/asset-freeze list is the same for all cabinets
 const CACHE_CABINET = "00000000-0000-0000-0000-000000000000";
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24h
 

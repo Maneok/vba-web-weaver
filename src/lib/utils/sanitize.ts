@@ -17,10 +17,14 @@ export function sanitizeHtml(input: string): string {
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&amp;/g, "&");
-  // Phase 2: Strip all tags (including decoded ones)
+  // Phase 2: Remove dangerous patterns before stripping tags
   decoded = decoded
     .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
     .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+    // Strip event handler attributes (onerror=, onclick=, onload=, etc.)
+    .replace(/\bon\w+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, "")
+    // Strip javascript: / vbscript: URLs
+    .replace(/\b(?:java\s*script|vb\s*script)\s*:/gi, "")
     .replace(/<[^>]+>/g, "");
   return decoded.trim();
 }
@@ -29,7 +33,12 @@ export function sanitizeHtml(input: string): string {
 export function sanitizeInput(input: string): string {
   if (!input) return "";
   if (typeof input !== "string") return String(input);
-  return input
+  let cleaned = input;
+  // Strip javascript: / vbscript: URLs (case-insensitive, handles whitespace obfuscation)
+  cleaned = cleaned.replace(/\b(?:java\s*script|vb\s*script)\s*:/gi, "");
+  // Strip event handler attributes (onerror, onclick, onload, etc.)
+  cleaned = cleaned.replace(/\bon\w+\s*=/gi, "");
+  return cleaned
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")

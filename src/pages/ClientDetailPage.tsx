@@ -1685,7 +1685,11 @@ function DocumentsTab({
       .eq('cabinet_id', cabinetId)
       .order('created_at', { ascending: false })
       .then(({ data, error }) => {
-        if (!error && data) setGedDocuments(data);
+        if (error) {
+          console.warn("Erreur chargement documents GED:", error.message);
+        } else if (data) {
+          setGedDocuments(data);
+        }
         setGedLoading(false);
       });
   }, [(client as any).id, (profile as any)?.cabinet_id]);

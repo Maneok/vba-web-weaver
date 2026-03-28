@@ -34,6 +34,8 @@ export default function LMNewStep3({ data, onGenerate, onSave, onGoToStep, gener
   // Compute total mensualité estimate
   let totalMensuel = data.honoraires_annuels > 0 ? data.honoraires_annuels / 12 : 0;
   if (data.mission_juridique && data.honoraires_juridique > 0) totalMensuel += data.honoraires_juridique / 12;
+  if (data.mission_controle_fiscal && data.option_controle_fiscal === "A") totalMensuel += 5000 / 12;
+  else if (data.mission_controle_fiscal && data.option_controle_fiscal === "B") totalMensuel += 2500 / 12;
 
   return (
     <div className="space-y-5">

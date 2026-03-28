@@ -328,6 +328,7 @@ Deno.serve(async (req) => {
 });
 
 function escapeXml(str: string): string {
+  if (!str) return "";
   return str
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")

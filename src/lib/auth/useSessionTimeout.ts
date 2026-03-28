@@ -3,7 +3,7 @@ import { toast } from "sonner";
 
 const TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes (conformité LCB-FT)
 const WARNING_MS = TIMEOUT_MS - 5 * 60 * 1000; // Avertissement 5 min avant
-const EVENTS = ["mousedown", "keydown", "scroll", "touchstart", "mousemove"] as const;
+const EVENTS = ["mousedown", "keydown", "scroll", "touchstart", "mousemove", "click"] as const;
 const MAX_SESSION_MS = 8 * 60 * 60 * 1000; // 8 hours absolute max
 
 export function useSessionTimeout(onTimeout: () => void, enabled: boolean) {

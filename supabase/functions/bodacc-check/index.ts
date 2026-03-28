@@ -98,6 +98,7 @@ Deno.serve(async (req) => {
       hasProcedureCollective,
       alertes,
       malus: hasProcedureCollective ? 30 : 0,
+      source: apiWorked ? "BODACC_API" : (complements ? "complements_annuaire" : "none"),
       status: hasProcedureCollective ? "ALERTE" : alertes.length > 0 ? "ATTENTION" : "ok",
     }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -14,15 +14,16 @@ interface Props {
 /** Compact mobile summary band */
 function CompactSummary({ data }: { data: LMWizardData }) {
   const missionCount = useMemo(() => data.missions_selected.filter((m) => m.selected).length, [data.missions_selected]);
-  const tva = useMemo(() => Math.round(data.honoraires_ht * (data.taux_tva / 100) * 100) / 100, [data.honoraires_ht, data.taux_tva]);
-  const ttc = data.honoraires_ht + tva;
+  const ht = data.honoraires_ht || data.honoraires_annuels || 0;
+  const tva = useMemo(() => Math.round(ht * (data.taux_tva / 100) * 100) / 100, [ht, data.taux_tva]);
+  const ttc = ht + tva;
 
   return (
     <div className="flex items-center justify-between px-4 py-2 bg-gray-50 dark:bg-white/[0.03] border-t border-gray-200 dark:border-white/[0.06] text-xs">
       <span className="text-slate-400 dark:text-slate-500">
         {missionCount > 0 ? `${missionCount} mission${missionCount > 1 ? "s" : ""}` : "Aucune mission"}
       </span>
-      {data.honoraires_ht > 0 && (
+      {ht > 0 && (
         <span className="text-slate-900 dark:text-white font-semibold">{formatEur(ttc)} TTC</span>
       )}
     </div>
@@ -31,8 +32,9 @@ function CompactSummary({ data }: { data: LMWizardData }) {
 
 /** Full desktop summary panel */
 function FullSummary({ data, cabinetLogo }: { data: LMWizardData; cabinetLogo?: string }) {
-  const tva = useMemo(() => Math.round(data.honoraires_ht * (data.taux_tva / 100) * 100) / 100, [data.honoraires_ht, data.taux_tva]);
-  const ttc = data.honoraires_ht + tva;
+  const ht = data.honoraires_ht || data.honoraires_annuels || 0;
+  const tva = useMemo(() => Math.round(ht * (data.taux_tva / 100) * 100) / 100, [ht, data.taux_tva]);
+  const ttc = ht + tva;
   const missions = useMemo(() => data.missions_selected.filter((m) => m.selected), [data.missions_selected]);
 
   // Modele label
@@ -99,13 +101,13 @@ function FullSummary({ data, cabinetLogo }: { data: LMWizardData; cabinetLogo?: 
       )}
 
       {/* Honoraires */}
-      {data.honoraires_ht > 0 && (
+      {ht > 0 && (
         <div className="space-y-2 p-3 rounded-lg bg-gray-50 dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.06]">
           <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider">Honoraires</p>
           <div className="space-y-1">
             <div className="flex justify-between text-xs">
               <span className="text-slate-400 dark:text-slate-500">HT</span>
-              <span className="text-slate-700 dark:text-slate-300">{formatEur(data.honoraires_ht)}</span>
+              <span className="text-slate-700 dark:text-slate-300">{formatEur(ht)}</span>
             </div>
             <div className="flex justify-between text-xs">
               <span className="text-slate-400 dark:text-slate-500">TVA ({data.taux_tva}%)</span>

@@ -46,24 +46,52 @@ function formatPrefix(level: LogLevel, tag: string): string {
   return `${timestamp()} [${level.toUpperCase()}] [${tag}]`;
 }
 
+/** Keys whose values must be redacted in logged objects to prevent credential leaks */
+const SENSITIVE_KEYS = new Set([
+  "password", "mot_de_passe", "token", "access_token", "refresh_token",
+  "secret", "api_key", "apikey", "authorization", "encryption_key",
+  "credit_card", "carte", "iban", "bic", "cvv", "ssn",
+]);
+
+/** Deep-redact sensitive fields from an object before logging */
+function redactSensitive(value: unknown): unknown {
+  if (value === null || value === undefined) return value;
+  if (typeof value === "string") return value;
+  if (value instanceof Error) return value;
+  if (Array.isArray(value)) return value.map(redactSensitive);
+  if (typeof value === "object") {
+    const redacted: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      redacted[k] = SENSITIVE_KEYS.has(k.toLowerCase()) ? "[REDACTED]" : redactSensitive(v);
+    }
+    return redacted;
+  }
+  return value;
+}
+
+/** Redact sensitive fields from log arguments */
+function sanitizeArgs(args: unknown[]): unknown[] {
+  return args.map(redactSensitive);
+}
+
 export const logger = {
   debug(tag: string, ...args: unknown[]): void {
-    if (shouldLog("debug")) console.log(formatPrefix("debug", tag), ...args);
+    if (shouldLog("debug")) console.log(formatPrefix("debug", tag), ...sanitizeArgs(args));
   },
 
   info(tag: string, ...args: unknown[]): void {
-    if (shouldLog("info")) console.log(formatPrefix("info", tag), ...args);
+    if (shouldLog("info")) console.log(formatPrefix("info", tag), ...sanitizeArgs(args));
   },
 
   warn(tag: string, ...args: unknown[]): void {
-    if (shouldLog("warn")) console.warn(formatPrefix("warn", tag), ...args);
+    if (shouldLog("warn")) console.warn(formatPrefix("warn", tag), ...sanitizeArgs(args));
   },
 
   error(tag: string, ...args: unknown[]): void {
     if (shouldLog("error")) {
       // OPT: Early dedup check before building format prefix
       if (isDuplicate(`${tag}:${args[0]}`)) return;
-      console.error(formatPrefix("error", tag), ...args);
+      console.error(formatPrefix("error", tag), ...sanitizeArgs(args));
       // In production, capture stack trace for debugging
       if (!IS_DEV) {
         const err = args.find(a => a instanceof Error) as Error | undefined;
