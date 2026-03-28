@@ -2258,7 +2258,7 @@ export default function NouveauClientPage() {
                   mime_type: doc.file.type || "application/octet-stream",
                   category: gedCategory,
                   current_version: 1,
-                }).catch(err => logger.warn("[Submit] documents mirror insert failed:", err));
+                }).then(null, err => logger.warn("[Submit] documents mirror insert failed:", err));
               }
             }
           }
@@ -2302,7 +2302,7 @@ export default function NouveauClientPage() {
           mime_type: "application/pdf",
           status: "auto",
           date_document: (doc as any).dateDepot || (doc as any).dateCloture || null,
-        }).catch(err => logger.warn("[Submit] documents_kyc auto insert:", err?.message));
+        }).then(null, err => logger.warn("[Submit] documents_kyc auto insert:", err?.message));
 
         // ★ Mirror dans documents (GED) — auto-renommage DATE_SOCIETE_TYPE.ext
         const autoGedCat = mapDocTypeToCategory(doc.type || "AUTRE");
@@ -2328,7 +2328,7 @@ export default function NouveauClientPage() {
             mime_type: "application/pdf",
             category: autoGedCat,
             current_version: 1,
-          }).catch(err => logger.warn("[Submit] documents auto mirror:", err?.message));
+          }).then(null, err => logger.warn("[Submit] documents auto mirror:", err?.message));
         }
       }
     }
@@ -2363,7 +2363,7 @@ export default function NouveauClientPage() {
             data_sources: dataProvenance.map(p => p.source),
           },
           user_email: session.user.email,
-        }).catch(err => logger.warn("[Submit] client_history insert failed:", err));
+        }).then(null, err => logger.warn("[Submit] client_history insert failed:", err));
 
         // audit_trail
         await supabase.from("audit_trail").insert({
@@ -2383,7 +2383,7 @@ export default function NouveauClientPage() {
             be_count: beneficiaires.length,
             docs_count: documents.length,
           },
-        }).catch(err => logger.warn("[Submit] audit_trail insert failed:", err));
+        }).then(null, err => logger.warn("[Submit] audit_trail insert failed:", err));
       }
     } catch {
       // Non-blocking — don't break client creation if history fails
