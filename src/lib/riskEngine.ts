@@ -233,15 +233,23 @@ export function normalizeAddress(addr: string): string {
   return result.replace(ADDR_WHITESPACE, " ").trim();
 }
 
-// ====== MISSION SCORING ======
+// ====== MISSION SCORING (fallback when ref_missions not loaded) ======
 export const MISSION_SCORES: Record<string, number> = {
+  // By code (primary)
+  "TENUE_COMPTABLE": 25,
+  "PRESENTATION_COMPTES_ANNUELS": 25,
+  "MISSION_SOCIALE": 10,
+  "CONSEIL_GESTION_ACTIFS": 40,
+  "CREATION_ENTREPRISE_INF_50K": 30,
+  "DOMICILIATION": 80,
+  "CONSEIL_PATRIMONIAL": 60,
+  // By normalized label (legacy compatibility)
   "TENUE COMPTABLE": 25,
   "SOCIAL / PAIE SEULE": 25,
   "IRPP": 20,
   "REVISION / SURVEILLANCE": 30,
   "CONSEIL DE GESTION": 40,
   "CONSTITUTION / CESSION": 60,
-  "DOMICILIATION": 80,
 };
 
 // ====== ACTIVITY (APE) SCORING ======
