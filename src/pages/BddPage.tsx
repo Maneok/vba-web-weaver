@@ -620,9 +620,9 @@ export default function BddPage() {
         </div>
       )}
 
-      {/* #14 — Bulk actions bar */}
+      {/* #OPT-25: Bulk actions bar amelioree */}
       {selectedRefs.size > 0 && (
-        <div className="bg-blue-50 dark:bg-blue-500/10 border-b border-blue-200 dark:border-blue-500/20 px-4 py-2 flex items-center gap-3 text-sm rounded-lg mb-4 animate-fade-in-up">
+        <div className="sticky top-0 z-30 bg-gradient-to-r from-blue-500/15 to-indigo-500/10 border border-blue-500/30 backdrop-blur-xl px-4 py-2.5 flex items-center gap-3 text-sm rounded-xl mb-4 animate-fade-in-up shadow-lg shadow-blue-500/10">
           <span className="text-blue-700 dark:text-blue-200 font-medium">{selectedRefs.size} selectionne{selectedRefs.size > 1 ? "s" : ""}</span>
           {!selectAllPages && filtered.length > paginated.length && (
             <Button
@@ -703,18 +703,29 @@ export default function BddPage() {
         </div>
       )}
 
-      {/* Empty state global */}
+      {/* #OPT-26: Empty state ameliore */}
       {clients.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-20 gap-4">
-          <Users className="w-12 h-12 text-slate-300 dark:text-slate-600" />
-          <h2 className="text-lg font-medium text-slate-600 dark:text-slate-400">Aucun client pour le moment</h2>
-          <p className="text-sm text-slate-400 dark:text-slate-500">Commencez par ajouter votre premier client</p>
+        <div className="flex flex-col items-center justify-center py-24 gap-5">
+          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-500/20 to-indigo-500/10 flex items-center justify-center">
+            <Users className="w-10 h-10 text-blue-400" />
+          </div>
+          <div className="text-center">
+            <h2 className="text-lg font-semibold text-white">Aucun client pour le moment</h2>
+            <p className="text-sm text-slate-500 mt-1">Commencez par ajouter votre premier client pour demarrer le suivi LCB-FT</p>
+          </div>
           <Button
-            className="rounded-lg px-4 h-9 text-sm font-medium shadow-sm bg-blue-600 hover:bg-blue-700 text-white gap-1.5 mt-2"
+            className="rounded-lg px-5 h-10 text-sm font-medium shadow-md shadow-blue-500/20 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white gap-2 mt-2"
             onClick={() => navigate("/nouveau-client")}
           >
-            <Plus className="w-4 h-4" /> Nouveau client
+            <Plus className="w-4 h-4" /> Creer mon premier client
           </Button>
+          <div className="flex items-center gap-4 text-[10px] text-slate-600 mt-2">
+            <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> ~5 min par client</span>
+            <span className="w-px h-3 bg-white/[0.06]" />
+            <span className="flex items-center gap-1"><Eye className="w-3 h-3" /> Screening auto</span>
+            <span className="w-px h-3 bg-white/[0.06]" />
+            <span className="flex items-center gap-1"><FileText className="w-3 h-3" /> Fiche LCB-FT</span>
+          </div>
         </div>
       )}
 
@@ -737,40 +748,38 @@ export default function BddPage() {
               return (
                 <div
                   key={client.ref}
-                  className="rounded-xl border border-slate-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] p-4 flex items-start justify-between gap-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-white/[0.03] transition-colors"
+                  className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 flex items-start justify-between gap-3 cursor-pointer hover:bg-white/[0.04] transition-all duration-200 active:scale-[0.99]"
                   onClick={() => navigate(`/client/${client.ref}`)}
                 >
                   <div className="min-w-0 flex-1 flex gap-3">
-                    <div
-                      className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold shrink-0"
-                      style={{
-                        backgroundColor: `hsl(${hue}, 60%, 92%)`,
-                        color: `hsl(${hue}, 70%, 35%)`,
-                      }}
-                    >
+                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 ${avatarStyle(client.raisonSociale || "?").bg} ${avatarStyle(client.raisonSociale || "?").text}`}>
                       {getUserInitials(client.raisonSociale || "?")}
                     </div>
                     <div className="min-w-0">
-                      <p className="font-medium text-sm text-slate-800 dark:text-slate-200 truncate" title={client.raisonSociale}>{client.raisonSociale}</p>
-                      <p className="text-[11px] text-slate-400 dark:text-slate-500 font-mono">{client.ref}</p>
+                      <p className="font-medium text-sm text-white truncate">{client.raisonSociale}</p>
+                      <p className="text-[11px] text-slate-500 font-mono">{client.ref}</p>
                       <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                        <span className="text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded bg-slate-100 dark:bg-white/[0.06] text-slate-500 dark:text-slate-400">{client.forme}</span>
-                        <span className="text-xs text-slate-600 dark:text-slate-400">{client.mission}</span>
+                        <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-md bg-slate-500/10 text-slate-400 border border-slate-500/10">{formeShort(client.forme)}</span>
+                        <span className="text-[10px] text-slate-400">{formatMission(client.mission)}</span>
+                        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
+                          client.nivVigilance === "SIMPLIFIEE" ? "bg-emerald-500/10 text-emerald-400" :
+                          client.nivVigilance === "RENFORCEE" ? "bg-red-500/10 text-red-400" :
+                          "bg-amber-500/10 text-amber-400"
+                        }`}>
+                          {client.nivVigilance === "SIMPLIFIEE" ? "Simplifiee" : client.nivVigilance === "RENFORCEE" ? "Renforcee" : "Standard"}
+                        </span>
                       </div>
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-2 shrink-0">
-                    {/* Score mini */}
-                    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold ring-1 ${
-                      client.scoreGlobal <= 25
-                        ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 ring-emerald-200 dark:ring-emerald-500/20"
-                        : client.scoreGlobal < 60
-                        ? "bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 ring-amber-200 dark:ring-amber-500/20"
-                        : "bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 ring-red-200 dark:ring-red-500/20"
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${
+                      client.scoreGlobal <= 25 ? "bg-emerald-500/15 text-emerald-400" :
+                      client.scoreGlobal < 60 ? "bg-amber-500/15 text-amber-400" :
+                      "bg-red-500/15 text-red-400"
                     }`}>
                       {client.scoreGlobal}
                     </div>
-                    <ChevronRightIcon className="w-4 h-4 text-slate-700 dark:text-slate-300" />
+                    <ChevronRightIcon className="w-4 h-4 text-slate-500" />
                   </div>
                 </div>
               );
@@ -791,7 +800,6 @@ export default function BddPage() {
 
       {/* Desktop table */}
       {clients.length > 0 && (
-        {/* #OPT-21: Table container ameliore */}
         <div ref={tableRef} aria-label="Liste des clients" className="hidden sm:block rounded-xl border border-white/[0.06] bg-white/[0.02] shadow-lg shadow-black/5 overflow-hidden">
           <div className="overflow-x-auto max-h-[calc(100vh-380px)] overflow-y-auto [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full">
             <Table>
@@ -883,12 +891,11 @@ export default function BddPage() {
                   return (
                     <TableRow
                       key={client.ref}
-                      className={`cursor-pointer transition-colors duration-100 hover:bg-slate-50 dark:hover:bg-white/[0.025] active:bg-slate-100 dark:active:bg-white/[0.04] ${
-                        isSelected ? "bg-blue-50/50 dark:bg-blue-500/[0.05]" : ""
-                      } ${idx < paginated.length - 1 ? "border-b border-slate-100 dark:border-white/[0.04]" : "border-b-0"}`}
-                      style={{ animation: `fadeInRow 200ms ease-out forwards`, animationDelay: `${idx * 40}ms`, opacity: 0 } as React.CSSProperties}
+                      className={`group cursor-pointer transition-all duration-150 hover:bg-white/[0.03] active:bg-white/[0.05] ${
+                        isSelected ? "bg-blue-500/[0.06] border-l-2 border-l-blue-500" : ""
+                      } ${idx < paginated.length - 1 ? "border-b border-white/[0.04]" : "border-b-0"}`}
+                      style={{ animation: `fadeInRow 200ms ease-out forwards`, animationDelay: `${idx * 30}ms`, opacity: 0 } as React.CSSProperties}
                       onClick={() => handleRowClick(client.ref)}
-                      onDoubleClick={() => handleRowClick(client.ref)}
                     >
                       {/* #1 — Checkbox */}
                       <TableCell className="px-3 py-3" onClick={e => e.stopPropagation()}>
@@ -1055,22 +1062,15 @@ export default function BddPage() {
                           <span className="text-xs text-slate-600">—</span>
                         )}
                       </TableCell>
-                      {/* #10 — Actions (chevron + dropdown) */}
+                      {/* #OPT-23: Actions ameliorees */}
                       <TableCell className="px-3 py-3" onClick={e => e.stopPropagation()}>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <button
-                              className="group/chevron inline-flex items-center justify-center w-8 h-8 rounded-md hover:bg-slate-100 dark:hover:bg-white/[0.06] transition-colors"
+                              className="inline-flex items-center justify-center w-8 h-8 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-white/[0.08] text-slate-500 hover:text-white transition-all duration-200"
                               aria-label="Actions"
                             >
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <ChevronRightIcon className="w-4 h-4 text-slate-300 dark:text-slate-600 group-hover/chevron:text-slate-500 dark:group-hover/chevron:text-slate-300 group-hover/chevron:translate-x-0.5 transition-all duration-150" />
-                                </TooltipTrigger>
-                                <TooltipContent side="left">
-                                  <p>Voir la fiche</p>
-                                </TooltipContent>
-                              </Tooltip>
+                              <ChevronRightIcon className="w-4 h-4" />
                             </button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
@@ -1136,10 +1136,10 @@ export default function BddPage() {
             </Table>
           </div>
 
-          {/* #31 — Footer counter + #32 — Pagination */}
-          <div className="flex items-center justify-between px-3 py-2 border-t border-slate-200 dark:border-white/[0.06]">
-            <span className="text-xs text-slate-400 dark:text-slate-500">
-              Affichage de {filtered.length > 0 ? page * pageSize + 1 : 0} a {Math.min((page + 1) * pageSize, filtered.length)} sur {filtered.length} dossier{filtered.length !== 1 ? "s" : ""}
+          {/* #OPT-24: Footer ameliore */}
+          <div className="flex items-center justify-between px-4 py-2.5 border-t border-white/[0.06] bg-white/[0.01]">
+            <span className="text-xs text-slate-500">
+              {filtered.length > 0 ? page * pageSize + 1 : 0}–{Math.min((page + 1) * pageSize, filtered.length)} sur {filtered.length} dossier{filtered.length !== 1 ? "s" : ""}
             </span>
             <div className="flex items-center gap-2">
               {/* Page size selector */}
