@@ -1,14 +1,13 @@
 import { useMemo } from "react";
 import { refActivitesService, type RefActivite } from "@/lib/referentielsService";
 import { clearScoringCache } from "@/lib/riskEngine";
-import RefTableBase, { RiskBadge, PiloteBadge, type ColumnDef, type FieldDef } from "./RefTableBase";
+import RefTableBase, { RiskBadge, type ColumnDef, type FieldDef } from "./RefTableBase";
 
 const columns: ColumnDef<RefActivite>[] = [
   { key: "code", label: "Code", width: "80px", minWidth: "60px" },
   { key: "libelle", label: "Libelle", minWidth: "150px" },
   { key: "description", label: "Description", minWidth: "120px" },
   { key: "score", label: "Risque", width: "120px", render: (item) => <RiskBadge score={item.score} /> },
-  { key: "is_default", label: "Pilotes", width: "80px", render: (item) => <PiloteBadge value={item.is_default} /> },
 ];
 
 const fields: FieldDef[] = [

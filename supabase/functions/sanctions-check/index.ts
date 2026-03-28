@@ -101,8 +101,9 @@ Deno.serve(async (req) => {
             details: `${caption} — Sources: ${sanctionTypes.join(", ") || datasets.slice(0, 3).join(", ")} — Score: ${(matchScore * 100).toFixed(0)}%`,
           });
         }
-      } catch {
+      } catch (personErr) {
         // Non-blocking per person
+        console.warn(`[sanctions-check] Failed to check person "${fullName}":`, (personErr as Error).message);
       }
     }
 

@@ -114,13 +114,6 @@ export function validateStepConfig(data: Record<string, unknown>): ValidationErr
   return errors;
 }
 
-/** Map step index (0-based) → validator (3-step wizard v3) */
-export const VALIDATORS: Record<number, (data: Record<string, unknown>) => ValidationError[]> = {
-  0: validateStep0,           // Client et missions
-  1: validateStepModalites,   // Modalités et honoraires
-  2: validateStep7,           // Vérification et génération (always valid)
-};
-
 /** Step 1 (v3) — Modalités: volume comptable + honoraires */
 export function validateStepModalites(data: Record<string, unknown>): ValidationError[] {
   const errors: ValidationError[] = [];
@@ -130,6 +123,13 @@ export function validateStepModalites(data: Record<string, unknown>): Validation
   if (honoraires > 500000) errors.push({ field: "honoraires_annuels", message: "Montant anormalement elevé (> 500 000 €)" });
   return errors;
 }
+
+/** Map step index (0-based) → validator (3-step wizard v3) */
+export const VALIDATORS: Record<number, (data: Record<string, unknown>) => ValidationError[]> = {
+  0: validateStep0,           // Client et missions
+  1: validateStepModalites,   // Modalités et honoraires
+  2: validateStep7,           // Vérification et génération (always valid)
+};
 
 /** Sanitize HTML/XSS dans les champs texte */
 export function sanitizeText(text: string): string {

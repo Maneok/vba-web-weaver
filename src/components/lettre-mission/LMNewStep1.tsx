@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppState } from "@/lib/AppContext";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -69,7 +69,7 @@ export default function LMNewStep1({ data, onChange }: Props) {
   }, [selectedClient]);
 
   // Select client handler
-  const selectClient = (c: Client) => {
+  const selectClient = useCallback((c: Client) => {
     onChange({
       client_id: c.ref,
       client_ref: c.ref,
@@ -93,12 +93,16 @@ export default function LMNewStep1({ data, onChange }: Props) {
     });
     setSearch("");
     setEditMode(false);
-  };
+  }, [onChange]);
+
+  // Fallbacks for old wizard data that may use different field names
+  const dateCloture = data.date_cloture_exercice || (data as any).date_cloture || "";
+  const assujettiTva = data.assujetti_tva ?? (data as any).tva_assujetti ?? true;
 
   // Check data completeness
   const missingFields: { key: string; label: string }[] = [];
   if (!data.regime_fiscal) missingFields.push({ key: "regime_fiscal", label: "Régime fiscal" });
-  if (!data.date_cloture_exercice) missingFields.push({ key: "date_cloture_exercice", label: "Date clôture exercice" });
+  if (!dateCloture) missingFields.push({ key: "date_cloture_exercice", label: "Date clôture exercice" });
   const isComplete = missingFields.length === 0;
 
   return (
@@ -181,8 +185,8 @@ export default function LMNewStep1({ data, onChange }: Props) {
                     <span>SIREN : {data.siren}</span>
                     <span>Dirigeant : {data.dirigeant}</span>
                     <span>Régime : {data.regime_fiscal}</span>
-                    <span>Clôture : {data.date_cloture_exercice}</span>
-                    <span>TVA : {data.assujetti_tva ? "Oui" : "Non"}</span>
+                    <span>Clôture : {dateCloture}</span>
+                    <span>TVA : {assujettiTva ? "Oui" : "Non"}</span>
                     <span>CAC : {data.cac ? "Oui" : "Non"}</span>
                   </div>
                 </div>
@@ -204,11 +208,11 @@ export default function LMNewStep1({ data, onChange }: Props) {
                       </div>
                       {/* Date cloture */}
                       <div className="space-y-1.5">
-                        <Label className="text-xs">Date clôture exercice {!data.date_cloture_exercice && <span className="text-red-400">*</span>}</Label>
+                        <Label className="text-xs">Date clôture exercice {!dateCloture && <span className="text-red-400">*</span>}</Label>
                         <Input
                           type="text"
                           placeholder="31/12/2026"
-                          value={data.date_cloture_exercice}
+                          value={dateCloture}
                           onChange={(e) => onChange({ date_cloture_exercice: e.target.value })}
                           className="h-8 text-xs"
                         />
@@ -216,7 +220,7 @@ export default function LMNewStep1({ data, onChange }: Props) {
                       {/* TVA + CAC */}
                       <div className="grid grid-cols-2 gap-4">
                         <div className="flex items-center gap-2">
-                          <Switch checked={data.assujetti_tva} onCheckedChange={(v) => onChange({ assujetti_tva: v })} />
+                          <Switch checked={assujettiTva} onCheckedChange={(v) => onChange({ assujetti_tva: v })} />
                           <Label className="text-xs">Assujetti TVA</Label>
                         </div>
                         <div className="flex items-center gap-2">

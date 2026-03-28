@@ -30,6 +30,8 @@ Deno.serve(async (req) => {
     }
 
     // 2. Récupérer les params de la requête
+    let body;
+    try { body = await req.json(); } catch { return new Response(JSON.stringify({ error: "Invalid JSON" }), { status: 400, headers: { ...cors, "Content-Type": "application/json" } }); }
     const {
       client_id,
       lettre_mission_id,
@@ -39,7 +41,7 @@ Deno.serve(async (req) => {
       outil_transmission,
       option_controle_fiscal,
       frequence_facturation,
-    } = await req.json();
+    } = body;
 
     if (!client_id) {
       return new Response(JSON.stringify({ error: "client_id requis" }), {

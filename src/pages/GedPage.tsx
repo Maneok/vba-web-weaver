@@ -383,7 +383,8 @@ export default function GedPage() {
           document_name: previewDoc.name,
           tags: updated,
         });
-      });
+      })
+      .catch(() => toast.error("Erreur mise à jour tag"));
   }, [newTag, docTags, previewDoc, fireAudit]);
 
   const removeTag = useCallback(
@@ -400,7 +401,8 @@ export default function GedPage() {
             document_name: previewDoc.name,
             tags: updated,
           });
-        });
+        })
+        .catch(() => toast.error("Erreur mise à jour tag"));
     },
     [docTags, previewDoc, fireAudit],
   );
@@ -416,7 +418,8 @@ export default function GedPage() {
           .from("documents")
           .update({ notes: value })
           .eq("id", previewDoc.id)
-          .then(() => {});
+          .then(() => {})
+          .catch(() => { toast.error("Erreur sauvegarde notes"); });
       }, 500);
     },
     [previewDoc],

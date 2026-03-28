@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { refMissionsService, type RefMission } from "@/lib/referentielsService";
 import { clearScoringCache } from "@/lib/riskEngine";
-import RefTableBase, { RiskBadge, PiloteBadge, type ColumnDef, type FieldDef } from "./RefTableBase";
+import RefTableBase, { RiskBadge, type ColumnDef, type FieldDef } from "./RefTableBase";
 import { Badge } from "@/components/ui/badge";
 
 const columns: ColumnDef<RefMission>[] = [
@@ -18,7 +18,6 @@ const columns: ColumnDef<RefMission>[] = [
   },
   { key: "libelle", label: "Libelle", minWidth: "120px" },
   { key: "score", label: "Risque", width: "100px", render: (item) => <RiskBadge score={item.score} /> },
-  { key: "is_default", label: "Pilotes", width: "80px", render: (item) => <PiloteBadge value={item.is_default} /> },
 ];
 
 // #23 - Add type_mission field to the form

@@ -306,6 +306,21 @@ export default function NouveauClientPage() {
 
   useDocumentTitle("Nouveau Client");
 
+  // Ref missions from referentiel (for "Autre mission" picker)
+  const [refMissions, setRefMissions] = useState<{ code: string; libelle: string }[]>([]);
+  const [showAutreMission, setShowAutreMission] = useState(false);
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) return;
+      supabase.from("profiles").select("cabinet_id").eq("id", session.user.id).single().then(({ data: prof }) => {
+        if (!prof?.cabinet_id) return;
+        supabase.from("ref_missions").select("code, libelle").eq("cabinet_id", prof.cabinet_id).order("libelle").then(({ data: rows }) => {
+          if (rows) setRefMissions(rows.map(r => ({ code: r.code, libelle: r.libelle })));
+        });
+      });
+    });
+  }, []);
+
   // Step 1 - Search
   const [searchMode, setSearchMode] = useState<"siren" | "nom" | "dirigeant">("siren");
   const [searchQuery, setSearchQuery] = useState("");
@@ -429,6 +444,7 @@ export default function NouveauClientPage() {
   const screeningTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // OPT: Dedup guard to prevent duplicate screening launches on rapid clicks
   const lastScreenedSirenRef = useRef<string | null>(null);
+  const mountedRef = useRef(true);
   // Ref to track documents for stale-closure-safe file upload
   const documentsRef = useRef(documents);
   documentsRef.current = documents;
@@ -465,6 +481,12 @@ export default function NouveauClientPage() {
   const set = useCallback((key: string, val: unknown) => {
     setForm(prev => ({ ...prev, [key]: val }));
     setHasUnsavedChanges(true);
+  }, []);
+
+  // Cleanup: mark unmounted to prevent stale setState in screening callbacks
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
   }, []);
 
   // FIX 1: Scroll to top on step change + track direction (#71)
@@ -552,9 +574,9 @@ export default function NouveauClientPage() {
                   updated_at: new Date().toISOString(),
                 }, { onConflict: "siren,cabinet_id" }).then(() => {
                   setLastDraftSaveAt(new Date());
-                }).catch(() => {});
-              }).catch(() => {});
-            }).catch(() => {});
+                }).catch((err) => { console.warn("Draft save failed", err); });
+              }).catch((err) => { console.warn("Draft save: profile lookup failed", err); });
+            }).catch((err) => { console.warn("Draft save: session lookup failed", err); });
           }, 5000);
         }
       }
@@ -619,9 +641,9 @@ export default function NouveauClientPage() {
               restoreDraft(JSON.stringify(dbDraft));
             }
           }
-        }).catch(() => {});
-      }).catch(() => {});
-    }).catch(() => {});
+        }).catch((err) => { console.warn("Draft restore: brouillons fetch failed", err); });
+      }).catch((err) => { console.warn("Draft restore: profile lookup failed", err); });
+    }).catch((err) => { console.warn("Draft restore: session lookup failed", err); });
   }, [restoreDraft, isResume]);
 
   // P2: Launch IA analysis in background as soon as documents arrive
@@ -1122,18 +1144,20 @@ export default function NouveauClientPage() {
       nom: d.nom, prenom: d.prenom, dateNaissance: d.date_naissance, nationalite: d.nationalite,
     }));
     checkSanctions(personsToCheck, siren.replace(/\s/g, "")).then(data => {
+      if (!mountedRef.current) return;
       setScreening(prev => ({ ...prev, sanctions: { loading: false, data, error: null, timeMs: Date.now() - t0sanctions } }));
       if (data.hasCriticalMatch) toast.error("ALERTE SANCTIONS : Match critique detecte !");
       if (data.hasPPE) toast.warning("PPE detectee — vigilance RENFORCEE requise");
-    }).catch(() => setScreening(prev => ({ ...prev, sanctions: { loading: false, data: null, error: "Service indisponible", timeMs: Date.now() - t0sanctions } })));
+    }).catch(() => { if (!mountedRef.current) return; setScreening(prev => ({ ...prev, sanctions: { loading: false, data: null, error: "Service indisponible", timeMs: Date.now() - t0sanctions } })); });
 
     // BODACC check
     const t0bodacc = Date.now();
     setScreening(prev => ({ ...prev, bodacc: { loading: true, data: null, error: null } }));
     checkBodacc(siren, raisonSociale, enterprise.complements as Record<string, unknown>).then(data => {
+      if (!mountedRef.current) return;
       setScreening(prev => ({ ...prev, bodacc: { loading: false, data, error: null, timeMs: Date.now() - t0bodacc } }));
       if (data.hasProcedureCollective) toast.warning("Procedure collective detectee (BODACC)");
-    }).catch(() => setScreening(prev => ({ ...prev, bodacc: { loading: false, data: null, error: "Service indisponible", timeMs: Date.now() - t0bodacc } })));
+    }).catch(() => { if (!mountedRef.current) return; setScreening(prev => ({ ...prev, bodacc: { loading: false, data: null, error: "Service indisponible", timeMs: Date.now() - t0bodacc } })); });
 
     // Google Places — pass enterprise GPS as fallback for map display
     const t0google = Date.now();
@@ -1145,35 +1169,40 @@ export default function NouveauClientPage() {
       body: { raison_sociale: raisonSociale, ville, adresse: enterprise.adresse ?? form.adresse, code_postal: enterprise.code_postal ?? form.cp, latitude: entLat, longitude: entLng },
     }).then(({ data, error }) => {
       if (error) throw error;
+      if (!mountedRef.current) return;
       setScreening(prev => ({ ...prev, google: { loading: false, data, error: null, timeMs: Date.now() - t0google } }));
-    }).catch(() => setScreening(prev => ({ ...prev, google: { loading: false, data: null, error: "Service indisponible", timeMs: Date.now() - t0google } })));
+    }).catch(() => { if (!mountedRef.current) return; setScreening(prev => ({ ...prev, google: { loading: false, data: null, error: "Service indisponible", timeMs: Date.now() - t0google } })); });
 
     // News check
     const t0news = Date.now();
     setScreening(prev => ({ ...prev, news: { loading: true, data: null, error: null } }));
     checkNews(raisonSociale, dirigeantPrincipal).then(data => {
+      if (!mountedRef.current) return;
       setScreening(prev => ({ ...prev, news: { loading: false, data, error: null, timeMs: Date.now() - t0news } }));
       if (data.hasNegativeNews) toast.error("Article negatif detecte dans la presse !");
-    }).catch(() => setScreening(prev => ({ ...prev, news: { loading: false, data: null, error: "Service indisponible", timeMs: Date.now() - t0news } })));
+    }).catch(() => { if (!mountedRef.current) return; setScreening(prev => ({ ...prev, news: { loading: false, data: null, error: "Service indisponible", timeMs: Date.now() - t0news } })); });
 
     // Network analysis
     const t0network = Date.now();
     setScreening(prev => ({ ...prev, network: { loading: true, data: null, error: null } }));
     analyzeNetwork(siren, dirigeants).then(data => {
+      if (!mountedRef.current) return;
       setScreening(prev => ({ ...prev, network: { loading: false, data, error: null, timeMs: Date.now() - t0network } }));
-    }).catch(() => setScreening(prev => ({ ...prev, network: { loading: false, data: null, error: "Service indisponible", timeMs: Date.now() - t0network } })));
+    }).catch(() => { if (!mountedRef.current) return; setScreening(prev => ({ ...prev, network: { loading: false, data: null, error: "Service indisponible", timeMs: Date.now() - t0network } })); });
 
     // Documents fetch
     const t0docs = Date.now();
     setScreening(prev => ({ ...prev, documents: { loading: true, data: null, error: null } }));
     fetchDocuments(siren, raisonSociale).then(data => {
+      if (!mountedRef.current) return;
       setScreening(prev => ({ ...prev, documents: { loading: false, data, error: null, timeMs: Date.now() - t0docs } }));
-    }).catch(() => setScreening(prev => ({ ...prev, documents: { loading: false, data: null, error: "Service indisponible", timeMs: Date.now() - t0docs } })));
+    }).catch(() => { if (!mountedRef.current) return; setScreening(prev => ({ ...prev, documents: { loading: false, data: null, error: "Service indisponible", timeMs: Date.now() - t0docs } })); });
 
     // INPI documents fetch — Phase 1: INPI as priority data source
     const t0inpi = Date.now();
     setScreening(prev => ({ ...prev, inpi: { loading: true, data: null, error: null } }));
     fetchInpiDocuments(siren.replace(/\s/g, "")).then(data => {
+      if (!mountedRef.current) return;
       // ALWAYS save INPI documents first — enrichment crash must NOT lose docs
       setScreening(prev => ({ ...prev, inpi: { loading: false, data, error: data.error || null, timeMs: Date.now() - t0inpi } }));
       if (data.totalDocuments > 0) toast.success(`${data.totalDocuments} document(s) INPI recupere(s)`);
@@ -1336,7 +1365,7 @@ export default function NouveauClientPage() {
       } catch (enrichErr) {
         console.error("INPI enrichissement error (documents preserved):", enrichErr);
       }
-    }).catch(() => setScreening(prev => ({ ...prev, inpi: { loading: false, data: null, error: "Service indisponible", timeMs: Date.now() - t0inpi } })));
+    }).catch(() => { if (!mountedRef.current) return; setScreening(prev => ({ ...prev, inpi: { loading: false, data: null, error: "Service indisponible", timeMs: Date.now() - t0inpi } })); });
   };
 
   // #13-16: Auto-format helpers
@@ -3425,45 +3454,60 @@ export default function NouveauClientPage() {
                     <p className="text-xs text-slate-400 dark:text-slate-500 mb-3">
                       Selectionnez le type de mission principal pour ce client. Ce choix impacte le scoring de risque LCB-FT.
                     </p>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-                      {MISSIONS.map(m => {
-                        const isActive = form.mission === m;
-                        const MissionIcon = ({
-                          "TENUE COMPTABLE": BookOpen,
-                          "REVISION / SURVEILLANCE": Eye,
-                          "SOCIAL / PAIE SEULE": Users,
-                          "CONSEIL DE GESTION": Briefcase,
-                          "CONSTITUTION / CESSION": FileSignature,
-                          "DOMICILIATION": Building2,
-                          "IRPP": Scale,
-                        } as Record<string, typeof BookOpen>)[m] || FileText;
-                        return (
-                          <button
-                            key={m}
-                            type="button"
-                            onClick={() => set("mission", m)}
-                            className={`text-left p-3 rounded-lg border transition-colors duration-150 ${
-                              isActive
-                                ? "border-amber-500/50 bg-amber-500/10"
-                                : "border-gray-200 dark:border-white/[0.06] bg-white/[0.02] hover:bg-amber-500/[0.03] hover:border-amber-500/30"
-                            }`}
-                          >
-                            <div className="flex items-center gap-2.5">
-                              <MissionIcon className={`w-4 h-4 shrink-0 ${isActive ? "text-amber-400" : "text-slate-400 dark:text-slate-500"}`} />
-                              <span className={`text-xs font-medium ${isActive ? "text-amber-300" : "text-slate-300 dark:text-slate-400"}`}>
-                                {m}
-                              </span>
-                            </div>
-                            {isActive && (
-                              <div className="mt-1.5 flex items-center gap-1 ml-6.5">
-                                <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-                                <span className="text-[9px] text-amber-400/80">Selectionne</span>
+                    {(() => {
+                      const MI: Record<string, typeof BookOpen> = { "TENUE COMPTABLE": BookOpen, "REVISION / SURVEILLANCE": Eye, "SOCIAL / PAIE SEULE": Users, "CONSEIL DE GESTION": Briefcase, "CONSTITUTION / CESSION": FileSignature, "DOMICILIATION": Building2, "IRPP": Scale };
+                      const isCustom = !!form.mission && !MISSIONS.includes(form.mission as any);
+                      const cardBase = "text-left p-3 rounded-lg border transition-colors duration-150";
+                      const cardOn = "border-amber-500/50 bg-amber-500/10";
+                      const cardOff = "border-gray-200 dark:border-white/[0.06] bg-white/[0.02] hover:bg-amber-500/[0.03] hover:border-amber-500/30";
+                      const dot = (<div className="mt-1.5 flex items-center gap-1 ml-[26px]"><span className="w-1.5 h-1.5 rounded-full bg-amber-400" /><span className="text-[9px] text-amber-400/80">Selectionne</span></div>);
+                      return (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                          {MISSIONS.map(m => {
+                            const on = form.mission === m;
+                            const Ic = MI[m] || FileText;
+                            return (
+                              <button key={m} type="button" onClick={() => { set("mission", m); setShowAutreMission(false); }} className={`${cardBase} ${on ? cardOn : cardOff}`}>
+                                <div className="flex items-center gap-2.5">
+                                  <Ic className={`w-4 h-4 shrink-0 ${on ? "text-amber-400" : "text-slate-400 dark:text-slate-500"}`} />
+                                  <span className={`text-xs font-medium ${on ? "text-amber-300" : "text-slate-300 dark:text-slate-400"}`}>{m}</span>
+                                </div>
+                                {on && dot}
+                              </button>
+                            );
+                          })}
+                          {/* Autre mission — popover ref_missions */}
+                          <Popover open={showAutreMission} onOpenChange={setShowAutreMission}>
+                            <PopoverTrigger asChild>
+                              <button type="button" className={`${cardBase} ${isCustom ? cardOn : "border-dashed border-gray-300 dark:border-white/[0.08] bg-white/[0.01] hover:bg-amber-500/[0.03] hover:border-amber-500/30"}`}>
+                                <div className="flex items-center gap-2.5">
+                                  <Plus className={`w-4 h-4 shrink-0 ${isCustom ? "text-amber-400" : "text-slate-400 dark:text-slate-500"}`} />
+                                  <span className={`text-xs font-medium truncate ${isCustom ? "text-amber-300" : "text-slate-400 dark:text-slate-500"}`}>{isCustom ? form.mission : "Autre mission\u2026"}</span>
+                                </div>
+                                {isCustom && dot}
+                              </button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-72 p-0" align="start" sideOffset={6}>
+                              <div className="px-3 py-2.5 border-b border-gray-100 dark:border-white/[0.06]">
+                                <p className="text-xs font-medium text-slate-700 dark:text-slate-200">Missions du referentiel</p>
+                                <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">Parametres &gt; Referentiels &gt; Missions</p>
                               </div>
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
+                              <div className="max-h-56 overflow-y-auto p-1">
+                                {refMissions.length === 0 ? (
+                                  <p className="text-xs text-slate-400 dark:text-slate-500 p-4 text-center">Aucune mission configuree</p>
+                                ) : refMissions.filter(rm => !MISSIONS.includes(rm.libelle.toUpperCase() as any)).map(rm => (
+                                  <button key={rm.code} type="button" onClick={() => { set("mission", rm.libelle.toUpperCase()); setShowAutreMission(false); }}
+                                    className={`w-full text-left px-3 py-2 rounded-md text-xs transition-colors flex items-center justify-between gap-2 ${form.mission === rm.libelle.toUpperCase() ? "bg-amber-500/10 text-amber-300" : "text-slate-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-white/[0.04]"}`}>
+                                    <span className="font-medium truncate">{rm.libelle}</span>
+                                    <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono shrink-0">{rm.code}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </CollapsibleContent>
               </div>

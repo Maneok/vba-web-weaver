@@ -142,7 +142,8 @@ Deno.serve(async (req) => {
     const { data: activeClients } = await supabase
       .from("clients")
       .select("id, ref, raison_sociale, cabinet_id, niv_vigilance, date_derniere_revue, date_creation_ligne, score_global")
-      .eq("statut", "ACTIF");
+      .eq("statut", "ACTIF")
+      .limit(5000);
 
     if (activeClients) {
       let createdCount = 0;
@@ -257,7 +258,8 @@ Deno.serve(async (req) => {
     result.notifications_generated = { error: (err as Error).message };
   }
 
-  return new Response(JSON.stringify({ success: !error, result, error: error?.message }), {
+  const hasSubErrors = Object.values(result).some((v: any) => v && typeof v === 'object' && 'error' in v);
+  return new Response(JSON.stringify({ success: !error && !hasSubErrors, result, error: error?.message }), {
     headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' },
   });
 });

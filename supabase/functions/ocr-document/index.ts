@@ -178,6 +178,10 @@ Réponds UNIQUEMENT avec le JSON, sans markdown ni explication. Si un champ n'es
     }
     if (!extracted) {
       console.error("Failed to parse OCR JSON:", textContent);
+      return new Response(
+        JSON.stringify({ error: "Impossible d'extraire les donnees du document", extracted: null, mode: ocrMode }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     // For RIB mode, also apply regex fallback on raw text

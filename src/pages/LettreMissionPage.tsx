@@ -1493,7 +1493,7 @@ export default function LettreMissionPage() {
   }, [step, activeTab, handleNext]);
 
   // ── V3: Generate DOCX via edge function ──
-  const handleGenerate = async () => {
+  const handleGenerate = useCallback(async () => {
     setGenerating(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -1551,7 +1551,7 @@ export default function LettreMissionPage() {
     } finally {
       setGenerating(false);
     }
-  };
+  }, [data, profile?.cabinet_id]);
 
   // Step render (3 steps v3)
   const renderStep = () => {

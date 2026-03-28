@@ -65,13 +65,7 @@ export async function searchPappers(
 
   // If free API returned nothing or we need docs, try edge function
   try {
-    // OPT-15: Unified AbortController with proper cleanup
-    const timeoutController = new AbortController();
-    const timeoutId = setTimeout(() => timeoutController.abort(), 20000);
-    if (signal) {
-      if (signal.aborted) { clearTimeout(timeoutId); return { results: [], error: "Requete annulee" }; }
-      signal.addEventListener("abort", () => timeoutController.abort(), { once: true });
-    }
+    if (signal?.aborted) { return { results: [], error: "Requete annulee" }; }
 
     let data, error;
     try {
@@ -81,12 +75,9 @@ export async function searchPappers(
       data = result.data;
       error = result.error;
     } catch (invokeErr) {
-      // Edge function failed (CORS, network, etc.) — already tried free API above
       const msg = invokeErr instanceof Error ? invokeErr.message : "Erreur";
       logger.debug("Pappers", "Edge function unavailable:", msg);
       return { results: [], error: "Aucun resultat trouve." };
-    } finally {
-      clearTimeout(timeoutId);
     }
 
     if (signal?.aborted) {

@@ -12,7 +12,8 @@ export type MissionType =
   | "CONSEIL DE GESTION"
   | "CONSTITUTION / CESSION"
   | "DOMICILIATION"
-  | "IRPP";
+  | "IRPP"
+  | (string & {});
 
 export type FormeJuridique =
   | "ENTREPRISE INDIVIDUELLE"

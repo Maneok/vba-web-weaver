@@ -137,10 +137,10 @@ export default function TarifsGrille({ cabinetId }: Props) {
   }, [cabinetId, tarifs]);
 
   // ---- Update field ----
-  const updateTarif = (key: keyof TarifsDefaut, val: string) => {
+  const updateTarif = useCallback((key: keyof TarifsDefaut, val: string) => {
     const num = parseFloat(val);
     setTarifs(prev => ({ ...prev, [key]: isNaN(num) ? 0 : num }));
-  };
+  }, []);
 
   if (loading) {
     return <Skeleton className="h-64 w-full" />;

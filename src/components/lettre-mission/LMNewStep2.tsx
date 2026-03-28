@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import type { LMWizardData } from "@/lib/lmWizardTypes";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -30,10 +31,10 @@ const FREQUENCES = [
 export default function LMNewStep2({ data, onChange, cabinetTarifs }: Props) {
   const mensualite = data.honoraires_annuels > 0 ? (data.honoraires_annuels / 12).toFixed(2) : "—";
 
-  const updateTarifSocial = (key: keyof LMWizardData["tarifs_sociaux"], val: string) => {
+  const updateTarifSocial = useCallback((key: keyof LMWizardData["tarifs_sociaux"], val: string) => {
     const num = parseFloat(val);
     onChange({ tarifs_sociaux: { ...data.tarifs_sociaux, [key]: isNaN(num) ? 0 : num } });
-  };
+  }, [data.tarifs_sociaux, onChange]);
 
   return (
     <div className="space-y-6">

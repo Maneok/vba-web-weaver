@@ -342,6 +342,7 @@ export interface SavedLetter {
 
 /** E) Compute auto annexes from wizard data */
 export function computeAnnexes(data: LMWizardData): string[] {
+  const missions = data.missions_selected || [];
   const annexes: string[] = [];
   // Always
   annexes.push("cgv_cabinet");
@@ -350,7 +351,7 @@ export function computeAnnexes(data: LMWizardData): string[] {
   if (data.clause_travail_dissimule !== false) annexes.push("clause_travail_dissimule");
 
   // Social missions → annexe repartition travaux sociaux
-  if (data.missions_selected.some((m) => m.section_id === "social" && m.selected)) {
+  if (missions.some((m) => m.section_id === "social" && m.selected)) {
     annexes.push("repartition_travaux_sociaux");
   }
   // SEPA → mandat SEPA
@@ -358,7 +359,7 @@ export function computeAnnexes(data: LMWizardData): string[] {
     annexes.push("mandat_sepa");
   }
   // Missions complementaires (conseil)
-  if (data.missions_selected.some((m) => m.section_id === "conseil" && m.selected)) {
+  if (missions.some((m) => m.section_id === "conseil" && m.selected)) {
     annexes.push("detail_missions_complementaires");
   }
   return annexes;

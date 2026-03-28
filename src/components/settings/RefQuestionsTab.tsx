@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { refQuestionsService, type RefQuestion } from "@/lib/referentielsService";
-import RefTableBase, { PiloteBadge, type ColumnDef, type FieldDef, type FilterDef } from "./RefTableBase";
+import RefTableBase, { type ColumnDef, type FieldDef, type FilterDef } from "./RefTableBase";
 import { Badge } from "@/components/ui/badge";
 
 const KNOWN_CATEGORIES = ["KYC", "LCB-FT", "PPE", "Sanctions", "Gel d'avoirs", "Atypique", "Structure", "Activite", "Pays"];
@@ -41,7 +41,6 @@ const columns: ColumnDef<RefQuestion>[] = [
       </Badge>
     ),
   },
-  { key: "is_default", label: "Pilotes", width: "80px", render: (item) => <PiloteBadge value={item.is_default} /> },
 ];
 
 const fields: FieldDef[] = [

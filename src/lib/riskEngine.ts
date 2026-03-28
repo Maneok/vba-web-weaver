@@ -446,7 +446,8 @@ export function calculateRiskScore(params: {
   if (params.dateCreation) {
     const created = new Date(params.dateCreation);
     if (!isNaN(created.getTime())) {
-      const ageMonths = (new Date().getFullYear() - created.getFullYear()) * 12 + (new Date().getMonth() - created.getMonth());
+      const now2 = new Date();
+      const ageMonths = (now2.getFullYear() - created.getFullYear()) * 12 + (now2.getMonth() - created.getMonth());
       if (ageMonths < 6) malus += 20;
       else if (ageMonths < 24) malus += 10;
     }
@@ -464,8 +465,7 @@ export function calculateRiskScore(params: {
     scoreGlobal = Math.round(avg + malus);
   }
 
-  // Cap at 100 (maximum score)
-  scoreGlobal = Math.min(scoreGlobal, 100);
+  scoreGlobal = Math.min(scoreGlobal, 120);
 
   const seuilSimplifie = cfg?.seuil_bas ?? RISK_THRESHOLDS.SIMPLIFIEE_MAX;
   const seuilRenforce = cfg?.seuil_haut ?? RISK_THRESHOLDS.STANDARD_MAX;
@@ -557,7 +557,8 @@ export function daysUntilReview(
 ): number {
   const dueDate = calculateReviewDueDate(nivVigilance, dateDerniereRevue, dateCreationLigne);
   const diff = new Date(dueDate).getTime() - Date.now();
-  return Math.ceil(diff / (24 * 60 * 60 * 1000));
+  const result = Math.ceil(diff / (24 * 60 * 60 * 1000));
+  return isNaN(result) ? 0 : result;
 }
 
 // OPT-3: Cache Date.now() to avoid multiple Date object creations

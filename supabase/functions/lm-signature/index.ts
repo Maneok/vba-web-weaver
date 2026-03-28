@@ -225,6 +225,7 @@ Deno.serve(async (req) => {
       }
 
       // Update LM instance status to 'signee'
+      let lmUpdateFailed = false;
       const { error: updateInstErr } = await supabase
         .from("lettres_mission")
         .update({
@@ -237,15 +238,20 @@ Deno.serve(async (req) => {
         .eq("id", tokenRow.instance_id);
 
       if (updateInstErr) {
+        lmUpdateFailed = true;
         log("error", "SIGN_UPDATE_LM_FAILED", { instanceId: tokenRow.instance_id, error: updateInstErr.message });
       }
 
       // Load instance for certificate
-      const { data: instance } = await supabase
+      const { data: instance, error: loadInstErr } = await supabase
         .from("lettres_mission")
         .select("numero, raison_sociale")
         .eq("id", tokenRow.instance_id)
         .maybeSingle();
+
+      if (loadInstErr) {
+        log("error", "SIGN_LOAD_INSTANCE_FAILED", { instanceId: tokenRow.instance_id, error: loadInstErr.message });
+      }
 
       // OPT-35: Generate versioned signature certificate
       const certificateId = `CERT-${tokenRow.id.slice(0, 8).toUpperCase()}-${Date.now().toString(36).toUpperCase()}`;
@@ -305,6 +311,7 @@ Deno.serve(async (req) => {
         signed_at: now,
         certificate,
         certificate_url,
+        ...(lmUpdateFailed ? { warning: "La signature a été enregistrée mais la mise à jour du statut de la lettre a échoué" } : {}),
       }, 200, req);
     }
 

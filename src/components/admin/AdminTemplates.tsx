@@ -85,13 +85,13 @@ export default function AdminTemplates() {
               .from("cabinet-assets")
               .list(`${cab.id}/templates`, { search: "lm-default" });
             hasCustomTemplate = !!(tpl && tpl.length > 0);
-          } catch {}
+          } catch { /* non-blocking: cabinet template check */ }
           try {
             const { data: logo } = await supabase.storage
               .from("cabinet-assets")
               .list(`${cab.id}`, { search: "logo" });
             hasLogo = !!(logo && logo.length > 0);
-          } catch {}
+          } catch { /* non-blocking: cabinet logo check */ }
           infos.push({ id: cab.id, nom: cab.nom || cab.id, hasCustomTemplate, hasLogo });
         }
         setCabinets(infos);

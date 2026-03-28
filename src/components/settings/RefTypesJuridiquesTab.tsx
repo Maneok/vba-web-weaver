@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { refTypesJuridiquesService, type RefTypeJuridique } from "@/lib/referentielsService";
 import { clearScoringCache } from "@/lib/riskEngine";
-import RefTableBase, { RiskBadge, PiloteBadge, type ColumnDef, type FieldDef } from "./RefTableBase";
+import RefTableBase, { RiskBadge, type ColumnDef, type FieldDef } from "./RefTableBase";
 import { Badge } from "@/components/ui/badge";
 
 const columns: ColumnDef<RefTypeJuridique>[] = [
@@ -26,7 +26,6 @@ const columns: ColumnDef<RefTypeJuridique>[] = [
     exportFn: (item) => (item as unknown as Record<string, unknown>).type_client as string || "",
   },
   { key: "score", label: "Risque", width: "120px", render: (item) => <RiskBadge score={item.score} /> },
-  { key: "is_default", label: "Pilotes", width: "80px", render: (item) => <PiloteBadge value={item.is_default} /> },
 ];
 
 const fields: FieldDef[] = [

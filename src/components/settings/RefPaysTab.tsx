@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { refPaysService, type RefPays } from "@/lib/referentielsService";
 import { clearScoringCache } from "@/lib/riskEngine";
-import RefTableBase, { RiskBadge, PiloteBadge, type ColumnDef, type FieldDef, type FilterDef, type ExtraStatDef } from "./RefTableBase";
+import RefTableBase, { RiskBadge, type ColumnDef, type FieldDef, type FilterDef, type ExtraStatDef } from "./RefTableBase";
 import { Badge } from "@/components/ui/badge";
 
 /* ---------- Flag definitions ---------- */
@@ -45,7 +45,6 @@ const columns: ColumnDef<RefPays>[] = [
     },
   },
   { key: "score", label: "Risque", width: "120px", render: (item) => <RiskBadge score={item.score} /> },
-  { key: "is_default", label: "Pilotes", width: "80px", render: (item) => <PiloteBadge value={item.is_default} /> },
 ];
 
 /* ---------- Fields ---------- */

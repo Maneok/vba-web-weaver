@@ -2,7 +2,7 @@ import type { Client, Collaborateur, AlerteRegistre } from "./types";
 import { COCKPIT_CRITIQUE_DAYS, CNI_WARNING_DAYS, CNI_URGENT_DAYS } from "./constants";
 
 export interface CockpitUrgency {
-  type: "revision" | "cni" | "scoring" | "fantome" | "formation" | "alerte" | "kyc" | "document" | "capital" | "doublon" | "be" | "domiciliation";
+  type: "revision" | "cni" | "scoring" | "fantome" | "formation" | "alerte" | "kyc" | "document" | "capital" | "doublon" | "be" | "domiciliation" | "honoraires";
   severity: "critique" | "warning" | "info";
   title: string;
   detail: string;
@@ -232,7 +232,8 @@ export function analyzeCockpit(
   const anomaliesCapital: CockpitUrgency[] = [];
   for (const c of safeClients) {
     if (c.statut === "INACTIF") continue;
-    if ((c.capital ?? 0) > 0 && (c.capital ?? 0) < 100 && (c.honoraires ?? 0) > 10000) {
+    const cap = c.capital ?? 0;
+    if (cap > 0 && cap < 100 && (c.honoraires ?? 0) > 10000) {
       const u: CockpitUrgency = {
         type: "capital",
         severity: "warning",
@@ -317,7 +318,7 @@ export function analyzeCockpit(
     if (c.statut === "INACTIF" || c.etat !== "VALIDE") continue;
     if (c.honoraires === null || c.honoraires === undefined || c.honoraires === 0) {
       const u: CockpitUrgency = {
-        type: "capital",
+        type: "honoraires" as CockpitUrgency["type"],
         severity: "info",
         title: `${c.raisonSociale || c.ref || "Client inconnu"} — Honoraires non renseignes`,
         detail: `Client valide sans honoraires. Mission: ${c.mission}`,

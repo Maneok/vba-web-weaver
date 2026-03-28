@@ -103,6 +103,7 @@ export function RiskBadge({ score }: { score: number }) {
   return <Badge className="bg-red-500/20 text-red-400 border-red-500/30 hover:bg-red-500/30">Eleve</Badge>;
 }
 
+/** @deprecated No longer used — kept for backwards compat if referenced elsewhere */
 export function PiloteBadge({ value }: { value: boolean }) {
   return value
     ? <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30">Oui</Badge>
@@ -206,7 +207,6 @@ export default function RefTableBase<T extends { id: string }>({
 
   // 3. Filters
   const [riskFilter, setRiskFilter] = useState("all");
-  const [piloteFilter, setPiloteFilter] = useState("all");
   const [extraFilterValues, setExtraFilterValues] = useState<Record<string, string>>({});
 
   // 4. Selection
@@ -239,7 +239,6 @@ export default function RefTableBase<T extends { id: string }>({
       if (saved) {
         const p = JSON.parse(saved);
         if (p.riskFilter) setRiskFilter(p.riskFilter);
-        if (p.piloteFilter) setPiloteFilter(p.piloteFilter);
         if (p.extraFilterValues) setExtraFilterValues(p.extraFilterValues);
         if (p.pageSize) setPageSize(p.pageSize);
       }
@@ -249,9 +248,9 @@ export default function RefTableBase<T extends { id: string }>({
   // 11. Persist filters
   useEffect(() => {
     try {
-      sessionStorage.setItem(`ref_filters_${sKey}`, JSON.stringify({ riskFilter, piloteFilter, extraFilterValues, pageSize }));
+      sessionStorage.setItem(`ref_filters_${sKey}`, JSON.stringify({ riskFilter, extraFilterValues, pageSize }));
     } catch { /* ignore */ }
-  }, [riskFilter, piloteFilter, extraFilterValues, pageSize, sKey]);
+  }, [riskFilter, extraFilterValues, pageSize, sKey]);
 
   // 12. Cleanup undo timer on unmount
   useEffect(() => {
@@ -305,12 +304,6 @@ export default function RefTableBase<T extends { id: string }>({
         return true;
       });
     }
-    if (piloteFilter !== "all") {
-      result = result.filter((item) => {
-        const val = (item as Record<string, unknown>).is_default as boolean;
-        return piloteFilter === "oui" ? val : !val;
-      });
-    }
     if (extraFilters) {
       for (const ef of extraFilters) {
         const val = extraFilterValues[ef.key];
@@ -320,7 +313,7 @@ export default function RefTableBase<T extends { id: string }>({
       }
     }
     return result;
-  }, [searched, riskFilter, piloteFilter, extraFilterValues, extraFilters, hasScore]);
+  }, [searched, riskFilter, extraFilterValues, extraFilters, hasScore]);
 
   // 17. Stable sort
   const sorted = useMemo(() => {
@@ -345,10 +338,10 @@ export default function RefTableBase<T extends { id: string }>({
   const paged = useMemo(() => sorted.slice(safePage * pageSize, (safePage + 1) * pageSize), [sorted, safePage, pageSize]);
 
   // 19. Reset page on filter/search change
-  useEffect(() => { setPage(0); }, [debouncedSearch, riskFilter, piloteFilter, extraFilterValues, pageSize]);
+  useEffect(() => { setPage(0); }, [debouncedSearch, riskFilter, extraFilterValues, pageSize]);
 
   // 20. Reset focusIdx on page/filter change
-  useEffect(() => { setFocusIdx(-1); }, [safePage, debouncedSearch, riskFilter, piloteFilter, sortKey, sortDir]);
+  useEffect(() => { setFocusIdx(-1); }, [safePage, debouncedSearch, riskFilter, sortKey, sortDir]);
 
   // 21. Stats on ALL items
   const stats = useMemo(() => {
@@ -662,11 +655,10 @@ export default function RefTableBase<T extends { id: string }>({
   const resetFilters = useCallback(() => {
     setSearchInput("");
     setRiskFilter("all");
-    setPiloteFilter("all");
     setExtraFilterValues({});
   }, []);
 
-  const hasActiveFilters = debouncedSearch || riskFilter !== "all" || piloteFilter !== "all" ||
+  const hasActiveFilters = debouncedSearch || riskFilter !== "all" ||
     Object.values(extraFilterValues).some((v) => v && v !== "all");
 
   // 39. Keyboard navigation (Escape clears selection, Delete opens bulk delete)
@@ -840,16 +832,6 @@ export default function RefTableBase<T extends { id: string }>({
             </SelectContent>
           </Select>
         )}
-        <Select value={piloteFilter} onValueChange={setPiloteFilter}>
-          <SelectTrigger className="w-[130px] bg-white/5 border-white/10 text-sm" aria-label="Filtrer par pilotes">
-            <SelectValue placeholder="Pilotes" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Tous pilotes</SelectItem>
-            <SelectItem value="oui">Oui</SelectItem>
-            <SelectItem value="non">Non</SelectItem>
-          </SelectContent>
-        </Select>
         {extraFilters?.map((ef) => (
           <Select
             key={ef.key}
