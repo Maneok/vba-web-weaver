@@ -67,10 +67,10 @@ export async function loadScoringData(cabinetId: string): Promise<ScoringData> {
   try {
     // #15 - Load libelle alongside code for fuzzy matching
     const [missionsRes, typesRes, paysRes, activitesRes] = await Promise.all([
-      supabase.from("ref_missions").select("code, libelle, score").eq("cabinet_id", cabinetId),
-      supabase.from("ref_types_juridiques").select("code, libelle, score").eq("cabinet_id", cabinetId),
-      supabase.from("ref_pays").select("code, libelle, libelle_nationalite, score, est_gafi_noir, est_gafi_gris, est_offshore").eq("cabinet_id", cabinetId),
-      supabase.from("ref_activites").select("code, libelle, score").eq("cabinet_id", cabinetId),
+      supabase.from("ref_missions").select("code, libelle, score").or(`cabinet_id.eq.${cabinetId},cabinet_id.is.null`),
+      supabase.from("ref_types_juridiques").select("code, libelle, score").or(`cabinet_id.eq.${cabinetId},cabinet_id.is.null`),
+      supabase.from("ref_pays").select("code, libelle, libelle_nationalite, score, est_gafi_noir, est_gafi_gris, est_offshore").or(`cabinet_id.eq.${cabinetId},cabinet_id.is.null`),
+      supabase.from("ref_activites").select("code, libelle, score").or(`cabinet_id.eq.${cabinetId},cabinet_id.is.null`),
     ]);
 
     const missions = new Map<string, number>();
@@ -393,18 +393,18 @@ export function calculateRiskScore(params: {
     return APE_SCORES[ape] ?? 25;
   };
 
-  // #20 - Resolve mission score with flexible DB lookup + hardcoded fallback
+  // #20 - Resolve mission score from ref_missions (DB only, no hardcoded fallback)
   const resolveMission = (mission: string): number => {
     if (scoringData && scoringData.missions.size > 0) {
       const dbScore = scoringData.missions.get(mission);
       if (dbScore !== undefined) return dbScore;
-      // Try uppercase for libelle match
       const upper = scoringData.missions.get(mission.toUpperCase().trim());
       if (upper !== undefined) return upper;
-      // Try normalized key (underscores → spaces)
       const normalized = scoringData.missions.get(normalizeKey(mission));
       if (normalized !== undefined) return normalized;
     }
+    // Fallback: mission not found in referentiel — use default 25 and warn
+    if (typeof console !== "undefined") console.warn(`[riskEngine] Mission "${mission}" non trouvee dans ref_missions — score par defaut 25`);
     return MISSION_SCORES[mission] ?? 25;
   };
 

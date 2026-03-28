@@ -314,7 +314,7 @@ export default function NouveauClientPage() {
       if (!session) return;
       supabase.from("profiles").select("cabinet_id").eq("id", session.user.id).single().then(({ data: prof }) => {
         if (!prof?.cabinet_id) return;
-        supabase.from("ref_missions").select("code, libelle, score").eq("cabinet_id", prof.cabinet_id).order("libelle").then(({ data: rows }) => {
+        supabase.from("ref_missions").select("code, libelle, score").or(`cabinet_id.eq.${prof.cabinet_id},cabinet_id.is.null`).order("libelle").then(({ data: rows }) => {
           if (rows) setRefMissions(rows.map(r => ({ code: r.code, libelle: r.libelle, score: r.score ?? 25 })));
         });
       });
@@ -3476,7 +3476,13 @@ export default function NouveauClientPage() {
                     </p>
                     {(() => {
                       const MI: Record<string, typeof BookOpen> = { "TENUE COMPTABLE": BookOpen, "REVISION / SURVEILLANCE": Eye, "SOCIAL / PAIE SEULE": Users, "CONSEIL DE GESTION": Briefcase, "CONSTITUTION / CESSION": FileSignature, "DOMICILIATION": Building2, "IRPP": Scale };
-                      const isCustom = !!form.mission && !MISSIONS.includes(form.mission as any);
+                      // Resolve quick card labels from refMissions when available
+                      const getLabel = (m: string) => {
+                        const match = refMissions.find(rm => rm.libelle.toUpperCase() === m || rm.code.toUpperCase().replace(/_/g, " ") === m);
+                        return match ? match.libelle : m.split(" ").map(w => w.charAt(0) + w.slice(1).toLowerCase()).join(" ");
+                      };
+                      const quickCodes = new Set(MISSIONS.map(m => m));
+                      const isCustom = !!form.mission && !quickCodes.has(form.mission as any);
                       const cardBase = "text-left p-3 rounded-lg border transition-colors duration-150";
                       const cardOn = "border-amber-500/50 bg-amber-500/10";
                       const cardOff = "border-gray-200 dark:border-white/[0.06] bg-white/[0.02] hover:bg-amber-500/[0.03] hover:border-amber-500/30";
@@ -3490,7 +3496,7 @@ export default function NouveauClientPage() {
                               <button key={m} type="button" onClick={() => { set("mission", m); setShowAutreMission(false); }} className={`${cardBase} ${on ? cardOn : cardOff}`}>
                                 <div className="flex items-center gap-2.5">
                                   <Ic className={`w-4 h-4 shrink-0 ${on ? "text-amber-400" : "text-slate-400 dark:text-slate-500"}`} />
-                                  <span className={`text-xs font-medium ${on ? "text-amber-300" : "text-slate-300 dark:text-slate-400"}`}>{m}</span>
+                                  <span className={`text-xs font-medium ${on ? "text-amber-300" : "text-slate-300 dark:text-slate-400"}`}>{getLabel(m)}</span>
                                 </div>
                                 {on && dot}
                               </button>
@@ -3502,36 +3508,33 @@ export default function NouveauClientPage() {
                               <button type="button" className={`${cardBase} ${isCustom ? cardOn : "border-dashed border-gray-300 dark:border-white/[0.08] bg-white/[0.01] hover:bg-amber-500/[0.03] hover:border-amber-500/30"}`}>
                                 <div className="flex items-center gap-2.5">
                                   <Plus className={`w-4 h-4 shrink-0 ${isCustom ? "text-amber-400" : "text-slate-400 dark:text-slate-500"}`} />
-                                  <span className={`text-xs font-medium truncate ${isCustom ? "text-amber-300" : "text-slate-400 dark:text-slate-500"}`}>{isCustom ? form.mission : "Autre mission\u2026"}</span>
+                                  <span className={`text-xs font-medium truncate ${isCustom ? "text-amber-300" : "text-slate-400 dark:text-slate-500"}`}>{isCustom ? (refMissions.find(rm => rm.libelle.toUpperCase() === form.mission)?.libelle || form.mission) : "Autre mission\u2026"}</span>
                                 </div>
                                 {isCustom && dot}
                               </button>
                             </PopoverTrigger>
                             <PopoverContent className="w-80 p-0" align="start" sideOffset={6}>
                               <div className="px-3 py-2.5 border-b border-gray-100 dark:border-white/[0.06]">
-                                <p className="text-xs font-medium text-slate-700 dark:text-slate-200">Missions du referentiel</p>
-                                <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">Parametres &gt; Referentiels &gt; Missions</p>
+                                <p className="text-xs font-medium text-slate-700 dark:text-slate-200">Autres missions</p>
+                                <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">Depuis Parametres &gt; Referentiels &gt; Missions</p>
                               </div>
                               <div className="max-h-72 overflow-y-auto p-2">
-                                {refMissions.length === 0 ? (
-                                  <p className="text-xs text-slate-400 dark:text-slate-500 p-4 text-center">Aucune mission configuree</p>
+                                {refMissions.filter(rm => !quickCodes.has(rm.libelle.toUpperCase() as any)).length === 0 ? (
+                                  <p className="text-xs text-slate-400 dark:text-slate-500 p-4 text-center">Aucune autre mission dans le referentiel</p>
                                 ) : (
                                   <div className="grid grid-cols-2 gap-1.5">
-                                    {refMissions.filter(rm => !MISSIONS.includes(rm.libelle.toUpperCase() as any)).map(rm => {
+                                    {refMissions.filter(rm => !quickCodes.has(rm.libelle.toUpperCase() as any)).map(rm => {
                                       const active = form.mission === rm.libelle.toUpperCase();
                                       const riskColor = rm.score >= 60 ? "bg-red-400" : rm.score >= 30 ? "bg-amber-400" : "bg-emerald-400";
                                       return (
                                         <button key={rm.code} type="button" onClick={() => { set("mission", rm.libelle.toUpperCase()); setShowAutreMission(false); }}
-                                          className={`text-left p-2 rounded-lg border transition-colors ${active
+                                          className={`text-left p-2.5 rounded-lg border transition-colors ${active
                                             ? "border-amber-500/50 bg-amber-500/10"
                                             : "border-gray-200 dark:border-white/[0.06] hover:bg-gray-50 dark:hover:bg-white/[0.04] hover:border-amber-500/30"
                                           }`}>
-                                          <div className="flex items-start gap-2">
-                                            <span className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${riskColor}`} />
-                                            <div className="min-w-0">
-                                              <p className={`text-[11px] font-medium leading-tight ${active ? "text-amber-300" : "text-slate-700 dark:text-slate-300"}`}>{rm.libelle}</p>
-                                              <p className="text-[9px] text-slate-400 dark:text-slate-500 font-mono mt-0.5">{rm.code}</p>
-                                            </div>
+                                          <div className="flex items-center gap-2">
+                                            <span className={`w-2 h-2 rounded-full shrink-0 ${riskColor}`} />
+                                            <p className={`text-[11px] font-medium leading-tight ${active ? "text-amber-300" : "text-slate-700 dark:text-slate-300"}`}>{rm.libelle}</p>
                                           </div>
                                         </button>
                                       );
