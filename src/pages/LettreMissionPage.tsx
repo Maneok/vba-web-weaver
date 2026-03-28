@@ -1515,6 +1515,7 @@ export default function LettreMissionPage() {
             client_id: data.client_id,
             volume_comptable: data.volume_comptable,
             outil_transmission: data.outil_transmission,
+            frequence_facturation: data.frequence_facturation,
             missions_complementaires: missionsComp,
             option_controle_fiscal: data.option_controle_fiscal,
             honoraires: {
@@ -1533,7 +1534,12 @@ export default function LettreMissionPage() {
           }),
         }
       );
-      if (!response.ok) throw new Error(await response.text());
+      if (!response.ok) {
+        const errText = await response.text();
+        let errMsg = errText;
+        try { const j = JSON.parse(errText); errMsg = j.error || errText; } catch {}
+        throw new Error(errMsg);
+      }
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");

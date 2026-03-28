@@ -65,21 +65,23 @@ Deno.serve(async (req) => {
 
     const cabinet = profile.cabinets;
 
-    // client_id peut être un UUID ou un ref (ex: "CLI-001") — essayer les deux
+    // client_id peut être un UUID ou un ref (ex: "CLI-26-001") — essayer ref d'abord (cas le plus fréquent)
     let client: any = null;
-    const { data: clientById } = await supabase
+    const { data: clientByRef } = await supabase
       .from("clients")
       .select("*")
-      .eq("id", client_id)
-      .single();
-    client = clientById;
+      .eq("ref", client_id)
+      .eq("cabinet_id", cabinet.id)
+      .maybeSingle();
+    client = clientByRef;
     if (!client) {
-      const { data: clientByRef } = await supabase
+      const { data: clientById } = await supabase
         .from("clients")
         .select("*")
-        .eq("ref", client_id)
-        .single();
-      client = clientByRef;
+        .eq("id", client_id)
+        .eq("cabinet_id", cabinet.id)
+        .maybeSingle();
+      client = clientById;
     }
     if (!client) {
       return new Response(JSON.stringify({ error: "Client introuvable" }), {

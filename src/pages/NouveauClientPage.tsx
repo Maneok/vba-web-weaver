@@ -307,15 +307,15 @@ export default function NouveauClientPage() {
   useDocumentTitle("Nouveau Client");
 
   // Ref missions from referentiel (for "Autre mission" picker)
-  const [refMissions, setRefMissions] = useState<{ code: string; libelle: string }[]>([]);
+  const [refMissions, setRefMissions] = useState<{ code: string; libelle: string; score: number }[]>([]);
   const [showAutreMission, setShowAutreMission] = useState(false);
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) return;
       supabase.from("profiles").select("cabinet_id").eq("id", session.user.id).single().then(({ data: prof }) => {
         if (!prof?.cabinet_id) return;
-        supabase.from("ref_missions").select("code, libelle").eq("cabinet_id", prof.cabinet_id).order("libelle").then(({ data: rows }) => {
-          if (rows) setRefMissions(rows.map(r => ({ code: r.code, libelle: r.libelle })));
+        supabase.from("ref_missions").select("code, libelle, score").eq("cabinet_id", prof.cabinet_id).order("libelle").then(({ data: rows }) => {
+          if (rows) setRefMissions(rows.map(r => ({ code: r.code, libelle: r.libelle, score: r.score ?? 25 })));
         });
       });
     });
@@ -3507,21 +3507,37 @@ export default function NouveauClientPage() {
                                 {isCustom && dot}
                               </button>
                             </PopoverTrigger>
-                            <PopoverContent className="w-72 p-0" align="start" sideOffset={6}>
+                            <PopoverContent className="w-80 p-0" align="start" sideOffset={6}>
                               <div className="px-3 py-2.5 border-b border-gray-100 dark:border-white/[0.06]">
                                 <p className="text-xs font-medium text-slate-700 dark:text-slate-200">Missions du referentiel</p>
                                 <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">Parametres &gt; Referentiels &gt; Missions</p>
                               </div>
-                              <div className="max-h-56 overflow-y-auto p-1">
+                              <div className="max-h-72 overflow-y-auto p-2">
                                 {refMissions.length === 0 ? (
                                   <p className="text-xs text-slate-400 dark:text-slate-500 p-4 text-center">Aucune mission configuree</p>
-                                ) : refMissions.filter(rm => !MISSIONS.includes(rm.libelle.toUpperCase() as any)).map(rm => (
-                                  <button key={rm.code} type="button" onClick={() => { set("mission", rm.libelle.toUpperCase()); setShowAutreMission(false); }}
-                                    className={`w-full text-left px-3 py-2 rounded-md text-xs transition-colors flex items-center justify-between gap-2 ${form.mission === rm.libelle.toUpperCase() ? "bg-amber-500/10 text-amber-300" : "text-slate-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-white/[0.04]"}`}>
-                                    <span className="font-medium truncate">{rm.libelle}</span>
-                                    <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono shrink-0">{rm.code}</span>
-                                  </button>
-                                ))}
+                                ) : (
+                                  <div className="grid grid-cols-2 gap-1.5">
+                                    {refMissions.filter(rm => !MISSIONS.includes(rm.libelle.toUpperCase() as any)).map(rm => {
+                                      const active = form.mission === rm.libelle.toUpperCase();
+                                      const riskColor = rm.score >= 60 ? "bg-red-400" : rm.score >= 30 ? "bg-amber-400" : "bg-emerald-400";
+                                      return (
+                                        <button key={rm.code} type="button" onClick={() => { set("mission", rm.libelle.toUpperCase()); setShowAutreMission(false); }}
+                                          className={`text-left p-2 rounded-lg border transition-colors ${active
+                                            ? "border-amber-500/50 bg-amber-500/10"
+                                            : "border-gray-200 dark:border-white/[0.06] hover:bg-gray-50 dark:hover:bg-white/[0.04] hover:border-amber-500/30"
+                                          }`}>
+                                          <div className="flex items-start gap-2">
+                                            <span className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${riskColor}`} />
+                                            <div className="min-w-0">
+                                              <p className={`text-[11px] font-medium leading-tight ${active ? "text-amber-300" : "text-slate-700 dark:text-slate-300"}`}>{rm.libelle}</p>
+                                              <p className="text-[9px] text-slate-400 dark:text-slate-500 font-mono mt-0.5">{rm.code}</p>
+                                            </div>
+                                          </div>
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                )}
                               </div>
                             </PopoverContent>
                           </Popover>
