@@ -22,10 +22,9 @@ import { VALIDATORS, sanitizeWizardData } from "@/lib/lmValidation";
 import { incrementCounter } from "@/lib/lettreMissionEngine";
 import type { Client } from "@/lib/types";
 
-import LMStep1Client from "@/components/lettre-mission/LMStep1Client";
-import LMStepConfiguration from "@/components/lettre-mission/LMStepConfiguration";
-import LMStep4Honoraires from "@/components/lettre-mission/LMStep4Honoraires";
-import LMStep6Export from "@/components/lettre-mission/LMStep6Export";
+import LMNewStep1 from "@/components/lettre-mission/LMNewStep1";
+import LMNewStep2 from "@/components/lettre-mission/LMNewStep2";
+import LMNewStep3 from "@/components/lettre-mission/LMNewStep3";
 import LMProgressBar from "@/components/lettre-mission/LMProgressBar";
 import LMSummaryPanel from "@/components/lettre-mission/LMSummaryPanel";
 
@@ -787,6 +786,10 @@ export default function LettreMissionPage() {
   // Cabinet data (for LM defaults)
   const [cabinetData, setCabinetData] = useState<Record<string, any> | null>(null);
 
+  // Cabinet tarifs (for v3 wizard)
+  const [cabinetTarifs, setCabinetTarifs] = useState<Record<string, number>>({});
+  const [generating, setGenerating] = useState(false);
+
   // Avenants
   const [avenantsByLetter, setAvenantsByLetter] = useState<Record<string, LMAvenant[]>>({});
   const [avenantDialogOpen, setAvenantDialogOpen] = useState(false);
@@ -840,6 +843,39 @@ export default function LettreMissionPage() {
       });
   }, [profile?.cabinet_id]);
 
+  // ── Load cabinet tarifs for v3 wizard ──
+  useEffect(() => {
+    if (!profile?.cabinet_id) return;
+    supabase
+      .from("cabinets")
+      .select("tarifs_defaut")
+      .eq("id", profile.cabinet_id)
+      .single()
+      .then(({ data: cab }) => {
+        if (cab?.tarifs_defaut) setCabinetTarifs(cab.tarifs_defaut as Record<string, number>);
+      });
+  }, [profile?.cabinet_id]);
+
+  // ── Pre-fill tarifs when cabinet loaded ──
+  useEffect(() => {
+    if (Object.keys(cabinetTarifs).length === 0) return;
+    setData((prev) => ({
+      ...prev,
+      tarifs_sociaux: {
+        prix_bulletin: cabinetTarifs.prix_bulletin || 32,
+        prix_fin_contrat: cabinetTarifs.prix_fin_contrat || 30,
+        prix_coffre_fort: cabinetTarifs.prix_coffre_fort || 5,
+        prix_contrat_simple: cabinetTarifs.prix_contrat_simple || 100,
+        prix_entree_salarie: cabinetTarifs.prix_entree_salarie || 30,
+        prix_attestation_maladie: cabinetTarifs.prix_attestation_maladie || 30,
+        prix_bordereaux: cabinetTarifs.prix_bordereaux || 25,
+        prix_sylae: cabinetTarifs.prix_sylae || 15,
+      },
+      honoraires_juridique: cabinetTarifs.honoraires_juridique_defaut || 300,
+      forfait_constitution: cabinetTarifs.forfait_constitution_defaut || 500,
+    }));
+  }, [cabinetTarifs]);
+
   // ── Pre-fill LM fields when client is selected ──
   useEffect(() => {
     if (!data.client_id) return;
@@ -851,9 +887,9 @@ export default function LettreMissionPage() {
         .maybeSingle();
       if (!fc) return;
       const updates: Partial<LMWizardData> = {};
-      if (fc.regime_fiscal) updates.regime_fiscal = fc.regime_fiscal;
+      if (fc.regime_fiscal) { updates.regime_fiscal = fc.regime_fiscal; updates.date_cloture_exercice = fc.date_cloture_exercice || ""; }
       if (fc.date_cloture_exercice) updates.date_cloture = fc.date_cloture_exercice;
-      if (fc.assujetti_tva !== null && fc.assujetti_tva !== undefined) updates.tva_assujetti = fc.assujetti_tva;
+      if (fc.assujetti_tva !== null && fc.assujetti_tva !== undefined) { updates.tva_assujetti = fc.assujetti_tva; updates.assujetti_tva = fc.assujetti_tva; }
       if (fc.cac !== null && fc.cac !== undefined) updates.cac = fc.cac;
       if (fc.volume_comptable) updates.volume_comptable = fc.volume_comptable;
       if (fc.outil_transmission) {
@@ -1456,13 +1492,73 @@ export default function LettreMissionPage() {
     return () => window.removeEventListener("keydown", h);
   }, [step, activeTab, handleNext]);
 
-  // Step render (3 steps: Client & Modele, Honoraires, Apercu & Export)
+  // ── V3: Generate DOCX via edge function ──
+  const handleGenerate = async () => {
+    setGenerating(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) { toast.error("Session expirée"); return; }
+      const missionsComp: string[] = [];
+      if (data.mission_sociale) missionsComp.push("sociale");
+      if (data.mission_juridique) missionsComp.push("juridique");
+      if (data.mission_controle_fiscal) missionsComp.push("controle_fiscal");
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-lm`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            client_id: data.client_id,
+            volume_comptable: data.volume_comptable,
+            outil_transmission: data.outil_transmission,
+            missions_complementaires: missionsComp,
+            option_controle_fiscal: data.option_controle_fiscal,
+            honoraires: {
+              annuel: `${data.honoraires_annuels} €`,
+              setup: data.forfait_constitution ? `${data.forfait_constitution} €` : "",
+              juridique: data.honoraires_juridique ? `${data.honoraires_juridique} €` : "",
+              bulletin: `${data.tarifs_sociaux.prix_bulletin} € HT`,
+              fin_contrat: `${data.tarifs_sociaux.prix_fin_contrat} € HT`,
+              coffre_fort: `${data.tarifs_sociaux.prix_coffre_fort} € HT`,
+              contrat_simple: `${data.tarifs_sociaux.prix_contrat_simple} € HT`,
+              entree_salarie: `${data.tarifs_sociaux.prix_entree_salarie} € HT`,
+              attestation: `${data.tarifs_sociaux.prix_attestation_maladie} € HT`,
+              bordereaux: `${data.tarifs_sociaux.prix_bordereaux} € HT / mois`,
+              sylae: `${data.tarifs_sociaux.prix_sylae} € HT / salarié`,
+            },
+          }),
+        }
+      );
+      if (!response.ok) throw new Error(await response.text());
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `LDM_${data.numero_lettre || "DRAFT"}_${new Date().toISOString().slice(0, 10)}.docx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success("Lettre de mission générée !");
+      // Also save to DB
+      await handleSave();
+    } catch (err: any) {
+      toast.error("Erreur : " + (err?.message || "Erreur de génération"));
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  // Step render (3 steps v3)
   const renderStep = () => {
     switch (step) {
-      case 0: return <LMStep1Client data={data} onChange={handleChange} />;
-      case 1: return <LMStepConfiguration data={data} onChange={handleChange} />;
-      case 2: return <LMStep4Honoraires data={data} onChange={handleChange} />;
-      case 3: return <LMStep6Export data={data} onChange={handleChange} onSave={handleSave} onReset={handleReset} saving={saving} />;
+      case 0: return <LMNewStep1 data={data} onChange={handleChange} />;
+      case 1: return <LMNewStep2 data={data} onChange={handleChange} cabinetTarifs={cabinetTarifs} />;
+      case 2: return <LMNewStep3 data={data} onGenerate={handleGenerate} onSave={handleSave} onGoToStep={goToStep} generating={generating} />;
       default: return null;
     }
   };

@@ -154,30 +154,53 @@ export interface LMWizardData {
   // Modele integration
   modele_id: string; // selected LM modele ID (empty = GRIMY default)
 
+  // ── V3 wizard fields (3-step) ──
+  // Missions complémentaires (Step 1)
+  mission_sociale: boolean;
+  mission_juridique: boolean;
+  mission_controle_fiscal: boolean;
+
+  // Pré-rempli (modifiable si manquant)
+  regime_fiscal: string;
+  date_cloture_exercice: string;
+  assujetti_tva: boolean;
+  cac: boolean;
+
+  // Modalités (Step 2)
+  honoraires_annuels: number;
+  tarifs_sociaux: {
+    prix_bulletin: number;
+    prix_fin_contrat: number;
+    prix_coffre_fort: number;
+    prix_contrat_simple: number;
+    prix_entree_salarie: number;
+    prix_attestation_maladie: number;
+    prix_bordereaux: number;
+    prix_sylae: number;
+  };
+
   // Meta
   cabinet_id: string;
   created_by: string;
   wizard_step: number;
 }
 
-export const LM_TOTAL_STEPS = 4;
+export const LM_TOTAL_STEPS = 3;
 
 export const LM_STEP_LABELS = [
-  "Client & Modele",
-  "Configuration",
-  "Honoraires",
-  "Apercu & Export",
+  "Client et missions",
+  "Modalités et honoraires",
+  "Vérification et génération",
 ] as const;
 
 export const LM_STEP_TITLES = [
-  "Client & Modele",
-  "Configuration",
-  "Honoraires",
-  "Apercu & Export",
+  "Client et missions",
+  "Modalités et honoraires",
+  "Vérification et génération",
 ] as const;
 
 /** Estimated seconds per step */
-export const LM_STEP_DURATIONS = [30, 30, 30, 30] as const;
+export const LM_STEP_DURATIONS = [30, 45, 15] as const;
 
 /** C) Statuts workflow */
 export const LM_STATUTS = [
@@ -278,6 +301,25 @@ export const INITIAL_LM_WIZARD_DATA: LMWizardData = {
   forfait_constitution: 0,
   option_controle_fiscal: "none",
   modele_id: "",
+  // V3 wizard fields
+  mission_sociale: true,
+  mission_juridique: true,
+  mission_controle_fiscal: false,
+  regime_fiscal: "",
+  date_cloture_exercice: "",
+  assujetti_tva: true,
+  cac: false,
+  honoraires_annuels: 0,
+  tarifs_sociaux: {
+    prix_bulletin: 32,
+    prix_fin_contrat: 30,
+    prix_coffre_fort: 5,
+    prix_contrat_simple: 100,
+    prix_entree_salarie: 30,
+    prix_attestation_maladie: 30,
+    prix_bordereaux: 25,
+    prix_sylae: 15,
+  },
   cabinet_id: "",
   created_by: "",
   wizard_step: 0,

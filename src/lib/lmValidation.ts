@@ -114,13 +114,22 @@ export function validateStepConfig(data: Record<string, unknown>): ValidationErr
   return errors;
 }
 
-/** Map step index (0-based) → validator (4-step wizard) */
+/** Map step index (0-based) → validator (3-step wizard v3) */
 export const VALIDATORS: Record<number, (data: Record<string, unknown>) => ValidationError[]> = {
-  0: validateStep0,        // Client & Modele
-  1: validateStepConfig,   // Configuration
-  2: validateStep4,        // Honoraires
-  3: validateStep7,        // Apercu & Export (always valid)
+  0: validateStep0,           // Client et missions
+  1: validateStepModalites,   // Modalités et honoraires
+  2: validateStep7,           // Vérification et génération (always valid)
 };
+
+/** Step 1 (v3) — Modalités: volume comptable + honoraires */
+export function validateStepModalites(data: Record<string, unknown>): ValidationError[] {
+  const errors: ValidationError[] = [];
+  if (!data.volume_comptable) errors.push({ field: "volume_comptable", message: "Le volume comptable est obligatoire" });
+  const honoraires = Number(data.honoraires_annuels) || 0;
+  if (honoraires <= 0) errors.push({ field: "honoraires_annuels", message: "Honoraires annuels requis et > 0" });
+  if (honoraires > 500000) errors.push({ field: "honoraires_annuels", message: "Montant anormalement elevé (> 500 000 €)" });
+  return errors;
+}
 
 /** Sanitize HTML/XSS dans les champs texte */
 export function sanitizeText(text: string): string {
