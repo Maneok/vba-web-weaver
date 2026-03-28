@@ -1880,7 +1880,7 @@ export default function LettreMissionPage() {
                   className={`gap-1.5 wizard-nav-btn text-white shadow-md shadow-blue-500/20 ${nextDisabled ? "bg-gradient-to-r from-blue-400 to-blue-500 opacity-80 hover:opacity-100" : "bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"}`}
                 >
                   {nextDisabled && currentErrors.length > 0 && (
-                    <span className="w-5 h-5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center -ml-1">{currentErrors.length}</span>
+                    <span className="w-5 h-5 rounded-full bg-amber-500 text-white text-[10px] font-bold flex items-center justify-center -ml-1">{currentErrors.length}</span>
                   )}
                   Suivant <ChevronRight className="w-4 h-4" />
                 </Button>

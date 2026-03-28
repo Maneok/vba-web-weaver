@@ -49,13 +49,13 @@ export default function LMNewStep2({ data, onChange, cabinetTarifs, errors = [] 
 
         <div className="rounded-xl border border-gray-200 dark:border-white/10 p-4 space-y-4">
           <div className="space-y-1.5" id="field-volume_comptable">
-            <Label className={`text-sm font-medium ${hasError("volume_comptable") ? "text-red-500" : ""}`}>Volume comptable <span className="text-red-400">*</span></Label>
+            <Label className={`text-sm font-medium ${hasError("volume_comptable") ? "text-amber-600 dark:text-amber-400" : ""}`}>Volume comptable <span className="text-amber-500">*</span></Label>
             <Select value={data.volume_comptable} onValueChange={(v) => onChange({ volume_comptable: v })}>
-              <SelectTrigger className={`h-10 bg-white/50 dark:bg-white/[0.03] ${hasError("volume_comptable") ? "border-red-500 ring-1 ring-red-500/20" : ""}`}><SelectValue placeholder="Sélectionner le volume..." /></SelectTrigger>
+              <SelectTrigger className={`h-10 bg-white/50 dark:bg-white/[0.03] ${hasError("volume_comptable") ? "border-amber-400 ring-1 ring-amber-400/20" : ""}`}><SelectValue placeholder="Sélectionner le volume..." /></SelectTrigger>
               <SelectContent>{VOLUMES.map((v) => <SelectItem key={v} value={v}>{v}</SelectItem>)}</SelectContent>
             </Select>
             {hasError("volume_comptable") && (
-              <p className="text-[11px] text-red-500 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{errorMsg("volume_comptable")}</p>
+              <p className="text-[11px] text-amber-600 dark:text-amber-400 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{errorMsg("volume_comptable")}</p>
             )}
           </div>
 
@@ -87,17 +87,17 @@ export default function LMNewStep2({ data, onChange, cabinetTarifs, errors = [] 
 
         <div className="rounded-xl border border-gray-200 dark:border-white/10 p-4 space-y-4">
           <div className="space-y-1.5" id="field-honoraires_annuels">
-            <Label className={`text-sm font-medium ${hasError("honoraires_annuels") ? "text-red-500" : ""}`}>Forfait annuel HT <span className="text-red-400">*</span></Label>
+            <Label className={`text-sm font-medium ${hasError("honoraires_annuels") ? "text-amber-600 dark:text-amber-400" : ""}`}>Forfait annuel HT <span className="text-amber-500">*</span></Label>
             <div className="relative">
-              <Euro className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${hasError("honoraires_annuels") ? "text-red-400" : "text-slate-400"}`} />
+              <Euro className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${hasError("honoraires_annuels") ? "text-amber-400" : "text-slate-400"}`} />
               <Input type="number" min={0} step={100}
                 value={data.honoraires_annuels || ""}
                 onChange={(e) => onChange({ honoraires_annuels: parseFloat(e.target.value) || 0 })}
-                placeholder="3 600" className={`pl-10 pr-16 h-11 text-base font-medium bg-white/50 dark:bg-white/[0.03] ${hasError("honoraires_annuels") ? "border-red-500 ring-1 ring-red-500/20" : ""}`} />
+                placeholder="3 600" className={`pl-10 pr-16 h-11 text-base font-medium bg-white/50 dark:bg-white/[0.03] ${hasError("honoraires_annuels") ? "border-amber-400 ring-1 ring-amber-400/20" : ""}`} />
               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">€ HT / an</span>
             </div>
             {hasError("honoraires_annuels") && (
-              <p className="text-[11px] text-red-500 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{errorMsg("honoraires_annuels")}</p>
+              <p className="text-[11px] text-amber-600 dark:text-amber-400 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{errorMsg("honoraires_annuels")}</p>
             )}
             {data.honoraires_annuels > 0 && (
               <div className="flex items-center gap-2 mt-1.5">
