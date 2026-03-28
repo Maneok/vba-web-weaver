@@ -461,17 +461,9 @@ export function calculateRiskScore(params: {
     }
   }
 
-  // Average of 5 criteria
+  // Weighted average of 5 criteria + malus
   const avg = (scoreAct + scorePays + scoreMis + scoreMat + scoreStr) / 5;
-
-  // If any criterion >= 60, it forces the global score (malus always added)
-  const maxCriterion = Math.max(scoreAct, scorePays, scoreMis, scoreMat, scoreStr);
-  let scoreGlobal: number;
-  if (maxCriterion >= 60) {
-    scoreGlobal = Math.round(maxCriterion + malus);
-  } else {
-    scoreGlobal = Math.round(avg + malus);
-  }
+  let scoreGlobal = Math.round(avg + malus);
 
   scoreGlobal = Math.min(scoreGlobal, 120);
 

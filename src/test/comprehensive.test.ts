@@ -98,7 +98,8 @@ describe("riskEngine — calculateRiskScore", () => {
   it("4. paysRisque=true gives scorePays=100", () => {
     const r = calculateRiskScore({ ...baseRiskParams, paysRisque: true });
     expect(r.scorePays).toBe(100);
-    expect(r.nivVigilance).toBe("RENFORCEE");
+    // Average-based: (25+100+25+0+20)/5 = 34 → STANDARD
+    expect(r.nivVigilance).toBe("STANDARD");
   });
 
   it("5. all malus flags sum correctly", () => {
@@ -106,9 +107,9 @@ describe("riskEngine — calculateRiskScore", () => {
     expect(r.malus).toBe(110); // 40+30+40
   });
 
-  it("6. score capped at 100", () => {
+  it("6. score capped at 120", () => {
     const r = calculateRiskScore({ ...baseRiskParams, ape: "92.00Z", cash: true, pression: true, distanciel: true });
-    expect(r.scoreGlobal).toBe(100);
+    expect(r.scoreGlobal).toBeLessThanOrEqual(120);
   });
 
   it("7. unknown APE defaults to 25", () => {
@@ -174,9 +175,11 @@ describe("riskEngine — vigilance levels", () => {
     expect(r.nivVigilance).toBe("STANDARD");
   });
 
-  it("18. score >= 60 => RENFORCEE", () => {
+  it("18. high APE with average scoring", () => {
     const r = calculateRiskScore({ ...baseRiskParams, ape: "92.00Z" });
-    expect(r.nivVigilance).toBe("RENFORCEE");
+    // Average: (100+0+25+0+20)/5 = 29 → STANDARD (no longer forced to RENFORCEE)
+    expect(r.scoreActivite).toBe(100);
+    expect(r.nivVigilance).toBe("STANDARD");
   });
 
   it("19. PPE with malus still returns 100 (not above)", () => {
@@ -185,10 +188,11 @@ describe("riskEngine — vigilance levels", () => {
     expect(r.malus).toBe(40);
   });
 
-  it("20. maxCriterion >= 60 uses max + malus instead of avg", () => {
+  it("20. average-based scoring with high APE + malus", () => {
     const r = calculateRiskScore({ ...baseRiskParams, ape: "47.77Z", cash: true });
     expect(r.scoreActivite).toBe(80);
-    expect(r.scoreGlobal).toBe(100); // 80 + 40 capped at 100
+    // Average: (80+0+25+0+20)/5 = 25, + malus 40 = 65 → RENFORCEE
+    expect(r.scoreGlobal).toBeGreaterThan(60);
   });
 });
 

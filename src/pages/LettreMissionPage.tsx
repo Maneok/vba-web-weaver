@@ -1111,20 +1111,20 @@ export default function LettreMissionPage() {
     }));
   }, [cabinetTarifs]);
 
-  // ── Pre-fill LM fields when client is selected ──
+  // ── Pre-fill LM fields when client is selected (from DB columns not in Client interface) ──
   useEffect(() => {
     if (!data.client_id) return;
     const loadClientDetails = async () => {
       const { data: fc } = await supabase
         .from("clients")
-        .select("regime_fiscal, date_cloture_exercice, assujetti_tva, cac, volume_comptable, outil_transmission")
+        .select("regime_fiscal, date_cloture_exercice, assujetti_tva, cac, volume_comptable, outil_transmission, capital, domaine, ape, iban_encrypted, bic_encrypted")
         .eq("ref", data.client_id)
         .maybeSingle();
       if (!fc) return;
       const updates: Partial<LMWizardData> = {};
-      if (fc.regime_fiscal) { updates.regime_fiscal = fc.regime_fiscal; updates.date_cloture_exercice = fc.date_cloture_exercice || ""; }
-      if (fc.date_cloture_exercice) updates.date_cloture = fc.date_cloture_exercice;
-      if (fc.assujetti_tva !== null && fc.assujetti_tva !== undefined) { updates.tva_assujetti = fc.assujetti_tva; updates.assujetti_tva = fc.assujetti_tva; }
+      if (fc.regime_fiscal) updates.regime_fiscal = fc.regime_fiscal;
+      if (fc.date_cloture_exercice) { updates.date_cloture_exercice = fc.date_cloture_exercice; (updates as any).date_cloture = fc.date_cloture_exercice; }
+      if (fc.assujetti_tva !== null && fc.assujetti_tva !== undefined) { (updates as any).tva_assujetti = fc.assujetti_tva; updates.assujetti_tva = fc.assujetti_tva; }
       if (fc.cac !== null && fc.cac !== undefined) updates.cac = fc.cac;
       if (fc.volume_comptable) updates.volume_comptable = fc.volume_comptable;
       if (fc.outil_transmission) {
@@ -1132,6 +1132,12 @@ export default function LettreMissionPage() {
       } else if (cabinetData?.outil_transmission_defaut) {
         updates.outil_transmission = cabinetData.outil_transmission_defaut;
       }
+      // Fill capital/ape if not already set by selectClient
+      if (fc.capital && !data.capital) updates.capital = String(fc.capital);
+      if (fc.ape && !data.ape) updates.ape = fc.ape;
+      // Fill IBAN/BIC from encrypted columns
+      if (fc.iban_encrypted && !data.iban) updates.iban = fc.iban_encrypted;
+      if (fc.bic_encrypted && !data.bic) updates.bic = fc.bic_encrypted;
       if (Object.keys(updates).length > 0) {
         setData((prev) => ({ ...prev, ...updates }));
       }

@@ -77,10 +77,9 @@ export default function LMNewStep1({ data, onChange }: Props) {
 
   const dateCloture = data.date_cloture_exercice || (data as any).date_cloture || "";
   const assujettiTva = data.assujetti_tva ?? (data as any).tva_assujetti ?? true;
-  const missingFields: string[] = [];
-  if (!data.regime_fiscal) missingFields.push("regime_fiscal");
-  if (!dateCloture) missingFields.push("date_cloture_exercice");
-  const isComplete = missingFields.length === 0;
+  // These fields are loaded async from DB — don't mark as "missing" immediately
+  const hasFiscalInfo = !!data.regime_fiscal && !!dateCloture;
+  const isComplete = hasFiscalInfo;
 
   return (
     <div className="space-y-6">
@@ -166,60 +165,57 @@ export default function LMNewStep1({ data, onChange }: Props) {
               )}
             </div>
 
-            {/* Compact client info - NO redundant data entry */}
-            {isComplete && !editMode ? (
-              <div className="pt-1">
-                <div className="flex items-center justify-between mb-2">
+            {/* Compact client info — always show summary, expand to edit */}
+            <div className="pt-1">
+              <div className="flex items-center justify-between mb-2">
+                {isComplete ? (
                   <span className="text-[11px] font-medium text-emerald-500 flex items-center gap-1">
                     <CheckCircle2 className="w-3.5 h-3.5" /> Données complètes
                   </span>
-                  <Button variant="ghost" size="sm" className="h-5 text-[10px] text-muted-foreground hover:text-foreground px-1.5" onClick={() => setEditMode(true)}>
-                    <Edit3 className="w-3 h-3 mr-1" /> Modifier
-                  </Button>
-                </div>
-                <div className="grid grid-cols-3 gap-x-4 gap-y-1 text-[11px]">
-                  <span className="text-muted-foreground">Régime : <span className="text-foreground font-medium">{data.regime_fiscal}</span></span>
-                  <span className="text-muted-foreground">Clôture : <span className="text-foreground font-medium">{dateCloture}</span></span>
-                  <span className="text-muted-foreground">TVA : <span className="text-foreground font-medium">{assujettiTva ? "Oui" : "Non"}</span></span>
-                </div>
+                ) : (
+                  <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                    Chargement des données...
+                  </span>
+                )}
+                <Button variant="ghost" size="sm" className="h-5 text-[10px] text-muted-foreground hover:text-foreground px-1.5" onClick={() => setEditMode(!editMode)}>
+                  <Edit3 className="w-3 h-3 mr-1" /> {editMode ? "Fermer" : "Modifier"}
+                </Button>
               </div>
-            ) : (
-              <div className="pt-1 space-y-3 border-t border-blue-200/40 dark:border-blue-500/10">
-                <p className="text-[11px] text-amber-500 font-medium pt-2">Complétez les informations manquantes :</p>
-                {(!data.regime_fiscal || editMode) && (
-                  <div className="space-y-1">
-                    <Label className="text-xs">Régime fiscal <span className="text-red-400">*</span></Label>
-                    <Select value={data.regime_fiscal} onValueChange={(v) => onChange({ regime_fiscal: v })}>
-                      <SelectTrigger className="h-8 text-xs bg-white dark:bg-white/[0.03]"><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
-                      <SelectContent>
-                        {REGIMES_FISCAUX.map((r) => <SelectItem key={r} value={r} className="text-xs">{r}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+              <div className="grid grid-cols-3 gap-x-4 gap-y-1 text-[11px]">
+                <span className="text-muted-foreground">Régime : <span className="text-foreground font-medium">{data.regime_fiscal || "—"}</span></span>
+                <span className="text-muted-foreground">Clôture : <span className="text-foreground font-medium">{dateCloture || "—"}</span></span>
+                <span className="text-muted-foreground">TVA : <span className="text-foreground font-medium">{assujettiTva ? "Oui" : "Non"}</span></span>
+              </div>
+            </div>
+
+            {/* Edit mode — only visible when user clicks Modifier */}
+            {editMode && (
+              <div className="pt-2 space-y-3 border-t border-blue-200/40 dark:border-blue-500/10">
+                <div className="space-y-1">
+                  <Label className="text-xs">Régime fiscal</Label>
+                  <Select value={data.regime_fiscal} onValueChange={(v) => onChange({ regime_fiscal: v })}>
+                    <SelectTrigger className="h-8 text-xs bg-white dark:bg-white/[0.03]"><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
+                    <SelectContent>
+                      {REGIMES_FISCAUX.map((r) => <SelectItem key={r} value={r} className="text-xs">{r}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Date clôture exercice</Label>
+                  <Input type="text" placeholder="31/12/2026" value={dateCloture}
+                    onChange={(e) => onChange({ date_cloture_exercice: e.target.value })}
+                    className="h-8 text-xs bg-white dark:bg-white/[0.03]" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex items-center gap-2">
+                    <Switch checked={assujettiTva} onCheckedChange={(v) => onChange({ assujetti_tva: v })} />
+                    <Label className="text-xs">Assujetti TVA</Label>
                   </div>
-                )}
-                {(!dateCloture || editMode) && (
-                  <div className="space-y-1">
-                    <Label className="text-xs">Date clôture exercice <span className="text-red-400">*</span></Label>
-                    <Input type="text" placeholder="31/12/2026" value={dateCloture}
-                      onChange={(e) => onChange({ date_cloture_exercice: e.target.value })}
-                      className="h-8 text-xs bg-white dark:bg-white/[0.03]" />
+                  <div className="flex items-center gap-2">
+                    <Switch checked={data.cac} onCheckedChange={(v) => onChange({ cac: v })} />
+                    <Label className="text-xs">CAC désigné</Label>
                   </div>
-                )}
-                {editMode && (
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="flex items-center gap-2">
-                      <Switch checked={assujettiTva} onCheckedChange={(v) => onChange({ assujetti_tva: v })} />
-                      <Label className="text-xs">Assujetti TVA</Label>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Switch checked={data.cac} onCheckedChange={(v) => onChange({ cac: v })} />
-                      <Label className="text-xs">CAC désigné</Label>
-                    </div>
-                  </div>
-                )}
-                {editMode && (
-                  <Button variant="outline" size="sm" className="text-xs h-7" onClick={() => setEditMode(false)}>Fermer</Button>
-                )}
+                </div>
               </div>
             )}
           </div>
