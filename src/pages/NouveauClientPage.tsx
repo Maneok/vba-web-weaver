@@ -1190,7 +1190,8 @@ export default function NouveauClientPage() {
           if (val && val !== "" && val !== 0) { updates[key] = val; newAuto.add(key); }
         };
         // INPI priority fields
-        if (inpi.capital > 0) { inpiAutoSet("capital", inpi.capital); setCapitalSource("INPI"); }
+        const capNum = Number(inpi.capital) || 0;
+        if (capNum > 0) { inpiAutoSet("capital", capNum); setCapitalSource("INPI"); }
         if (inpi.denomination) inpiAutoSet("raisonSociale", inpi.denomination.toUpperCase());
         const addr = [inpi.adresse.numVoie, inpi.adresse.typeVoie, inpi.adresse.voie].filter(Boolean).join(" ").toUpperCase();
         if (addr) inpiAutoSet("adresse", addr);
@@ -1206,7 +1207,8 @@ export default function NouveauClientPage() {
         // FIX 6: Apply forme juridique label from INPI code
         if (inpi.formeJuridique) {
           const formeLabel = getFormeJuridiqueLabel(inpi.formeJuridique);
-          const formeMatch = FORMES.find(f => f === formeLabel || (formeLabel ?? "").toUpperCase().includes(f));
+          const fl = (formeLabel ?? "").toUpperCase();
+          const formeMatch = FORMES.find(f => f.toUpperCase() === fl) || FORMES.find(f => fl.includes(f.toUpperCase()));
           if (formeMatch) inpiAutoSet("forme", formeMatch);
         }
         if (Object.keys(updates).length > 0) {
@@ -1388,18 +1390,26 @@ export default function NouveauClientPage() {
     setDuplicateWarning("");
     setDuplicateRef("");
     setScreening(INITIAL_SCREENING);
-    // BUG 1: Full state reset when user searches a new SIREN
-    setForm({
-      raisonSociale: "", forme: "SARL", siren: "", siret: "", capital: 0, ape: "", dirigeant: "",
-      domaine: "", effectif: "", adresse: "", cp: "", ville: "",
-      tel: "", mail: "", siteWeb: "", dateCreation: "", dateReprise: "",
-      mission: "TENUE COMPTABLE" as MissionType, honoraires: 0, reprise: 0, juridique: 0,
-      frequence: "MENSUEL",
-      comptable: "MAGALIE", associe: "DIDIER", superviseur: "SAMUEL",
-      iban: "", bic: "", dateFin: "",
-      objetSocial: "", duree: "", dateClotureExercice: "",
-    });
-    setBeneficiaires([]);
+    // Only full-reset if searching a different SIREN (preserve user data on re-search of same SIREN)
+    const cleanSearch = effectiveQuery.trim().replace(/\s/g, "");
+    const newSiren = cleanSearch.slice(0, 9);
+    const isSameSiren = newSiren === form.siren.replace(/\s/g, "");
+    if (!isSameSiren) {
+      setForm({
+        raisonSociale: "", forme: "SARL", siren: "", siret: "", capital: 0, ape: "", dirigeant: "",
+        domaine: "", effectif: "", adresse: "", cp: "", ville: "",
+        tel: "", mail: "", siteWeb: "", dateCreation: "", dateReprise: "",
+        mission: "TENUE COMPTABLE" as MissionType, honoraires: 0, reprise: 0, juridique: 0,
+        frequence: "MENSUEL",
+        comptable: form.comptable || "MAGALIE", associe: form.associe || "DIDIER", superviseur: form.superviseur || "SAMUEL",
+        iban: "", bic: "", dateFin: "",
+        objetSocial: "", duree: "", dateClotureExercice: "",
+      });
+      setBeneficiaires([]);
+      setQuestions(QUESTIONS_LCB.map(q => ({ ...q, value: "NON" as const, commentaire: "" })));
+      setDecision("");
+      setMotifRefus("");
+    }
     setBeScreening({});
     setDocuments([]);
     setAmlSignals([]);
@@ -1408,14 +1418,10 @@ export default function NouveauClientPage() {
     setAutoFields(new Set());
     setSelectedEnterprise(null);
     setGelAvoirsAlert([]);
-    setDecision("");
-    setMotifRefus("");
     setDataSource("");
     lastScreenedSirenRef.current = null;
-    setQuestions(QUESTIONS_LCB.map(q => ({ ...q, value: "NON" as const, commentaire: "" })));
 
     // FIX 2: Auto-load draft if SIREN matches
-    const cleanSearch = effectiveQuery.trim().replace(/\s/g, "");
     if (searchMode === "siren" && /^\d{9,14}$/.test(cleanSearch)) {
       const sirenKey = cleanSearch.slice(0, 9);
       const existingDraft = sessionStorage.getItem(`draft_nc_${sirenKey}`);
@@ -1548,12 +1554,11 @@ export default function NouveauClientPage() {
     const rawForme = entData?.forme_juridique ?? result.forme_juridique ?? "";
     const rawFormeCode = entData?.forme_juridique_code ?? "";
     const resolvedForme = rawFormeCode ? getFormeJuridiqueLabel(rawFormeCode) : rawForme;
-    const formeMatch = FORMES.find(f =>
-      f === resolvedForme ||
-      f === rawForme ||
-      (result.forme_juridique_raw || "").toUpperCase().includes(f) ||
-      resolvedForme.toUpperCase().includes(f)
-    );
+    const resolvedUp = (resolvedForme || "").toUpperCase();
+    const rawUp = (rawForme || "").toUpperCase();
+    const rawFullUp = (result.forme_juridique_raw || "").toUpperCase();
+    const formeMatch = FORMES.find(f => f.toUpperCase() === resolvedUp || f.toUpperCase() === rawUp)
+      || FORMES.find(f => rawFullUp.includes(f.toUpperCase()) || resolvedUp.includes(f.toUpperCase()));
 
     const newAutoFields = new Set<string>();
     const updates: Record<string, unknown> = {};
@@ -1565,9 +1570,9 @@ export default function NouveauClientPage() {
       }
     };
 
-    // Fields that may already be set by INPI (higher priority) — only overwrite if not already set by INPI
+    // Fields that may already be set by INPI (higher priority) — only overwrite if form is still empty
     const autoSetIfEmpty = (key: string, val: string | number | undefined) => {
-      if (autoFields.has(key)) return; // INPI already set this field — do not overwrite
+      if (autoFields.has(key) || newAutoFields.has(key)) return; // Already set by INPI or earlier in this batch
       const current = (form as any)[key];
       const hasValue = current && current !== "" && current !== 0;
       if (!hasValue) autoSet(key, val);
@@ -1597,7 +1602,7 @@ export default function NouveauClientPage() {
       newAutoFields.add("domaine");
     }
 
-    if (entData?.capital_source) setCapitalSource(entData.capital_source);
+    if (entData?.capital_source && !autoFields.has("capital")) setCapitalSource(entData.capital_source);
 
     setForm(prev => ({ ...prev, ...updates }));
     // P6-19: Merge auto fields instead of replacing — preserves INPI auto fields set later
@@ -1962,7 +1967,7 @@ export default function NouveauClientPage() {
       cp: form.cp,
       ville: form.ville,
       siren: form.siren,
-      capital: form.capital,
+      capital: Number(form.capital) || 0,
       ape: form.ape,
       dirigeant: form.dirigeant,
       domaine: form.domaine,
@@ -1971,14 +1976,14 @@ export default function NouveauClientPage() {
       mail: form.mail,
       dateCreation: form.dateCreation,
       // Champs mission — valeurs par défaut (détails saisis dans la Lettre de Mission)
-      honoraires: 0,
-      reprise: 0,
-      juridique: 0,
-      frequence: "MENSUEL",
-      iban: "",
-      bic: "",
-      dateReprise: form.dateCreation || "",
-      dateFin: "",
+      honoraires: form.honoraires || 0,
+      reprise: form.reprise || 0,
+      juridique: form.juridique || 0,
+      frequence: form.frequence || "MENSUEL",
+      iban: form.iban || "",
+      bic: form.bic || "",
+      dateReprise: form.dateReprise || form.dateCreation || "",
+      dateFin: form.dateFin || "",
       associe: form.associe,
       superviseur: form.superviseur,
       ppe: riskFlags.ppe ? "OUI" : "NON" as OuiNon,
@@ -2020,7 +2025,7 @@ export default function NouveauClientPage() {
     // CORRECTION 7: Apply AML structural malus
     const amlMalus = amlSignals.reduce((sum, s) => sum + s.malus, 0);
     if (amlMalus > 0) {
-      newClient.scoreGlobal = Math.min(newClient.scoreGlobal + amlMalus, 100);
+      newClient.scoreGlobal = Math.min(newClient.scoreGlobal + amlMalus, 120);
       if (newClient.scoreGlobal >= 60) {
         newClient.nivVigilance = "RENFORCEE";
         // BUG 49 FIX: Recalculate date butoir
@@ -4850,7 +4855,7 @@ export default function NouveauClientPage() {
                     generateFicheAcceptation(tempClient, buildFicheExtras());
                     toast.success("Fiche LCB-FT generee (PDF)");
                     setLastGeneration({ type: "Fiche LCB-FT", date: new Date() });
-                  } catch { toast.error("Erreur lors de la generation de la fiche"); }
+                  } catch (err) { logger.error("PDF fiche generation failed:", err); toast.error("Erreur lors de la generation de la fiche"); }
                   finally { setGeneratingPdf(null); }
                 }}
               >
@@ -4870,7 +4875,7 @@ export default function NouveauClientPage() {
                     generateLettreMission(tempClient);
                     toast.success("Lettre de mission generee (PDF)");
                     setLastGeneration({ type: "Lettre de mission", date: new Date() });
-                  } catch { toast.error("Erreur lors de la generation de la lettre"); }
+                  } catch (err) { logger.error("PDF lettre generation failed:", err); toast.error("Erreur lors de la generation de la lettre"); }
                   finally { setGeneratingPdf(null); }
                 }}
               >
@@ -6091,8 +6096,8 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
       cp: form.cp, ville: form.ville, siren: form.siren, capital: form.capital,
       ape: form.ape, dirigeant: form.dirigeant, domaine: form.domaine, effectif: form.effectif,
       tel: form.tel, mail: form.mail, dateCreation: form.dateCreation,
-      dateReprise: form.dateCreation || "", honoraires: 0,
-      reprise: 0, juridique: 0, frequence: "MENSUEL", iban: "", bic: "",
+      dateReprise: form.dateReprise || form.dateCreation || "", honoraires: form.honoraires || 0,
+      reprise: form.reprise || 0, juridique: form.juridique || 0, frequence: form.frequence || "MENSUEL", iban: form.iban || "", bic: form.bic || "",
       dateFin: "",
       associe: form.associe, superviseur: form.superviseur,
       ppe: riskFlags.ppe ? "OUI" : "NON", paysRisque: riskFlags.paysRisque ? "OUI" : "NON",

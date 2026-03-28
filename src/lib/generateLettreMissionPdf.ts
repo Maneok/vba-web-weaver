@@ -195,5 +195,6 @@ export function generateLettreMission(client: Client) {
     );
   }
 
-  doc.save(`LDM_${client.ref}_${client.raisonSociale.replace(/\s/g, "_")}.pdf`);
+  const safeName = (client.raisonSociale || "client").replace(/[<>:"/\\|?*\x00-\x1f\s]/g, "_").replace(/_+/g, "_");
+  doc.save(`LDM_${client.ref}_${safeName}.pdf`);
 }
