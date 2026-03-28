@@ -1333,6 +1333,12 @@ export default function LettreMissionPage() {
       const errors = validator(data);
       if (errors.length > 0) {
         toast.error(errors.map((e) => e.message).join(" · "));
+        // Scroll to first error field
+        const firstField = errors[0]?.field;
+        if (firstField) {
+          const el = document.getElementById(`field-${firstField}`);
+          if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
         return;
       }
     }
@@ -1686,13 +1692,18 @@ export default function LettreMissionPage() {
   const renderStep = () => {
     switch (step) {
       case 0: return <LMNewStep1 data={data} onChange={handleChange} />;
-      case 1: return <LMNewStep2 data={data} onChange={handleChange} cabinetTarifs={cabinetTarifs} />;
+      case 1: return <LMNewStep2 data={data} onChange={handleChange} cabinetTarifs={cabinetTarifs} errors={currentErrors} />;
       case 2: return <LMNewStep3 data={data} onGenerate={handleGenerate} onSave={handleSave} onGoToStep={goToStep} generating={generating} />;
       default: return null;
     }
   };
 
-  const nextDisabled = !isStepValid(step);
+  // Compute validation errors for current step (for inline display)
+  const currentErrors = useMemo(() => {
+    const validator = VALIDATORS[step];
+    return validator ? validator(data) : [];
+  }, [step, data]);
+  const nextDisabled = currentErrors.length > 0;
 
   if (!canWrite) {
     return (
@@ -1836,8 +1847,7 @@ export default function LettreMissionPage() {
                   <Button
                     size="sm"
                     onClick={handleNext}
-                    disabled={nextDisabled}
-                    className="gap-1 wizard-nav-btn bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-sm shadow-blue-500/20 disabled:opacity-40"
+                    className={`gap-1 wizard-nav-btn text-white shadow-sm shadow-blue-500/20 ${nextDisabled ? "bg-gradient-to-r from-blue-400 to-blue-500 opacity-80" : "bg-gradient-to-r from-blue-500 to-blue-600"}`}
                   >
                     Suivant <ChevronRight className="w-4 h-4" />
                   </Button>
@@ -1867,9 +1877,11 @@ export default function LettreMissionPage() {
               {step < LM_TOTAL_STEPS - 1 ? (
                 <Button
                   onClick={handleNext}
-                  disabled={nextDisabled}
-                  className="gap-1.5 wizard-nav-btn bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-md shadow-blue-500/20 disabled:opacity-40"
+                  className={`gap-1.5 wizard-nav-btn text-white shadow-md shadow-blue-500/20 ${nextDisabled ? "bg-gradient-to-r from-blue-400 to-blue-500 opacity-80 hover:opacity-100" : "bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"}`}
                 >
+                  {nextDisabled && currentErrors.length > 0 && (
+                    <span className="w-5 h-5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center -ml-1">{currentErrors.length}</span>
+                  )}
                   Suivant <ChevronRight className="w-4 h-4" />
                 </Button>
               ) : (
