@@ -34,6 +34,10 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Tooltip as TooltipRoot, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Progress } from "@/components/ui/progress";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
@@ -41,7 +45,11 @@ import {
   ChevronLeft, ChevronRight, FileText, FolderOpen, Plus,
   Loader2, ShieldAlert, Edit3, Save, Copy, Archive,
   FileDown, Search, Clock, AlertTriangle, Filter, Settings2,
-  FilePlus2, Send, Link, Check, Trash2,
+  FilePlus2, Send, Link, Check, Trash2, LayoutGrid, LayoutList, List,
+  CheckSquare, Square, MinusSquare, Download, Printer, Calendar,
+  TrendingUp, BarChart3, Eye, RotateCcw, ChevronDown, ChevronUp,
+  Zap, Star, StarOff, Columns3, Hash, X as XIcon, ArrowUpDown,
+  CircleDot, Users, Briefcase, RefreshCw,
 } from "lucide-react";
 import ModeleListPage from "@/components/lettre-mission/ModeleListPage";
 import LMStatusBadge from "@/components/lettre-mission/LMStatusBadge";
@@ -65,19 +73,59 @@ const MISSION_TYPE_OPTIONS = Object.values(MISSION_TYPES).map((m) => ({
 }));
 
 // ─────────────────────────────────────────
-// G) "Mes lettres" with filters, status pills, search, alertes bandeau
+// G) "Mes lettres" — Enhanced with 50 features
 // ─────────────────────────────────────────
-const PAGE_SIZE = 20;
+const DEFAULT_PAGE_SIZE = 20;
+const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
 
-// ── Status pills config (module-level for stable reference) ──
+// ── Status pills config ──
 const STATUS_PILLS = [
-  { value: "all", label: "Tous", color: "bg-gray-100 dark:bg-white/[0.06] text-slate-700 dark:text-slate-300 border-gray-300 dark:border-white/[0.08]" },
-  { value: "brouillon", label: "Brouillons", color: "bg-slate-500/10 text-slate-400 dark:text-slate-400 border-slate-500/20" },
-  { value: "envoyee", label: "Envoyees", color: "bg-blue-500/10 text-blue-400 border-blue-500/20" },
-  { value: "signee", label: "Signees", color: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" },
-  { value: "resiliee", label: "Resiliees", color: "bg-red-500/10 text-red-400 border-red-500/20" },
-  { value: "archivee", label: "Archivees", color: "bg-purple-500/10 text-purple-400 border-purple-500/20" },
+  { value: "all", label: "Tous", icon: "all", color: "bg-gray-100 dark:bg-white/[0.06] text-slate-700 dark:text-slate-300 border-gray-300 dark:border-white/[0.08]" },
+  { value: "brouillon", label: "Brouillons", icon: "draft", color: "bg-slate-500/10 text-slate-400 dark:text-slate-400 border-slate-500/20" },
+  { value: "envoyee", label: "Envoyees", icon: "sent", color: "bg-blue-500/10 text-blue-400 border-blue-500/20" },
+  { value: "signee", label: "Signees", icon: "signed", color: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" },
+  { value: "resiliee", label: "Resiliees", icon: "canceled", color: "bg-red-500/10 text-red-400 border-red-500/20" },
+  { value: "archivee", label: "Archivees", icon: "archived", color: "bg-purple-500/10 text-purple-400 border-purple-500/20" },
 ];
+
+// ── Relative date helper ──
+const relativeDate = (dateStr: string) => {
+  const d = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now.getTime() - d.getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  const diffH = Math.floor(diffMin / 60);
+  const diffD = Math.floor(diffH / 24);
+  if (diffMin < 1) return "A l'instant";
+  if (diffMin < 60) return `Il y a ${diffMin}min`;
+  if (diffH < 24) return `Il y a ${diffH}h`;
+  if (diffD < 7) return `Il y a ${diffD}j`;
+  if (diffD < 30) return `Il y a ${Math.floor(diffD / 7)} sem.`;
+  return formatDateFr(dateStr, "short");
+};
+
+// ── Client avatar color from name ──
+const avatarColor = (name: string) => {
+  const colors = [
+    "bg-blue-500/20 text-blue-400", "bg-emerald-500/20 text-emerald-400",
+    "bg-violet-500/20 text-violet-400", "bg-amber-500/20 text-amber-400",
+    "bg-rose-500/20 text-rose-400", "bg-cyan-500/20 text-cyan-400",
+    "bg-indigo-500/20 text-indigo-400", "bg-pink-500/20 text-pink-400",
+  ];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return colors[Math.abs(hash) % colors.length];
+};
+
+// ── Honoraires color bracket ──
+const honorairesColor = (amount: number) => {
+  if (amount >= 10000) return "text-emerald-400 font-semibold";
+  if (amount >= 5000) return "text-blue-400";
+  if (amount > 0) return "text-slate-300";
+  return "text-slate-600";
+};
+
+type ViewMode = "table" | "cards" | "compact";
 
 // ── EUR formatter (module-level to avoid re-creating on each render) ──
 const eurFormatter = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
@@ -1450,6 +1498,75 @@ export default function LettreMissionPage() {
       console.error("Delete error:", err);
       toast.error("Erreur lors de la suppression");
     }
+  };
+
+  // ── Bulk operations ──
+  const handleBulkDelete = async (ids: string[]) => {
+    const deletable = savedLetters.filter(l => ids.includes(l.id) && ["brouillon", "archivee"].includes(l.status));
+    if (deletable.length === 0) { toast.error("Aucune lettre supprimable dans la selection"); return; }
+    const confirmed = window.confirm(`Supprimer definitivement ${deletable.length} lettre${deletable.length > 1 ? "s" : ""} ?\n\nCette action est irreversible.`);
+    if (!confirmed) return;
+    let count = 0;
+    for (const l of deletable) {
+      try {
+        const { error } = await supabase.from("lettres_mission").delete().eq("id", l.id);
+        if (!error) count++;
+      } catch { /* continue */ }
+    }
+    logAudit({ action: "LETTRE_MISSION_BULK_DELETE", table_name: "lettres_mission", new_data: { count, ids: deletable.map(l => l.id) } }).catch(() => {});
+    toast.success(`${count} lettre${count > 1 ? "s" : ""} supprimee${count > 1 ? "s" : ""}`);
+    await loadSavedLetters();
+  };
+
+  const handleBulkArchive = async (ids: string[]) => {
+    const confirmed = window.confirm(`Archiver ${ids.length} lettre${ids.length > 1 ? "s" : ""} ?`);
+    if (!confirmed) return;
+    let count = 0;
+    for (const id of ids) {
+      try {
+        const { error } = await supabase.from("lettres_mission").update({ status: "archivee", updated_at: new Date().toISOString() }).eq("id", id);
+        if (!error) count++;
+      } catch { /* continue */ }
+    }
+    logAudit({ action: "LETTRE_MISSION_BULK_ARCHIVE", table_name: "lettres_mission", new_data: { count, ids } }).catch(() => {});
+    toast.success(`${count} lettre${count > 1 ? "s" : ""} archivee${count > 1 ? "s" : ""}`);
+    await loadSavedLetters();
+  };
+
+  const handleBulkStatusChange = async (ids: string[], newStatus: string) => {
+    const confirmed = window.confirm(`Changer le statut de ${ids.length} lettre${ids.length > 1 ? "s" : ""} vers "${newStatus}" ?`);
+    if (!confirmed) return;
+    let count = 0;
+    for (const id of ids) {
+      try {
+        const { error } = await supabase.from("lettres_mission").update({ status: newStatus, updated_at: new Date().toISOString() }).eq("id", id);
+        if (!error) count++;
+      } catch { /* continue */ }
+    }
+    logAudit({ action: "LETTRE_MISSION_BULK_STATUS", table_name: "lettres_mission", new_data: { count, ids, newStatus } }).catch(() => {});
+    toast.success(`${count} lettre${count > 1 ? "s" : ""} mise${count > 1 ? "s" : ""} a jour`);
+    await loadSavedLetters();
+  };
+
+  const handleBulkDuplicate = async (letters: SavedLetter[]) => {
+    let count = 0;
+    for (const letter of letters) {
+      if (!letter.wizard_data) continue;
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (!sessionData?.session?.user || !profile?.cabinet_id) continue;
+        const newWd = { ...INITIAL_LM_WIZARD_DATA, ...letter.wizard_data, statut: "brouillon", numero_lettre: incrementCounter(), signature_expert: "", signature_client: "", date_signature: "", started_at: new Date().toISOString(), duration_seconds: 0 };
+        await supabase.from("lettres_mission").insert({
+          user_id: sessionData.session.user.id, cabinet_id: profile.cabinet_id,
+          client_ref: newWd.client_ref || null, raison_sociale: newWd.raison_sociale || null,
+          type_mission: newWd.type_mission || null, status: "brouillon",
+          wizard_data: newWd, wizard_step: 0, numero: newWd.numero_lettre,
+        });
+        count++;
+      } catch { /* continue */ }
+    }
+    toast.success(`${count} lettre${count > 1 ? "s" : ""} dupliquee${count > 1 ? "s" : ""}`);
+    await loadSavedLetters();
   };
 
   // G) Download PDF from history

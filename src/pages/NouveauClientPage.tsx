@@ -348,7 +348,7 @@ export default function NouveauClientPage() {
     raisonSociale: "", forme: "SARL", siren: "", siret: "", capital: 0, ape: "", dirigeant: "",
     domaine: "", effectif: "", adresse: "", cp: "", ville: "",
     tel: "", mail: "", siteWeb: "", dateCreation: "", dateReprise: "",
-    mission: "TENUE COMPTABLE" as MissionType, honoraires: 0, reprise: 0, juridique: 0,
+    mission: "TENUE_COMPTABLE" as MissionType, honoraires: 0, reprise: 0, juridique: 0,
     frequence: "MENSUEL",
     comptable: "MAGALIE", associe: "DIDIER", superviseur: "SAMUEL",
     iban: "", bic: "", dateFin: "",
@@ -1455,7 +1455,7 @@ export default function NouveauClientPage() {
         raisonSociale: "", forme: "SARL", siren: "", siret: "", capital: 0, ape: "", dirigeant: "",
         domaine: "", effectif: "", adresse: "", cp: "", ville: "",
         tel: "", mail: "", siteWeb: "", dateCreation: "", dateReprise: "",
-        mission: "TENUE COMPTABLE" as MissionType, honoraires: 0, reprise: 0, juridique: 0,
+        mission: "TENUE_COMPTABLE" as MissionType, honoraires: 0, reprise: 0, juridique: 0,
         frequence: "MENSUEL",
         comptable: form.comptable || "MAGALIE", associe: form.associe || "DIDIER", superviseur: form.superviseur || "SAMUEL",
         iban: "", bic: "", dateFin: "",
@@ -3521,7 +3521,7 @@ export default function NouveauClientPage() {
                     <Briefcase className="w-4 h-4 text-amber-400" />
                     <h3 className="text-sm font-semibold text-amber-400">Type de mission</h3>
                     {form.mission && (
-                      <span className="text-[10px] bg-amber-500/15 text-amber-400 px-2 py-0.5 rounded-full font-medium">{form.mission}</span>
+                      <span className="text-[10px] bg-amber-500/15 text-amber-400 px-2 py-0.5 rounded-full font-medium">{refMissions.find(rm => rm.code === form.mission)?.libelle || form.mission}</span>
                     )}
                   </div>
                   <ChevronDown className={`w-4 h-4 text-amber-400 transition-transform duration-200 ${collapsedSections["mission"] ? "-rotate-90" : ""}`} />
@@ -3532,28 +3532,34 @@ export default function NouveauClientPage() {
                       Selectionnez le type de mission principal pour ce client. Ce choix impacte le scoring de risque LCB-FT.
                     </p>
                     {(() => {
-                      const MI: Record<string, typeof BookOpen> = { "TENUE COMPTABLE": BookOpen, "REVISION / SURVEILLANCE": Eye, "SOCIAL / PAIE SEULE": Users, "CONSEIL DE GESTION": Briefcase, "CONSTITUTION / CESSION": FileSignature, "DOMICILIATION": Building2, "IRPP": Scale };
-                      // Resolve quick card labels from refMissions when available
-                      const getLabel = (m: string) => {
-                        const match = refMissions.find(rm => rm.libelle.toUpperCase() === m || rm.code.toUpperCase().replace(/_/g, " ") === m);
-                        return match ? match.libelle : m.split(" ").map(w => w.charAt(0) + w.slice(1).toLowerCase()).join(" ");
-                      };
-                      const quickCodes = new Set(MISSIONS.map(m => m));
-                      const isCustom = !!form.mission && !quickCodes.has(form.mission as any);
+                      // Quick picks: map display label → ref_missions code + icon
+                      const QUICK_PICKS: { code: string; fallbackLabel: string; icon: typeof BookOpen }[] = [
+                        { code: "TENUE_COMPTABLE", fallbackLabel: "Tenue comptable", icon: BookOpen },
+                        { code: "PRESENTATION_COMPTES_ANNUELS", fallbackLabel: "Presentation des comptes", icon: Eye },
+                        { code: "MISSION_SOCIALE", fallbackLabel: "Mission sociale", icon: Users },
+                        { code: "CONSEIL_GESTION_ACTIFS", fallbackLabel: "Conseil de gestion", icon: Briefcase },
+                        { code: "CREATION_ENTREPRISE_INF_50K", fallbackLabel: "Creation / Cession", icon: FileSignature },
+                        { code: "DOMICILIATION", fallbackLabel: "Domiciliation", icon: Building2 },
+                        { code: "CONSEIL_PATRIMONIAL", fallbackLabel: "Conseil patrimonial", icon: Scale },
+                      ];
+                      const quickCodeSet = new Set(QUICK_PICKS.map(q => q.code));
+                      const getRef = (code: string) => refMissions.find(rm => rm.code === code);
+                      const isCustom = !!form.mission && !quickCodeSet.has(form.mission);
+                      const getMissionLabel = (code: string) => getRef(code)?.libelle || QUICK_PICKS.find(q => q.code === code)?.fallbackLabel || code;
                       const cardBase = "text-left p-3 rounded-lg border transition-colors duration-150";
                       const cardOn = "border-amber-500/50 bg-amber-500/10";
                       const cardOff = "border-gray-200 dark:border-white/[0.06] bg-white/[0.02] hover:bg-amber-500/[0.03] hover:border-amber-500/30";
                       const dot = (<div className="mt-1.5 flex items-center gap-1 ml-[26px]"><span className="w-1.5 h-1.5 rounded-full bg-amber-400" /><span className="text-[9px] text-amber-400/80">Selectionne</span></div>);
                       return (
                         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-                          {MISSIONS.map(m => {
-                            const on = form.mission === m;
-                            const Ic = MI[m] || FileText;
+                          {QUICK_PICKS.map(({ code, icon: Ic }) => {
+                            const on = form.mission === code;
+                            const label = getMissionLabel(code);
                             return (
-                              <button key={m} type="button" onClick={() => { set("mission", m); setShowAutreMission(false); }} className={`${cardBase} ${on ? cardOn : cardOff}`}>
+                              <button key={code} type="button" onClick={() => { set("mission", code); setShowAutreMission(false); }} className={`${cardBase} ${on ? cardOn : cardOff}`}>
                                 <div className="flex items-center gap-2.5">
                                   <Ic className={`w-4 h-4 shrink-0 ${on ? "text-amber-400" : "text-slate-400 dark:text-slate-500"}`} />
-                                  <span className={`text-xs font-medium ${on ? "text-amber-300" : "text-slate-300 dark:text-slate-400"}`}>{getLabel(m)}</span>
+                                  <span className={`text-xs font-medium ${on ? "text-amber-300" : "text-slate-300 dark:text-slate-400"}`}>{label}</span>
                                 </div>
                                 {on && dot}
                               </button>
@@ -3565,7 +3571,7 @@ export default function NouveauClientPage() {
                               <button type="button" className={`${cardBase} ${isCustom ? cardOn : "border-dashed border-gray-300 dark:border-white/[0.08] bg-white/[0.01] hover:bg-amber-500/[0.03] hover:border-amber-500/30"}`}>
                                 <div className="flex items-center gap-2.5">
                                   <Plus className={`w-4 h-4 shrink-0 ${isCustom ? "text-amber-400" : "text-slate-400 dark:text-slate-500"}`} />
-                                  <span className={`text-xs font-medium truncate ${isCustom ? "text-amber-300" : "text-slate-400 dark:text-slate-500"}`}>{isCustom ? (refMissions.find(rm => rm.libelle.toUpperCase() === form.mission)?.libelle || form.mission) : "Autre mission\u2026"}</span>
+                                  <span className={`text-xs font-medium truncate ${isCustom ? "text-amber-300" : "text-slate-400 dark:text-slate-500"}`}>{isCustom ? getMissionLabel(form.mission) : "Autre mission\u2026"}</span>
                                 </div>
                                 {isCustom && dot}
                               </button>
@@ -3576,15 +3582,15 @@ export default function NouveauClientPage() {
                                 <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">Depuis Parametres &gt; Referentiels &gt; Missions</p>
                               </div>
                               <div className="max-h-72 overflow-y-auto p-2">
-                                {refMissions.filter(rm => !quickCodes.has(rm.libelle.toUpperCase() as any)).length === 0 ? (
+                                {refMissions.filter(rm => !quickCodeSet.has(rm.code)).length === 0 ? (
                                   <p className="text-xs text-slate-400 dark:text-slate-500 p-4 text-center">Aucune autre mission dans le referentiel</p>
                                 ) : (
                                   <div className="grid grid-cols-2 gap-1.5">
-                                    {refMissions.filter(rm => !quickCodes.has(rm.libelle.toUpperCase() as any)).map(rm => {
-                                      const active = form.mission === rm.libelle.toUpperCase();
+                                    {refMissions.filter(rm => !quickCodeSet.has(rm.code)).map(rm => {
+                                      const active = form.mission === rm.code;
                                       const riskColor = rm.score >= 60 ? "bg-red-400" : rm.score >= 30 ? "bg-amber-400" : "bg-emerald-400";
                                       return (
-                                        <button key={rm.code} type="button" onClick={() => { set("mission", rm.libelle.toUpperCase()); setShowAutreMission(false); }}
+                                        <button key={rm.code} type="button" onClick={() => { set("mission", rm.code); setShowAutreMission(false); }}
                                           className={`text-left p-2.5 rounded-lg border transition-colors ${active
                                             ? "border-amber-500/50 bg-amber-500/10"
                                             : "border-gray-200 dark:border-white/[0.06] hover:bg-gray-50 dark:hover:bg-white/[0.04] hover:border-amber-500/30"
