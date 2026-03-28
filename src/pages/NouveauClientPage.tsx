@@ -1373,8 +1373,8 @@ export default function NouveauClientPage() {
   }, []);
 
   // Step 1: Search
-  const handleSearch = async (overrideQuery?: string) => {
-    const effectiveQuery = overrideQuery ?? searchQuery;
+  const handleSearch = async (overrideQuery?: string | unknown) => {
+    const effectiveQuery = (typeof overrideQuery === "string" ? overrideQuery : null) ?? searchQuery;
     if (!effectiveQuery.trim()) return;
     // #2: Save to search history
     setSearchHistory(prev => {
