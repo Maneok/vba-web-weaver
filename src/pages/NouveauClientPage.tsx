@@ -686,7 +686,7 @@ export default function NouveauClientPage() {
   useEffect(() => {
     if (sanctionsPPE) {
       setQuestions(prev => prev.map(q =>
-        q.id === "ppe" && q.value !== "OUI"
+        q.id === "ppe" && q.value !== "OUI" && !q.autoFilled
           ? { ...q, value: "OUI" as const, commentaire: q.commentaire || "PPE detectee automatiquement via OpenSanctions", autoFilled: true }
           : q
       ));
@@ -945,8 +945,8 @@ export default function NouveauClientPage() {
     { subject: "Mission", score: risk.scoreMission, fullMark: 100 },
     { subject: "Maturite", score: risk.scoreMaturite, fullMark: 100 },
     { subject: "Structure", score: risk.scoreStructure, fullMark: 100 },
-    { subject: "Malus", score: Math.min(totalMalus, 100), fullMark: 100 },
-  ], [risk, totalMalus]);
+    { subject: "Malus", score: Math.min(risk.malus, 100), fullMark: 100 },
+  ], [risk]);
 
   // BE sum check
   const beSumOk = useMemo(() => {
@@ -1498,6 +1498,18 @@ export default function NouveauClientPage() {
       setSearchResults(res.results);
       if (res.results.length === 1) {
         selectPappersResult(res.results[0]);
+        // Fallback path: ensure screening runs even without enterprise-lookup data
+        if (res.results[0].siren && !lastScreenedSirenRef.current) {
+          const r = res.results[0];
+          const fallbackEnt = {
+            siren: r.siren, siret: r.siret || "", raison_sociale: r.raison_sociale,
+            forme_juridique: r.forme_juridique, forme_juridique_raw: r.forme_juridique || "",
+            adresse: r.adresse, code_postal: r.code_postal, ville: r.ville,
+            ape: r.ape || "", libelle_ape: "", capital: 0, date_creation: "",
+            effectif: "", dirigeant: r.dirigeant, dirigeants: [],
+          } as EnterpriseResult;
+          launchScreening(fallbackEnt);
+        }
       }
     }
     } catch (err: unknown) {
@@ -1967,7 +1979,7 @@ export default function NouveauClientPage() {
       cp: form.cp,
       ville: form.ville,
       siren: form.siren,
-      capital: Number(form.capital) || 0,
+      capital: form.capital ? Number(form.capital) : null,
       ape: form.ape,
       dirigeant: form.dirigeant,
       domaine: form.domaine,
@@ -2448,6 +2460,11 @@ export default function NouveauClientPage() {
         if (active && (active.tagName === "TEXTAREA" || active.tagName === "INPUT" || active.tagName === "SELECT")) return;
         e.preventDefault();
         if (step < 5 && canGoNext) setStep(s => s + 1);
+        else if (step === 5) {
+          // Trigger submit button click to avoid stale closure
+          const submitBtn = document.querySelector<HTMLButtonElement>("[data-submit-client]");
+          if (submitBtn) submitBtn.click();
+        }
       }
     };
     window.addEventListener("keydown", handler);
@@ -2866,7 +2883,7 @@ export default function NouveauClientPage() {
 
             {/* Screening Panel */}
             {(screening.enterprise.loading || screening.enterprise.data || screening.sanctions.loading || screening.sanctions.data) && (
-              <ScreeningPanel screening={screening} gelAvoirsAlert={gelAvoirsAlert} beneficiairesCount={{ pp: beneficiaires.length, pm: 0 }} />
+              <ScreeningPanel screening={screening} gelAvoirsAlert={gelAvoirsAlert} beneficiairesCount={{ pp: beneficiaires.length, pm: Object.keys(chaineBE).length }} />
             )}
 
             {/* CORRECTION 7: AML Structural Signals */}
@@ -6006,6 +6023,7 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                 handleSubmit();
               }}
               disabled={isSubmitting}
+              data-submit-client
               className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-500/20 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
             >
               {isSubmitting ? (
