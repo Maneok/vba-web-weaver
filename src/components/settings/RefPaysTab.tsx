@@ -31,7 +31,6 @@ function FlagsBadges({ item }: { item: Record<string, unknown> }) {
 const columns: ColumnDef<RefPays>[] = [
   { key: "code", label: "Code", width: "80px" },
   { key: "libelle", label: "Libelle" },
-  { key: "libelle_nationalite", label: "Nationalite" },
   { key: "description", label: "Description" },
   {
     key: "flags",
@@ -52,7 +51,6 @@ const columns: ColumnDef<RefPays>[] = [
 const fields: FieldDef[] = [
   { key: "code", label: "Code pays", required: true, placeholder: "Ex: FR" },
   { key: "libelle", label: "Libelle", required: true, placeholder: "Ex: France" },
-  { key: "libelle_nationalite", label: "Libelle nationalite", placeholder: "Ex: Francaise" },
   { key: "description", label: "Description (motif GAFI/offshore/sanctions)", type: "textarea", placeholder: "Motif de classification...", maxLength: 500 },
   {
     key: "flags_group",
@@ -138,7 +136,7 @@ export default function RefPaysTab() {
       hasScore
       extraFilters={extraFilters}
       extraStats={computeExtraStats}
-      searchAllFields={["code", "libelle", "libelle_nationalite", "description"]}
+      searchAllFields={["code", "libelle", "description"]}
       transformForEdit={reconstructFlagsGroup}
       onDataChanged={clearScoringCache}
     />
