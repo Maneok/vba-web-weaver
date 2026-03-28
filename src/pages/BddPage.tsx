@@ -122,7 +122,7 @@ export default function BddPage() {
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
       if (e.key === "n" && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        navigate("/nouveau-client?fresh=1");
+        navigate("/nouveau-client");
       }
     };
     window.addEventListener("keydown", handler);
@@ -334,7 +334,7 @@ export default function BddPage() {
           </Button>
           <Button
             className="rounded-lg px-4 h-9 text-sm font-medium shadow-sm bg-blue-600 hover:bg-blue-700 text-white gap-1.5"
-            onClick={() => navigate("/nouveau-client?fresh=1")}
+            onClick={() => navigate("/nouveau-client")}
           >
             <Plus className="w-4 h-4" /> <span className="hidden sm:inline">Nouveau client</span>
           </Button>
@@ -456,7 +456,7 @@ export default function BddPage() {
                   <Button
                     size="sm"
                     className="gap-1 text-xs bg-blue-600 hover:bg-blue-700"
-                    onClick={() => navigate("/nouveau-client")}
+                    onClick={() => navigate("/nouveau-client?resume=1")}
                   >
                     Reprendre
                   </Button>
@@ -580,7 +580,7 @@ export default function BddPage() {
           <p className="text-sm text-slate-400 dark:text-slate-500">Commencez par ajouter votre premier client</p>
           <Button
             className="rounded-lg px-4 h-9 text-sm font-medium shadow-sm bg-blue-600 hover:bg-blue-700 text-white gap-1.5 mt-2"
-            onClick={() => navigate("/nouveau-client?fresh=1")}
+            onClick={() => navigate("/nouveau-client")}
           >
             <Plus className="w-4 h-4" /> Nouveau client
           </Button>

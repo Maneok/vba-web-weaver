@@ -12,7 +12,7 @@ export function QuickActionsBar() {
         size="sm"
         variant="outline"
         className="text-xs h-8 gap-1.5 hover:bg-blue-500/10 hover:text-blue-300 hover:border-blue-500/30 transition-all duration-200"
-        onClick={() => navigate("/nouveau-client?fresh=1")}
+        onClick={() => navigate("/nouveau-client")}
         title="Nouveau client (Ctrl+N)"
         aria-label="Créer un nouveau client"
       >
