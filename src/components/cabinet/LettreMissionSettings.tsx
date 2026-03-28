@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Save, Loader2, Upload, Image, FileText, Trash2, Check } from "lucide-react";
+import TarifsGrille from "./TarifsGrille";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -323,6 +324,9 @@ export default function LettreMissionSettings() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Grille tarifaire */}
+      <TarifsGrille cabinetId={cabinetId} />
 
       {/* Editable fields */}
       <Card className="border-gray-200 dark:border-white/10">
