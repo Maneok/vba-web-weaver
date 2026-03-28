@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FileText, Euro, Building2, Scale, Briefcase } from "lucide-react";
+import { FileText, Euro, Building2, Scale, Briefcase, CreditCard } from "lucide-react";
 
 interface Props {
   data: LMWizardData;
@@ -184,6 +184,38 @@ export default function LMNewStep2({ data, onChange, cabinetTarifs }: Props) {
           </div>
         </div>
       )}
+
+      {/* ── COORDONNÉES BANCAIRES (SEPA) ── */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2.5">
+          <div className="p-2 rounded-lg bg-slate-500/10"><CreditCard className="w-4 h-4 text-slate-500" /></div>
+          <div>
+            <h3 className="text-sm font-semibold">Coordonnées bancaires</h3>
+            <p className="text-[10px] text-muted-foreground">Pour le mandat SEPA de la lettre de mission</p>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-gray-200 dark:border-white/10 p-4 space-y-3">
+          <div className="space-y-1.5">
+            <Label className="text-sm">IBAN</Label>
+            <Input
+              value={data.iban || ""}
+              onChange={(e) => onChange({ iban: e.target.value.toUpperCase().replace(/[^A-Z0-9\s]/g, "") })}
+              placeholder="FR76 3000 4000 0300 0000 0000 042"
+              className="h-10 font-mono text-sm tracking-wider bg-white/50 dark:bg-white/[0.03]"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-sm">BIC / SWIFT</Label>
+            <Input
+              value={data.bic || ""}
+              onChange={(e) => onChange({ bic: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "") })}
+              placeholder="BNPAFRPPXXX"
+              className="h-10 font-mono text-sm tracking-wider bg-white/50 dark:bg-white/[0.03] max-w-xs"
+            />
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

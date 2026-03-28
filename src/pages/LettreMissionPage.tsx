@@ -1518,6 +1518,12 @@ export default function LettreMissionPage() {
             frequence_facturation: data.frequence_facturation,
             missions_complementaires: missionsComp,
             option_controle_fiscal: data.option_controle_fiscal,
+            regime_fiscal: data.regime_fiscal,
+            date_cloture_exercice: data.date_cloture_exercice,
+            assujetti_tva: data.assujetti_tva,
+            cac: data.cac,
+            iban: data.iban,
+            bic: data.bic,
             honoraires: {
               annuel: `${data.honoraires_annuels} €`,
               setup: data.forfait_constitution ? `${data.forfait_constitution} €` : "",

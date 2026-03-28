@@ -163,33 +163,33 @@ Deno.serve(async (req) => {
         ? `${profile.prenom} ${profile.nom}`
         : profile.nom || "",
 
-      // Client
+      // Client — DB columns: forme, domaine, ape, capital, cp, tel, mail, iban_encrypted, bic_encrypted
       civilite: civilite,
       formule_politesse: formule,
       nom_dirigeant: client.dirigeant || "",
       raison_sociale: client.raison_sociale || "",
-      forme_juridique: client.forme_juridique || "",
-      activite_principale: client.activite || "",
-      code_ape: client.code_ape || "",
+      forme_juridique: client.forme || client.forme_juridique || "",
+      activite_principale: client.domaine || client.activite || "",
+      code_ape: client.ape || client.code_ape || "",
       siren: client.siren || "",
-      capital_social: client.capital_social
-        ? `${client.capital_social} €`
+      capital_social: (client.capital || client.capital_social)
+        ? `${client.capital || client.capital_social} €`
         : "",
       date_creation: client.date_creation || "",
-      regime_fiscal: client.regime_fiscal || "",
+      regime_fiscal: client.regime_fiscal || body.regime_fiscal || "",
       exercice_debut: client.exercice_debut || `01/01/${now.getFullYear()}`,
       exercice_fin:
-        client.date_cloture_exercice || `31/12/${now.getFullYear()}`,
-      assujetti_tva: client.assujetti_tva ? "Oui" : "Non",
-      cac_designe: client.cac ? "Oui" : "Non",
-      effectif: client.effectif?.toString() || "",
-      email_client: client.email || "",
-      telephone_client: client.telephone || "",
+        client.date_cloture_exercice || body.date_cloture_exercice || `31/12/${now.getFullYear()}`,
+      assujetti_tva: (client.assujetti_tva ?? body.assujetti_tva) ? "Oui" : "Non",
+      cac_designe: (client.cac ?? body.cac) ? "Oui" : "Non",
+      effectif: client.effectif?.toString() || "NN",
+      email_client: client.mail || client.email || "",
+      telephone_client: client.tel || client.telephone || "",
       adresse_client_complete:
-        `${client.adresse || ""} ${client.code_postal || ""} ${client.ville || ""}`.trim(),
+        `${client.adresse || ""} ${client.cp || client.code_postal || ""} ${client.ville || ""}`.trim(),
       nom_client_signature: client.dirigeant || "",
-      iban_client: client.iban || "",
-      bic_client: client.bic || "",
+      iban_client: client.iban_encrypted || client.iban || body.iban || "",
+      bic_client: client.bic_encrypted || client.bic || body.bic || "",
 
       // Mission
       numero_lm: lm?.numero || "",
@@ -201,11 +201,11 @@ Deno.serve(async (req) => {
         outil_transmission || cabinet.outil_transmission_defaut || "GRIMY",
       periodicite_transmission: frequence_facturation || "MENSUEL",
 
-      // LCB-FT
-      score_risque: client.score_risque?.toString() || "",
-      niveau_vigilance: client.niveau_vigilance || "",
-      statut_ppe: client.statut_ppe || "Non PPE",
-      date_derniere_kyc: client.derniere_kyc || dateFormatted,
+      // LCB-FT — DB columns: score_global, niv_vigilance, ppe
+      score_risque: (client.score_global ?? client.score_risque ?? "").toString(),
+      niveau_vigilance: client.niv_vigilance || client.niveau_vigilance || "",
+      statut_ppe: client.ppe === "OUI" ? "PPE" : (client.statut_ppe || "Non PPE"),
+      date_derniere_kyc: client.derniere_kyc || client.date_derniere_revue || dateFormatted,
       date_prochaine_kyc: "",
 
       // Honoraires
