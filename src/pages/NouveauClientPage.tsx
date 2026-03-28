@@ -314,13 +314,13 @@ export default function NouveauClientPage() {
       if (!session) return;
       supabase.from("profiles").select("cabinet_id").eq("id", session.user.id).single().then(({ data: prof }) => {
         if (!prof?.cabinet_id) return;
-        supabase.from("ref_missions").select("code, libelle, score, cabinet_id").or(`cabinet_id.eq.${prof.cabinet_id},cabinet_id.is.null`).order("cabinet_id", { ascending: true, nullsFirst: true }).then(({ data: rows }) => {
+        supabase.from("ref_missions").select("code, libelle, score, cabinet_id").or(`cabinet_id.eq.${prof.cabinet_id},cabinet_id.is.null`).then(({ data: rows }) => {
           if (!rows) return;
-          // Dedup: cabinet-specific entries override templates (nullsFirst ensures templates come first)
+          // 2-pass dedup: templates first, then cabinet overrides
           const byCode = new Map<string, { code: string; libelle: string; score: number }>();
-          for (const r of rows) byCode.set(r.code, { code: r.code, libelle: r.libelle, score: r.score ?? 25 });
-          const sorted = [...byCode.values()].sort((a, b) => a.libelle.localeCompare(b.libelle, "fr"));
-          setRefMissions(sorted);
+          for (const r of rows) { if (r.cabinet_id === null) byCode.set(r.code, { code: r.code, libelle: r.libelle, score: r.score ?? 25 }); }
+          for (const r of rows) { if (r.cabinet_id !== null) byCode.set(r.code, { code: r.code, libelle: r.libelle, score: r.score ?? 25 }); }
+          setRefMissions([...byCode.values()].sort((a, b) => a.libelle.localeCompare(b.libelle, "fr")));
         });
       });
     });

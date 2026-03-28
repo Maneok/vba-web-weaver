@@ -23,7 +23,7 @@ import type { Client } from "@/lib/types";
 
 const DEFAULT_PAGE_SIZE = 25;
 
-/** Calculate KYC completion percentage based on key fields */
+/** #OPT-1: KYC completion percentage */
 function computeKycPercent(client: Client): number {
   let s = 0;
   if (client.siren) s += 25;
@@ -33,12 +33,32 @@ function computeKycPercent(client: Client): number {
   return s;
 }
 
-/** Generate hue from name for avatar */
+/** #OPT-2: Avatar color palette (dark-mode friendly) */
+const AVATAR_COLORS = [
+  { bg: "bg-blue-500/15", text: "text-blue-400" },
+  { bg: "bg-emerald-500/15", text: "text-emerald-400" },
+  { bg: "bg-violet-500/15", text: "text-violet-400" },
+  { bg: "bg-amber-500/15", text: "text-amber-400" },
+  { bg: "bg-rose-500/15", text: "text-rose-400" },
+  { bg: "bg-cyan-500/15", text: "text-cyan-400" },
+  { bg: "bg-indigo-500/15", text: "text-indigo-400" },
+  { bg: "bg-pink-500/15", text: "text-pink-400" },
+  { bg: "bg-teal-500/15", text: "text-teal-400" },
+  { bg: "bg-orange-500/15", text: "text-orange-400" },
+];
+
+function avatarStyle(name: string) {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}
+
+/** #OPT-3: Generate hue from name (legacy fallback for mobile) */
 function nameHue(name: string): number {
   return name.split("").reduce((a, c) => a + c.charCodeAt(0), 0) % 360;
 }
 
-/** Parse date string and return days until that date */
+/** #OPT-4: Days until date */
 function daysUntil(dateStr: string | undefined): number | null {
   if (!dateStr) return null;
   const d = new Date(dateStr);
@@ -47,6 +67,49 @@ function daysUntil(dateStr: string | undefined): number | null {
   now.setHours(0, 0, 0, 0);
   d.setHours(0, 0, 0, 0);
   return Math.ceil((d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+}
+
+/** #OPT-5: Format mission type (TENUE_COMPTABLE → Tenue comptable) */
+function formatMission(m: string): string {
+  if (!m) return "—";
+  return m.replace(/_/g, " ").replace(/\b\w/g, (c, i) => i === 0 ? c.toUpperCase() : c.toLowerCase());
+}
+
+/** #OPT-6: Format date FR (2028-03-28 → 28/03/2028) */
+function formatDateShort(dateStr: string | undefined): string {
+  if (!dateStr) return "—";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" });
+}
+
+/** #OPT-7: Relative time for butoir */
+function relativeButoir(days: number | null): string {
+  if (days === null) return "";
+  if (days < 0) return `${Math.abs(days)}j de retard`;
+  if (days === 0) return "Aujourd'hui";
+  if (days === 1) return "Demain";
+  if (days <= 7) return `${days}j`;
+  if (days <= 30) return `${Math.ceil(days / 7)} sem.`;
+  if (days <= 365) return `${Math.ceil(days / 30)} mois`;
+  return `${Math.floor(days / 365)}a`;
+}
+
+/** #OPT-8: Forme juridique short label */
+function formeShort(forme: string): string {
+  const map: Record<string, string> = {
+    "SOCIETE CIVILE IMMOBILIERE": "SCI",
+    "SOCIETE A RESPONSABILITE LIMITEE": "SARL",
+    "SOCIETE PAR ACTIONS SIMPLIFIEE": "SAS",
+    "SOCIETE ANONYME": "SA",
+    "ENTREPRISE INDIVIDUELLE": "EI",
+    "SOCIETE EN NOM COLLECTIF": "SNC",
+    "ASSOCIATION": "ASSO",
+    "AUTO-ENTREPRENEUR": "AE",
+    "EURL": "EURL",
+  };
+  const upper = (forme || "").toUpperCase();
+  return map[upper] || (forme || "").slice(0, 5).toUpperCase();
 }
 
 interface DraftInfo {
@@ -185,6 +248,27 @@ export default function BddPage() {
       : <ArrowDown className="w-3.5 h-3.5 ml-1 text-blue-500 transition-transform duration-200" />;
   };
 
+  // #OPT-9: KPI stats
+  const stats = useMemo(() => {
+    let simplifiee = 0, standard = 0, renforcee = 0;
+    let aJour = 0, retard = 0, bientot = 0;
+    let totalScore = 0;
+    let avgKyc = 0;
+    for (const c of clients) {
+      if (c.nivVigilance === "SIMPLIFIEE") simplifiee++;
+      else if (c.nivVigilance === "RENFORCEE") renforcee++;
+      else standard++;
+      if (c.etatPilotage === "A JOUR") aJour++;
+      else if (c.etatPilotage === "RETARD") retard++;
+      else bientot++;
+      totalScore += c.scoreGlobal || 0;
+      avgKyc += computeKycPercent(c);
+    }
+    const avgScore = clients.length > 0 ? Math.round(totalScore / clients.length) : 0;
+    const avgKycPct = clients.length > 0 ? Math.round(avgKyc / clients.length) : 0;
+    return { simplifiee, standard, renforcee, aJour, retard, bientot, avgScore, avgKycPct };
+  }, [clients]);
+
   // Reset page when filters change
   useEffect(() => { setPage(0); setSelectAllPages(false); }, [debouncedSearch, filterVigilance, filterPilotage, filterEtat, filterResponsable]);
 
@@ -305,19 +389,26 @@ export default function BddPage() {
         message="Mode restreint : vous ne voyez que les dossiers qui vous sont affectes."
       />
 
-      {/* Breadcrumb */}
-      <p className="text-xs text-slate-400 dark:text-slate-500 mb-1">Accueil / Clients</p>
+      {/* #OPT-10: Breadcrumb ameliore */}
+      <nav className="flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500 mb-2">
+        <button onClick={() => navigate("/")} className="hover:text-blue-400 transition-colors">Accueil</button>
+        <ChevronRightIcon className="w-3 h-3" />
+        <span className="text-slate-600 dark:text-slate-300 font-medium">Clients</span>
+      </nav>
 
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-semibold text-slate-900 dark:text-white">Clients</h1>
-          <span className="text-sm font-normal text-slate-500 dark:text-slate-400 ml-1">· {clients.length} dossier{clients.length !== 1 ? "s" : ""}</span>
+      {/* #OPT-11: Header ameliore avec sous-titre */}
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Base Clients</h1>
+          <p className="text-sm text-slate-400 dark:text-slate-500 mt-0.5">
+            {clients.length} dossier{clients.length !== 1 ? "s" : ""}
+            {filtered.length !== clients.length && ` · ${filtered.length} affiche${filtered.length !== 1 ? "s" : ""}`}
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
-            className="w-9 h-9 p-0 rounded-lg border-slate-200 dark:border-white/[0.1] text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/[0.04]"
+            className="w-9 h-9 p-0 rounded-lg border-white/[0.1] text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]"
             onClick={handleRefresh}
             title="Rafraichir la liste"
             aria-label="Rafraichir la liste"
@@ -326,14 +417,14 @@ export default function BddPage() {
           </Button>
           <Button
             variant="outline"
-            className="rounded-lg px-3 h-9 text-sm border-slate-200 dark:border-white/[0.1] text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/[0.04] gap-1.5"
+            className="rounded-lg px-3 h-9 text-sm border-white/[0.1] text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] gap-1.5"
             onClick={handleExportCSV}
             aria-label="Exporter en CSV"
           >
             <Download className="w-4 h-4" /> <span className="hidden sm:inline">Export CSV</span>
           </Button>
           <Button
-            className="rounded-lg px-4 h-9 text-sm font-medium shadow-sm bg-blue-600 hover:bg-blue-700 text-white gap-1.5"
+            className="rounded-lg px-4 h-9 text-sm font-medium shadow-md shadow-blue-500/20 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white gap-1.5"
             onClick={() => navigate("/nouveau-client")}
           >
             <Plus className="w-4 h-4" /> <span className="hidden sm:inline">Nouveau client</span>
@@ -341,17 +432,57 @@ export default function BddPage() {
         </div>
       </div>
 
-      {/* Search and filters bar */}
-      <div className="flex items-center gap-3 mt-4 mb-4 flex-wrap lg:flex-nowrap transition-all duration-200">
+      {/* #OPT-12: KPI Stats Dashboard */}
+      {clients.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 mb-4">
+          <div className="p-2.5 rounded-xl bg-gradient-to-br from-blue-500/10 to-blue-500/5 border border-blue-500/20">
+            <p className="text-[9px] text-blue-400/70 uppercase tracking-wide font-medium">Total</p>
+            <p className="text-lg font-bold text-blue-300">{clients.length}</p>
+          </div>
+          <div className="p-2.5 rounded-xl bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 border border-emerald-500/20">
+            <p className="text-[9px] text-emerald-400/70 uppercase tracking-wide font-medium">A jour</p>
+            <p className="text-lg font-bold text-emerald-300">{stats.aJour}</p>
+          </div>
+          <div className="p-2.5 rounded-xl bg-gradient-to-br from-red-500/10 to-red-500/5 border border-red-500/20">
+            <p className="text-[9px] text-red-400/70 uppercase tracking-wide font-medium">Retard</p>
+            <p className="text-lg font-bold text-red-300">{stats.retard}</p>
+          </div>
+          <div className="p-2.5 rounded-xl bg-gradient-to-br from-amber-500/10 to-amber-500/5 border border-amber-500/20">
+            <p className="text-[9px] text-amber-400/70 uppercase tracking-wide font-medium">Score moy.</p>
+            <p className="text-lg font-bold text-amber-300">{stats.avgScore}</p>
+          </div>
+          <div className="hidden lg:block p-2.5 rounded-xl bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 border border-emerald-500/20">
+            <p className="text-[9px] text-emerald-400/70 uppercase tracking-wide font-medium">Simplifiee</p>
+            <p className="text-lg font-bold text-emerald-300">{stats.simplifiee}</p>
+          </div>
+          <div className="hidden lg:block p-2.5 rounded-xl bg-gradient-to-br from-violet-500/10 to-violet-500/5 border border-violet-500/20">
+            <p className="text-[9px] text-violet-400/70 uppercase tracking-wide font-medium">Renforcee</p>
+            <p className="text-lg font-bold text-violet-300">{stats.renforcee}</p>
+          </div>
+          <div className="hidden lg:block p-2.5 rounded-xl bg-gradient-to-br from-cyan-500/10 to-cyan-500/5 border border-cyan-500/20">
+            <p className="text-[9px] text-cyan-400/70 uppercase tracking-wide font-medium">KYC moy.</p>
+            <p className="text-lg font-bold text-cyan-300">{stats.avgKycPct}%</p>
+          </div>
+        </div>
+      )}
+
+      {/* #OPT-13: Search and filters bar ameliore */}
+      <div className="flex items-center gap-3 mb-4 flex-wrap lg:flex-nowrap transition-all duration-200">
+        {/* #OPT-14: Search avec clear button */}
         <div className="relative flex-1 min-w-[200px] max-w-sm w-full lg:w-auto">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 dark:text-slate-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
           <Input
             placeholder="Rechercher un client, un SIREN..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             aria-label="Rechercher un client"
-            className="pl-9 h-9 rounded-lg bg-slate-50 dark:bg-white/[0.04] border-slate-200 dark:border-white/[0.08] text-sm placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/40 dark:focus:ring-blue-400/20"
+            className="pl-9 pr-8 h-9 rounded-lg bg-white/[0.04] border-white/[0.08] text-sm placeholder:text-slate-500 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/40"
           />
+          {search && (
+            <button onClick={() => setSearch("")} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
         <Select value={filterVigilance} onValueChange={setFilterVigilance}>
           <SelectTrigger className="w-full lg:w-[160px] h-9 rounded-lg border-slate-200 dark:border-white/[0.08] bg-white dark:bg-white/[0.04] text-sm text-slate-600 dark:text-slate-300 px-3">
@@ -660,8 +791,9 @@ export default function BddPage() {
 
       {/* Desktop table */}
       {clients.length > 0 && (
-        <div ref={tableRef} aria-label="Liste des clients" className="hidden sm:block rounded-xl border border-slate-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] shadow-sm dark:shadow-none overflow-hidden">
-          <div className="overflow-x-auto max-h-[calc(100vh-320px)] overflow-y-auto [&::-webkit-scrollbar]:h-1.5">
+        {/* #OPT-21: Table container ameliore */}
+        <div ref={tableRef} aria-label="Liste des clients" className="hidden sm:block rounded-xl border border-white/[0.06] bg-white/[0.02] shadow-lg shadow-black/5 overflow-hidden">
+          <div className="overflow-x-auto max-h-[calc(100vh-380px)] overflow-y-auto [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full">
             <Table>
               {/* #21-23 — Styled sticky header */}
               <TableHeader className="sticky top-0 z-10 bg-slate-50 dark:bg-[#0f1117]">
@@ -771,43 +903,31 @@ export default function BddPage() {
                           aria-label={`Selectionner ${client.raisonSociale}`}
                         />
                       </TableCell>
-                      {/* #2 — Client (avatar + name + ref) */}
+                      {/* #OPT-15: Client (avatar dark-mode + name + ref) */}
                       <TableCell className="px-3 py-3">
                         <div className="flex items-center gap-2.5">
-                          <div
-                            className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold shrink-0"
-                            style={{
-                              backgroundColor: `hsl(${hue}, 60%, 92%)`,
-                              color: `hsl(${hue}, 70%, 35%)`,
-                            }}
-                          >
-                            <span className="dark:hidden">{getUserInitials(client.raisonSociale || "?")}</span>
-                            <span
-                              className="hidden dark:inline"
-                              style={{ color: `hsl(${hue}, 50%, 75%)` }}
-                            >
-                              {getUserInitials(client.raisonSociale || "?")}
-                            </span>
+                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 ${avatarStyle(client.raisonSociale || "?").bg} ${avatarStyle(client.raisonSociale || "?").text}`}>
+                            {getUserInitials(client.raisonSociale || "?")}
                           </div>
                           <div className="min-w-0">
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <p className="text-sm font-medium text-slate-800 dark:text-white truncate max-w-[200px]">
+                                <p className="text-sm font-medium text-white truncate max-w-[200px]">
                                   {client.raisonSociale}
                                 </p>
                               </TooltipTrigger>
                               <TooltipContent side="top">
-                                <p>{client.raisonSociale}</p>
+                                <p>{client.raisonSociale} · {client.siren || "Pas de SIREN"}</p>
                               </TooltipContent>
                             </Tooltip>
-                            <p className="text-[11px] text-slate-400 dark:text-slate-500 font-mono">{client.ref}</p>
+                            <p className="text-[11px] text-slate-500 font-mono">{client.ref}</p>
                           </div>
                         </div>
                       </TableCell>
-                      {/* #3 — Forme */}
+                      {/* #OPT-16: Forme juridique avec badge ameliore */}
                       <TableCell className="px-3 py-3">
-                        <span className="text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded bg-slate-100 dark:bg-white/[0.06] text-slate-500 dark:text-slate-400">
-                          {client.forme}
+                        <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-md bg-slate-500/10 text-slate-400 border border-slate-500/10">
+                          {formeShort(client.forme)}
                         </span>
                       </TableCell>
                       {/* #4 — Comptable (hidden below xl) */}
@@ -829,30 +949,33 @@ export default function BddPage() {
                           <span className="text-xs text-slate-300 dark:text-slate-600">—</span>
                         )}
                       </TableCell>
-                      {/* #5 — Mission (hidden below xl) */}
-                      <TableCell className="px-3 py-3 text-xs text-slate-500 dark:text-slate-400 hidden xl:table-cell">
-                        {client.mission}
+                      {/* #OPT-17: Mission formatee (plus d'underscore) */}
+                      <TableCell className="px-3 py-3 hidden xl:table-cell">
+                        <span className="text-xs text-slate-400">{formatMission(client.mission)}</span>
                       </TableCell>
-                      {/* #6 — Risque (score circle + vigilance badge) */}
+                      {/* #OPT-18: Risque ameliore avec score + vigilance */}
                       <TableCell className="px-3 py-3">
                         <div className="flex items-center gap-2">
-                          {/* Score circle 28px */}
-                          <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold ring-1 ${
-                            client.scoreGlobal <= 25
-                              ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 ring-emerald-200 dark:ring-emerald-500/20"
-                              : client.scoreGlobal < 60
-                              ? "bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 ring-amber-200 dark:ring-amber-500/20"
-                              : "bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 ring-red-200 dark:ring-red-500/20"
-                          }`}>
-                            {client.scoreGlobal}
-                          </div>
-                          {/* Vigilance badge */}
-                          <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${
+                                client.scoreGlobal <= 25
+                                  ? "bg-emerald-500/15 text-emerald-400"
+                                  : client.scoreGlobal < 60
+                                  ? "bg-amber-500/15 text-amber-400"
+                                  : "bg-red-500/15 text-red-400"
+                              }`}>
+                                {client.scoreGlobal}
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">Score de risque LCB-FT : {client.scoreGlobal}/120</TooltipContent>
+                          </Tooltip>
+                          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
                             client.nivVigilance === "SIMPLIFIEE"
-                              ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                              ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
                               : client.nivVigilance === "RENFORCEE"
-                              ? "bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400"
-                              : "bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                              ? "bg-red-500/10 text-red-400 border-red-500/20"
+                              : "bg-amber-500/10 text-amber-400 border-amber-500/20"
                           }`}>
                             {client.nivVigilance === "SIMPLIFIEE" ? "Simplifiee" : client.nivVigilance === "RENFORCEE" ? "Renforcee" : "Standard"}
                           </span>
@@ -886,35 +1009,50 @@ export default function BddPage() {
                           </TooltipContent>
                         </Tooltip>
                       </TableCell>
-                      {/* #8 — KYC progress bar (hidden below lg) */}
+                      {/* #OPT-19: KYC progress ameliore avec tooltip */}
                       <TableCell className="px-3 py-3 hidden lg:table-cell">
-                        <div className="flex items-center justify-center gap-1.5">
-                          <div className="w-12 h-1.5 rounded-full bg-slate-200 dark:bg-white/[0.08]">
-                            <div
-                              className={`rounded-full h-full transition-all duration-500 ${
-                                kycPct >= 75 ? "bg-emerald-500" : kycPct >= 50 ? "bg-amber-500" : "bg-red-500"
-                              }`}
-                              style={{ width: `${kycPct}%` }}
-                            />
-                          </div>
-                          <span className="text-[11px] text-slate-500 dark:text-slate-400">{kycPct}%</span>
-                        </div>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="flex items-center justify-center gap-1.5 cursor-default">
+                              <div className="w-14 h-2 rounded-full bg-white/[0.08] overflow-hidden">
+                                <div
+                                  className={`rounded-full h-full transition-all duration-700 ${
+                                    kycPct >= 100 ? "bg-emerald-500" : kycPct >= 75 ? "bg-emerald-500" : kycPct >= 50 ? "bg-amber-500" : "bg-red-500"
+                                  }`}
+                                  style={{ width: `${kycPct}%` }}
+                                />
+                              </div>
+                              <span className={`text-[11px] font-medium ${kycPct >= 100 ? "text-emerald-400" : kycPct >= 50 ? "text-amber-400" : "text-red-400"}`}>{kycPct}%</span>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent side="top">
+                            <p>KYC : {kycPct}% complete</p>
+                            <p className="text-[10px] text-slate-400">{!client.siren ? "SIREN manquant" : ""}{!client.mail ? " · Email manquant" : ""}{!client.iban ? " · IBAN manquant" : ""}{!client.adresse ? " · Adresse manquante" : ""}</p>
+                          </TooltipContent>
+                        </Tooltip>
                       </TableCell>
-                      {/* #9 — Butoir (conditional color, hidden below lg) */}
+                      {/* #OPT-20: Butoir formate + relative + couleur */}
                       <TableCell className="px-3 py-3 hidden lg:table-cell">
                         {client.dateButoir ? (
-                          <div className={`flex items-center gap-1 text-sm ${
-                            days !== null && days <= 7
-                              ? "text-red-500 dark:text-red-400 font-medium"
-                              : days !== null && days <= 30
-                              ? "text-amber-500 dark:text-amber-400"
-                              : "text-slate-500 dark:text-slate-400"
-                          }`}>
-                            {days !== null && days <= 7 && <AlertTriangle className="w-3 h-3 shrink-0" />}
-                            {client.dateButoir}
-                          </div>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className={`flex flex-col ${
+                                days !== null && days <= 0 ? "text-red-400" :
+                                days !== null && days <= 7 ? "text-red-400" :
+                                days !== null && days <= 30 ? "text-amber-400" :
+                                "text-slate-400"
+                              }`}>
+                                <span className="text-xs font-medium flex items-center gap-1">
+                                  {days !== null && days <= 7 && <AlertTriangle className="w-3 h-3 shrink-0" />}
+                                  {formatDateShort(client.dateButoir)}
+                                </span>
+                                <span className="text-[9px] opacity-70">{relativeButoir(days)}</span>
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">{days !== null && days >= 0 ? `${days} jours restants` : days !== null ? `${Math.abs(days)} jours de retard` : ""}</TooltipContent>
+                          </Tooltip>
                         ) : (
-                          <span className="text-sm text-slate-300 dark:text-slate-600">—</span>
+                          <span className="text-xs text-slate-600">—</span>
                         )}
                       </TableCell>
                       {/* #10 — Actions (chevron + dropdown) */}

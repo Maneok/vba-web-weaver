@@ -67,59 +67,69 @@ export async function loadScoringData(cabinetId: string): Promise<ScoringData> {
   try {
     // #15 - Load templates (cabinet_id IS NULL) + cabinet overrides, ordered so cabinet values come last and overwrite templates
     const [missionsRes, typesRes, paysRes, activitesRes] = await Promise.all([
-      supabase.from("ref_missions").select("code, libelle, score, cabinet_id").or(`cabinet_id.eq.${cabinetId},cabinet_id.is.null`).order("cabinet_id", { ascending: true, nullsFirst: true }),
-      supabase.from("ref_types_juridiques").select("code, libelle, score, cabinet_id").or(`cabinet_id.eq.${cabinetId},cabinet_id.is.null`).order("cabinet_id", { ascending: true, nullsFirst: true }),
-      supabase.from("ref_pays").select("code, libelle, libelle_nationalite, score, est_gafi_noir, est_gafi_gris, est_offshore, cabinet_id").or(`cabinet_id.eq.${cabinetId},cabinet_id.is.null`).order("cabinet_id", { ascending: true, nullsFirst: true }),
-      supabase.from("ref_activites").select("code, libelle, score, cabinet_id").or(`cabinet_id.eq.${cabinetId},cabinet_id.is.null`).order("cabinet_id", { ascending: true, nullsFirst: true }),
+      supabase.from("ref_missions").select("code, libelle, score, cabinet_id").or(`cabinet_id.eq.${cabinetId},cabinet_id.is.null`),
+      supabase.from("ref_types_juridiques").select("code, libelle, score, cabinet_id").or(`cabinet_id.eq.${cabinetId},cabinet_id.is.null`),
+      supabase.from("ref_pays").select("code, libelle, libelle_nationalite, score, est_gafi_noir, est_gafi_gris, est_offshore, cabinet_id").or(`cabinet_id.eq.${cabinetId},cabinet_id.is.null`),
+      supabase.from("ref_activites").select("code, libelle, score, cabinet_id").or(`cabinet_id.eq.${cabinetId},cabinet_id.is.null`),
     ]);
 
-    const missions = new Map<string, number>();
-    if (missionsRes.data) {
-      for (const row of missionsRes.data) {
-        const r = row as Record<string, unknown>;
-        const score = (r.score as number) ?? 25;
-        // #16 - Index by code, normalized code (spaces), and libelle (upper)
-        if (r.code) missions.set(r.code as string, score);
-        if (r.code) missions.set(normalizeKey(r.code as string), score);
-        if (r.libelle) missions.set((r.libelle as string).toUpperCase().trim(), score);
+    // Helper: insert into map with 2-pass priority — templates first, then cabinet overrides
+    const insertScoreMap = (rows: Record<string, unknown>[] | null, map: Map<string, number>, defaultScore: number) => {
+      if (!rows) return;
+      // Pass 1: templates (cabinet_id IS NULL)
+      for (const r of rows) {
+        if (r.cabinet_id !== null) continue;
+        const score = (r.score as number) ?? defaultScore;
+        if (r.code) { map.set(r.code as string, score); map.set(normalizeKey(r.code as string), score); }
+        if (r.libelle) map.set((r.libelle as string).toUpperCase().trim(), score);
       }
-    }
+      // Pass 2: cabinet-specific (overwrite templates)
+      for (const r of rows) {
+        if (r.cabinet_id === null) continue;
+        const score = (r.score as number) ?? defaultScore;
+        if (r.code) { map.set(r.code as string, score); map.set(normalizeKey(r.code as string), score); }
+        if (r.libelle) map.set((r.libelle as string).toUpperCase().trim(), score);
+      }
+    };
+
+    const missions = new Map<string, number>();
+    insertScoreMap(missionsRes.data as Record<string, unknown>[] | null, missions, 25);
 
     const typesJuridiques = new Map<string, number>();
-    if (typesRes.data) {
-      for (const row of typesRes.data) {
-        const r = row as Record<string, unknown>;
-        const score = (r.score as number) ?? 20;
-        typesJuridiques.set(r.code as string, score);
-        if (r.code) typesJuridiques.set(normalizeKey(r.code as string), score);
-        if (r.libelle) typesJuridiques.set((r.libelle as string).toUpperCase().trim(), score);
-      }
-    }
+    insertScoreMap(typesRes.data as Record<string, unknown>[] | null, typesJuridiques, 20);
+
+    const activites = new Map<string, number>();
+    insertScoreMap(activitesRes.data as Record<string, unknown>[] | null, activites, 25);
 
     const pays = new Map<string, PaysRisqueData>();
     if (paysRes.data) {
+      // Pass 1: templates
       for (const row of paysRes.data) {
         const r = row as Record<string, unknown>;
+        if (r.cabinet_id !== null) continue;
         const paysData: PaysRisqueData = {
           score: (r.score as number) ?? 0,
           est_gafi_noir: (r.est_gafi_noir as boolean) ?? false,
           est_gafi_gris: (r.est_gafi_gris as boolean) ?? false,
           est_offshore: (r.est_offshore as boolean) ?? false,
         };
-        // #17 - Index by code, libelle, and nationality for broad matching
         if (r.code) pays.set(r.code as string, paysData);
         if (r.libelle) pays.set((r.libelle as string).toUpperCase().trim(), paysData);
         if (r.libelle_nationalite) pays.set((r.libelle_nationalite as string).toUpperCase().trim(), paysData);
       }
-    }
-
-    const activites = new Map<string, number>();
-    if (activitesRes.data) {
-      for (const row of activitesRes.data) {
+      // Pass 2: cabinet overrides
+      for (const row of paysRes.data) {
         const r = row as Record<string, unknown>;
-        const score = (r.score as number) ?? 25;
-        if (r.code) activites.set(r.code as string, score);
-        if (r.libelle) activites.set((r.libelle as string).toUpperCase().trim(), score);
+        if (r.cabinet_id === null) continue;
+        const paysData: PaysRisqueData = {
+          score: (r.score as number) ?? 0,
+          est_gafi_noir: (r.est_gafi_noir as boolean) ?? false,
+          est_gafi_gris: (r.est_gafi_gris as boolean) ?? false,
+          est_offshore: (r.est_offshore as boolean) ?? false,
+        };
+        if (r.code) pays.set(r.code as string, paysData);
+        if (r.libelle) pays.set((r.libelle as string).toUpperCase().trim(), paysData);
+        if (r.libelle_nationalite) pays.set((r.libelle_nationalite as string).toUpperCase().trim(), paysData);
       }
     }
 
