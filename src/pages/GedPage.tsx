@@ -123,6 +123,7 @@ export default function GedPage() {
   const [previewDoc, setPreviewDoc] = useState<GEDDocument | null>(null);
   const [previewUrl, setPreviewUrl] = useState("");
   const [previewOpen, setPreviewOpen] = useState(false);
+  const previewRequestId = useRef(0); // Guards against race conditions in handlePreview
   const [selectedDocIds, setSelectedDocIds] = useState<string[]>([]);
 
   // Upload dialog state
@@ -204,17 +205,27 @@ export default function GedPage() {
   /* ─── Actions ─── */
 
   const handlePreview = useCallback(async (doc: GEDDocument) => {
+    // FIX #2: Increment request ID to cancel stale async results
+    const thisRequest = ++previewRequestId.current;
+
+    // Show panel immediately with loading state
+    setPreviewDoc(doc);
+    setPreviewUrl(""); // Clear old URL to avoid showing wrong doc
+    setPreviewOpen(true);
+    setDocTags((doc as unknown as Record<string, unknown>).tags as string[] || []);
+    setDocNotes((doc as unknown as Record<string, unknown>).notes as string || "");
+
     try {
       const url = await getSignedUrl(doc.file_path);
-      setPreviewDoc(doc);
-      setPreviewUrl(url);
-      setPreviewOpen(true);
-      // Load tags & notes
-      setDocTags((doc as unknown as Record<string, unknown>).tags as string[] || []);
-      setDocNotes((doc as unknown as Record<string, unknown>).notes as string || "");
+      // FIX #2: Only update if this is still the active request
+      if (previewRequestId.current === thisRequest) {
+        setPreviewUrl(url);
+      }
       fireAudit("preview", doc.id, { document_name: doc.name });
     } catch {
-      toast.error("Erreur de prévisualisation");
+      if (previewRequestId.current === thisRequest) {
+        toast.error("Impossible de charger l'apercu du document");
+      }
     }
   }, [fireAudit]);
 

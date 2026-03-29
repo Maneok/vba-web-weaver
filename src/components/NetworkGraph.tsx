@@ -68,6 +68,17 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 450, 
     svg.selectAll("*").remove();
     if (!nodes || nodes.length === 0) return;
     if (nodes.length === 1 && (!edges || edges.length === 0)) return;
+
+    // Theme detection for light/dark colors
+    const isDark = document.documentElement.classList.contains("dark");
+    const C = {
+      textPrimary: isDark ? "#e2e8f0" : "#1e293b",
+      textSecondary: isDark ? "#94a3b8" : "#64748b",
+      textMuted: isDark ? "#64748b" : "#94a3b8",
+      linkLabel: isDark ? "#60a5fa" : "#2563eb",
+      edgeStroke: isDark ? "#64748b" : "#cbd5e1",
+      gridLine: isDark ? "rgba(148,163,184,0.03)" : "rgba(148,163,184,0.08)",
+    };
     const nodeIds = new Set(nodes.map(n => n.id));
     const safeEdges = (edges ?? []).filter(e => e.source && e.target && nodeIds.has(e.source) && nodeIds.has(e.target));
 
@@ -97,8 +108,8 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 450, 
 
     // --- #37: Subtle grid lines background ---
     const gridPat = defs.append("pattern").attr("id", "grid-lines").attr("width", 40).attr("height", 40).attr("patternUnits", "userSpaceOnUse");
-    gridPat.append("line").attr("x1", 0).attr("y1", 0).attr("x2", 40).attr("y2", 0).attr("stroke", "rgba(148,163,184,0.03)").attr("stroke-width", 0.5);
-    gridPat.append("line").attr("x1", 0).attr("y1", 0).attr("x2", 0).attr("y2", 40).attr("stroke", "rgba(148,163,184,0.03)").attr("stroke-width", 0.5);
+    gridPat.append("line").attr("x1", 0).attr("y1", 0).attr("x2", 40).attr("y2", 0).attr("stroke", C.gridLine).attr("stroke-width", 0.5);
+    gridPat.append("line").attr("x1", 0).attr("y1", 0).attr("x2", 0).attr("y2", 40).attr("stroke", C.gridLine).attr("stroke-width", 0.5);
     svg.append("rect").attr("width", width).attr("height", height).attr("fill", "url(#grid-lines)");
 
     const g = svg.append("g");
@@ -177,7 +188,7 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 450, 
       .append("path")
       .attr("d", "M0,1 L10,4 L0,7")
       .attr("fill", "none")
-      .attr("stroke", "#64748b")
+      .attr("stroke", C.edgeStroke)
       .attr("stroke-width", 1.2);
 
     // --- #28: Curved edges (quadratic bezier) ---
@@ -458,7 +469,7 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 450, 
     // #22: Node name — bold 12px
     addLabel(node, d => d.label || "—", {
       dy: (d: any) => d.isSource ? 35 * S + 18 * S : d.type === "person" ? 26 * S + 18 * S : 52 * S / 2 + 16 * S,
-      fontSize: 12, fontWeight: "700", fill: "#e2e8f0",
+      fontSize: 12, fontWeight: "700", fill: C.textPrimary,
     });
 
     // #23: Sub-label for companies: "SIREN — VILLE"
@@ -467,7 +478,7 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 450, 
       return ville ? `${d.siren} — ${ville}` : (d.siren ?? "");
     }, {
       dy: (d: any) => 52 * S / 2 + 30 * S,
-      fontSize: 8, fontWeight: "400", fill: "#64748b",
+      fontSize: 8, fontWeight: "400", fill: C.textMuted,
     });
 
     // #24: Sub-label for persons: role in italic
@@ -477,13 +488,13 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 450, 
       return edge ? ((edge as any).label ?? "").split(" (")[0] : "";
     }, {
       dy: () => 26 * S + 32 * S,
-      fontSize: 9, fontWeight: "400", fill: "#94a3b8", italic: true,
+      fontSize: 9, fontWeight: "400", fill: C.textSecondary, italic: true,
     });
 
     // #25: Client sub-label "(Client analyse)"
     addLabel(node.filter(d => d.isSource), () => "(Client analyse)", {
       dy: () => 35 * S + 32 * S,
-      fontSize: 8, fontWeight: "400", fill: "#60a5fa",
+      fontSize: 8, fontWeight: "400", fill: C.linkLabel,
     });
 
     // --- #49: Auto-fit zoom with ease-in-out ---

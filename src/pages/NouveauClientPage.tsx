@@ -4942,9 +4942,14 @@ export default function NouveauClientPage() {
                               <span className={`absolute top-1 right-1 text-[7px] px-1 py-0.5 rounded ${
                                 obligationLevel === "obligatoire" ? "bg-red-500/10 text-red-400" : "bg-amber-500/10 text-amber-400"
                               }`}>{obligationLevel === "obligatoire" ? "Requis" : "Recommande"}</span>
-                              {item.found ? <CheckCircle2 className="w-4 h-4 text-emerald-400 mx-auto mb-0.5 animate-check-pop" /> : <Upload className="w-4 h-4 text-orange-400 mx-auto mb-0.5" />}
+                              <div className="relative inline-flex items-center justify-center mx-auto mb-0.5">
+                                {item.found ? <CheckCircle2 className="w-4 h-4 text-emerald-400 animate-check-pop" /> : <Upload className="w-4 h-4 text-orange-400" />}
+                                {item.found && item.hasPdf && (
+                                  <Eye className="w-3 h-3 text-blue-400 absolute -right-3.5 -top-0.5 opacity-60" />
+                                )}
+                              </div>
                               <p className={`text-[11px] font-medium leading-tight ${item.found ? (kbisExpiry?.expired ? "text-red-400" : "text-emerald-400") : "text-orange-400"}`}>{item.label}</p>
-                              {item.hasPdf && !kbisExpiry?.expired && <p className="text-[8px] text-emerald-500 mt-0.5">Recupere automatiquement</p>}
+                              {item.hasPdf && !kbisExpiry?.expired && <p className="text-[8px] text-emerald-500 mt-0.5">Cliquez pour previsualiser</p>}
                               {item.hasUpload && !item.hasPdf && <p className="text-[8px] text-amber-400 mt-0.5">Upload manuel</p>}
                               {!item.found && <p className="text-[8px] text-orange-400 mt-0.5">Cliquez pour uploader</p>}
                               {/* R2-35: Expiration date for Kbis */}
